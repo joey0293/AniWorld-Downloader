@@ -1,45 +1,57 @@
+import re
+
 from config import logger, GLOBAL_SESSION
 
 
 class AniworldSeries:
     """
-    Attributes:
-        url
-        title
-        description
-        genres
-        release_year
-        poster_url
-        directors
-        actors
-        producer
-        country
-        age_rating
-        rating
-        seasons
-        _html
+    Represents an anime series on AniWorld.
+
+    Parameters:
+        url:    Required. Must be a valid AniWorld series URL,
+                e.g. https://aniworld.to/anime/stream/highschool-dxd
+
+    Attributes (Example):
+        url:            https://aniworld.to/anime/stream/highschool-dxd
+        title:          Highschool DxD
+        description:    Oberschüler Issei Hyodo findet einfach keine Freundin [...]
+        genres:         ['Actionkomödie', 'Action', 'Ecchi', 'EngSub', 'Ger', 'GerSub', 'Harem', 'Komödie', 'Romanze']
+        release_year:   2012-2018
+        poster_url:     https://aniworld.to/public/img/cover/highschool-dxd-stream-cover-iepoc76t56fF6faMuE6yOo3f4RrvQW3a_220x330.jpg
+        directors:      ['Tetsuya Yanagisawa']
+        actors:         'Yūki Kaji', 'Ayana Taketatsu', 'Shizuka Itō', 'Yoko Hikasa', 'Azumi Asakura', ...]
+        producer:       TNK
+        country:        Japan
+        age_rating:     16
+        rating:         4/5
+        has_movies:     True
+        seasons:        [<AniworldSeason.AniworldSeason object at 0x10dc15be0>, ...]
+        season_count:   4
+        _html:          <!doctype html> ...
     """
 
     def __init__(self, url: str):
         self.url = url
 
-        self.__html = None
-
+        # Extracted from self.html
         self.__title = None
         self.__description = None
         self.__genres = None
         self.__release_year = None
         self.__poster_url = None
-
         self.__directors = None
         self.__actors = None
         self.__producer = None
         self.__country = None
         self.__age_rating = None
         self.__rating = None
+
         self.__has_movies = None
 
-        self.__seasons = None  # AniworldSeason objects (lazy-loaded)
+        self.__seasons = None
+        self.__season_count = None
+
+        self.__html = None
 
     # -----------------------------
     # PUBLIC PROPERTIES (lazy load)
@@ -120,22 +132,28 @@ class AniworldSeries:
         return self.__rating
 
     @property
+    def has_movies(self):
+        if self.__has_movies is None:
+            self.__has_movies = self.__extract_movies()
+        return self.__has_movies
+
+    @property
     def seasons(self):
         if self.__seasons is None:
             self.__seasons = self.__extract_seasons()
         return self.__seasons
 
     @property
-    def has_movies(self):
-        if self.__has_movies is None:
-            self.__has_movies = self.__extract_has_movies()
-        return self.__has_movies
+    def season_count(self):
+        if self.__season_count is None:
+            self.__season_count = self.__extract_season_count()
+        return self.__season_count
 
     # -----------------------------
     # PRIVATE EXTRACTION FUNCTIONS
     # -----------------------------
 
-    def __extract_title(self) -> str:
+    def __extract_title(self):
         """
         <div class="series-title">
             <h1 itemprop="name" title="Animes Stream: 哥布林猎人, Goburin Sureiyā, 고블린슬레이어, Goblin Katili" data-alternativetitles="哥布林猎人, Goburin Sureiyā, 고블린슬레이어, Goblin Katili"><span>Goblin Slayer</span></h1>
@@ -161,7 +179,7 @@ class AniworldSeries:
         title = html[span_start + len("<span>") : span_end].strip()
         return title
 
-    def __extract_description(self) -> str | None:
+    def __extract_description(self):
         """
         <p class="seri_des" itemprop="accessibilitySummary" data-description-type="review" data-full-description="Goblins - die schwächsten aller Monster. Mit der Stärke und dem Verstand von kleinen Kindern ausgestattet, können sie lediglich ihre immerwährende Überzahl zu ihren Stärken zählen. Doch so dumm die Goblins auch sein mögen, sie sind keine Narren und ihr kindliches Denken schlägt schnell ins Grausame und Brutale um, wenn sie glauben, dass ihnen Unrecht geschieht. Eine junge Priesterin, gerade einmal 15 Jahre alt, beschließt, ihren Tempel zu verlassen und als Abenteuerin die Welt etwas sicherer zu machen. Jeder fängt klein an und so schließt sie sich spontan einer Gruppe Abenteurer an, die gerade einen Quest angenommen hat, der sie gegen eben diese schwächsten aller Monster führt: Ein paar Mädchen wurden von Goblins entführt und bevor diese zu deren Spielzeugen werden, gilt es, die Goblins zu töten und die Mädchen zu retten!">Goblins - die schwächsten aller Monster. Mit der Stärke und dem Verstand von kleinen Kindern ausgestattet, können sie lediglich ihre immerwährende Überzahl zu ihren Stärken zählen. Doch so dumm die Goblins auch sein mögen, sie sind keine Narren und ihr kindliches Denken schlägt schnell ins...<span class="showMore">mehr anzeigen</span></p>
         """
@@ -187,7 +205,7 @@ class AniworldSeries:
         description = html[value_start:value_end].strip()
         return description
 
-    def __extract_genres(self) -> list[str]:
+    def __extract_genres(self):
         """
         <div class="genres">
             <ul data-main-genre="action">
@@ -242,7 +260,7 @@ class AniworldSeries:
 
         return genres
 
-    def __extract_release_year(self) -> str:
+    def __extract_release_year(self):
         """
         <div class="series-title">
             <h1 itemprop="name" title="Animes Stream: 哥布林猎人, Goburin Sureiyā, 고블린슬레이어, Goblin Katili" data-alternativetitles="哥布林猎人, Goburin Sureiyā, 고블린슬레이어, Goblin Katili"><span>Goblin Slayer</span></h1>
@@ -301,7 +319,7 @@ class AniworldSeries:
 
         return f"{start_year}-{end_year}"
 
-    def __extract_poster_url(self) -> str:
+    def __extract_poster_url(self):
         """
         <div class="seriesCoverBox"><img src="/public/img/cover/sentenced-to-be-a-hero-stream-cover-R6nfhysg9tvuw9XnflBmesyEmaLPrtp1_220x330.png" data-src="/public/img/cover/sentenced-to-be-a-hero-stream-cover-R6nfhysg9tvuw9XnflBmesyEmaLPrtp1_220x330.png" alt="Sentenced to Be a Hero, Cover, HD, Anime Stream, ganze Folge" itemprop="image" title="Cover Sentenced to Be a Hero AniWorld" class="loaded" data-was-processed="true"><noscript><img src="/public/img/cover/sentenced-to-be-a-hero-stream-cover-R6nfhysg9tvuw9XnflBmesyEmaLPrtp1_220x330.png" alt="Sentenced to Be a Hero, Cover, HD, Anime Stream, ganze Folge" itemprop="image" title="Cover Sentenced to Be a Hero AniWorld"></noscript></div>
         """
@@ -335,7 +353,7 @@ class AniworldSeries:
 
         return f"https://aniworld.to{rel_url}"
 
-    def __extract_directors(self) -> list[str]:
+    def __extract_directors(self):
         """
         <li class="seriesDirector"><strong>Regisseure:</strong>
             <ul>
@@ -381,7 +399,7 @@ class AniworldSeries:
 
         return directors
 
-    def __extract_actors(self) -> list[str]:
+    def __extract_actors(self):
         """
         <li><strong style="float: left;" class="seriesActor">Schauspieler:</strong>
             <ul class="showHiddenArea">
@@ -437,7 +455,7 @@ class AniworldSeries:
 
         return actors
 
-    def __extract_producer(self) -> str:
+    def __extract_producer(self):
         """
         <li><strong style="float: left;" class="seriesProducer">Produzent:</strong>
             <ul>
@@ -481,7 +499,7 @@ class AniworldSeries:
 
         return ", ".join(producers) if producers else None
 
-    def __extract_country(self) -> str:
+    def __extract_country(self):
         """
         <li><strong style="float: left;" class="seriesCountry">Land:</strong>
             <ul>
@@ -517,7 +535,7 @@ class AniworldSeries:
 
         return ul_html[name_start:name_end].strip()
 
-    def __extract_age_rating(self) -> str:
+    def __extract_age_rating(self):
         """
         <div title="Empfohlene Altersfreigabe: 16 Jahre" data-fsk="16" class="fsk fsk16">Ab: <span>16</span></div>
         """
@@ -537,7 +555,7 @@ class AniworldSeries:
 
         return html[start:end].strip()
 
-    def __extract_rating(self) -> str:
+    def __extract_rating(self):
         logger.debug("extracting rating...")
 
         html = self._html
@@ -568,67 +586,7 @@ class AniworldSeries:
 
         return f"{rating_value}/{best_rating}"
 
-    def __extract_seasons(self):
-        """
-        Extracts number of seasons from meta tag and creates AniworldSeason objects
-        <meta itemprop="numberOfSeasons" content="3">
-        """
-        logger.debug("extracting seasons...")
-
-        html = self._html
-
-        # Import here to avoid circular import
-        from AniworldSeason import AniworldSeason
-
-        # Look for the numberOfSeasons meta tag
-        marker = 'itemprop="numberOfSeasons"'
-        pos = html.find(marker)
-        if pos == -1:
-            logger.debug("numberOfSeasons meta tag not found, defaulting to 1 season")
-            return [AniworldSeason(f"{self.url}/staffel-1")]
-
-        # Extract content attribute value
-        content_marker = 'content="'
-        content_pos = html.find(content_marker, pos)
-        if content_pos == -1:
-            logger.debug("content attribute not found, defaulting to 1 season")
-            return [AniworldSeason(f"{self.url}/staffel-1")]
-
-        content_start = content_pos + len(content_marker)
-        content_end = html.find('"', content_start)
-        if content_end == -1:
-            logger.debug("content end not found, defaulting to 1 season")
-            return [AniworldSeason(f"{self.url}/staffel-1")]
-
-        num_seasons_str = html[content_start:content_end].strip()
-        try:
-            num_seasons = int(num_seasons_str)
-        except ValueError:
-            logger.debug(
-                f"Could not parse number of seasons: {num_seasons_str}, defaulting to 1"
-            )
-            return [AniworldSeason(f"{self.url}/staffel-1")]
-
-        logger.debug(f"Found {num_seasons} seasons (may include movies...)")
-
-        # Check if movies are present and subtract from count if needed
-        if self.has_movies:
-            logger.debug("Movies detected, subtracting one from season count")
-            num_seasons -= 1
-
-        logger.debug(f"Final season count: {num_seasons}")
-
-        self.season_count = num_seasons
-
-        # Create season objects for each season
-        seasons = []
-        for season_num in range(1, num_seasons + 1):
-            season_url = f"{self.url}/staffel-{season_num}"
-            seasons.append(AniworldSeason(season_url))
-
-        return seasons
-
-    def __extract_has_movies(self):
+    def __extract_movies(self):
         """
         Detects if the series has movies by looking for the Filme link
         <li><a href="/anime/stream/goblin-slayer/filme" title="Alle Filme">Filme</a></li>
@@ -645,51 +603,94 @@ class AniworldSeries:
         logger.debug(f"Has movies: {has_movies}")
         return has_movies
 
+    def __extract_seasons(self):
+        """
+        Extracts:
+          - Staffel-X seasons
+          - Optional /filme container (NOT a season)
+        """
+        logger.debug("extracting seasons...")
+
+        html = self._html
+
+        from AniworldSeason import AniworldSeason
+
+        seasons = []
+        seen = set()
+
+        # -----------------------------
+        # Extract numbered seasons
+        # -----------------------------
+        staffel_matches = re.findall(
+            r'href="(/anime/stream/[^/]+/staffel-(\d+))"', html
+        )
+
+        for rel_url, num in staffel_matches:
+            url = "https://aniworld.to" + rel_url
+            if url in seen:
+                continue
+            seen.add(url)
+            seasons.append(AniworldSeason(url, series=self))
+
+        logger.debug(
+            f"Found {len([s for s in seasons if not s.are_movies])} seasons (may include movies...)"
+        )
+
+        if self.has_movies:
+            seasons.append(AniworldSeason(f"{self.url}/filme", series=self))
+        else:
+            logger.debug("Has movies: False")
+
+        seasons.sort(key=lambda s: (s.are_movies, s.season_number or 0))
+
+        return seasons
+
+    def __extract_season_count(self):
+        if self.has_movies:
+            return len(self.seasons) - 1
+
+        return len(self.seasons)
+
 
 if __name__ == "__main__":
-    series = AniworldSeries("https://aniworld.to/anime/stream/kaguya-sama-love-is-war")
+    series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
 
-    # nothing should be loaded as passing url is required
-    print(series.url)
+    print("\n" + "=" * 60)
+    print(f"SERIES OVERVIEW — {series.title}")
+    print("=" * 60)
 
-    # should only fetch the html of url once even if called two times
-    print(series.title)
-    print(series.title)
-    print(series._html[:34])
+    fields = {
+        "URL": series.url,
+        "Title": series.title,
+        "Description": series.description[:30],
+        "Genres": ", ".join(series.genres),
+        "Release Years": series.release_year,
+        "Poster URL": series.poster_url,
+        "Directors": ", ".join(series.directors),
+        "Actors": ", ".join(series.actors) + " ...",
+        "Producer": series.producer,
+        "Country": series.country,
+        "Age Rating": series.age_rating,
+        "Rating": series.rating,
+        "Has Movies": series.has_movies,
+        "Season Count": series.season_count,
+    }
 
-    # should reuse html which is already fetched from the series.title call
-    print(series.description)
-    print(series.genres)
-    print(series.release_year)
-    print(series.poster_url)
-    print(series.directors)
-    print(series.actors)
-    print(series.producer)
-    print(series.country)
-    print(series.age_rating)
-    print(series.rating)
+    max_key_len = max(len(k) for k in fields.keys())
+    for key, value in fields.items():
+        print(f"{key:<{max_key_len}} : {value}")
 
-    print("-" * 25)
-    print(series.seasons)
+    print("\n" + "-" * 60)
+    print("SEASONS")
+    print("-" * 60)
 
-    for i in range(series.season_count):
-        print(f"{'-' * 10}Season: {i + 1}{'-' * 10}")
-        # print(f"Season: {series.seasons[i].season_number} -> Episodes: {series.seasons[i].episode_count}")
-        print(series.seasons[i].series.title)
-        print(series.seasons[i].url)
-        print(series.seasons[i].season_number)
-        print(series.seasons[i].episode_count)
+    for i, season in enumerate(series.seasons, 1):
+        if season.are_movies:
+            print("\nMovies:")
+        else:
+            print(f"\nSeason {i}:")
 
-        # Test caching: accessing episodes multiple times should not trigger new extractions
-        episodes = series.seasons[i].episodes  # First access
-        print(f"Extracted {len(episodes)} episodes")
+        print(f"  URL: {season.url}")
+        print(f"  Episodes: {season.episode_count}")
 
-        # Second access - should be cached
-        episodes2 = series.seasons[i].episodes
-
-        for j in range(series.seasons[i].episode_count):
-            print(episodes[j].url)
-            print("->", episodes[j].title_de)
-            print()
-        # print(series.seasons[i]._html[:95])
-        print(f"{'-' * 25}\n")
+    print("=" * 60 + "\n")
