@@ -162,10 +162,21 @@ class AniworldEpisode:
         if provider is None:
             provider = self.selected_provider
 
-        # Use tuple directly
-        provider_dict = self.provider_data.get(language)
-        if not provider_dict:
-            return None
+        # Find matching key by comparing enum values instead of instances
+        # This handles cases where enum instances might be different due to import/identity issues
+        matching_key = None
+        for key in self.provider_data._data.keys():
+            if key[0].value == language[0].value and key[1].value == language[1].value:
+                matching_key = key
+                break
+
+        # Use matching key if found, otherwise try direct lookup
+        if matching_key:
+            provider_dict = self.provider_data._data[matching_key]
+        else:
+            provider_dict = self.provider_data.get(language)
+            if not provider_dict:
+                return None
 
         return provider_dict.get(provider)
 
@@ -411,5 +422,5 @@ if __name__ == "__main__":
     print(episode.title_de)
     print(episode.provider_data)
 
-    # TODO: fix being None
-    print(episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon"))
+    result = episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+    print(result)

@@ -25,7 +25,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(ColorFormatter("%(levelname)s: %(message)s"))
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)  # logging.DEBUG
+logger.setLevel(logging.DEBUG)  # logging.DEBUG
 logger.addHandler(handler)
 
 # Silence urllib3
