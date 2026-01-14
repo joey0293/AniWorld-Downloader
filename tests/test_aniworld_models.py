@@ -62,6 +62,5 @@ if __name__ == "__main__":
     print("=" * 80)
 
     print("=" * 80)
-    # TODO: fix title_de, title_en, episode_number being null
     test_aniworld_models_aniworld_episode()
     print("=" * 80)
