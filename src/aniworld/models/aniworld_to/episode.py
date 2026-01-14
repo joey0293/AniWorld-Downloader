@@ -3,6 +3,7 @@ from collections import defaultdict
 from enum import Enum
 from typing import Tuple
 from urllib.parse import urlparse
+# import time
 
 from ...config import logger, GLOBAL_SESSION
 
@@ -75,7 +76,7 @@ class ProviderData:
             lines.append(header)
 
             for provider, url in providers.items():
-                lines.append(f"  • {provider:<8} -> {url}")
+                lines.append(f"  - {provider:<8} -> {url}")
 
             lines.append("")
 
@@ -127,9 +128,17 @@ class AniworldEpisode:
         _html:                  <!doctype html> ...
     """
 
-    def __init__(self, series, season, url, episode_number, title_de, title_en):
-        self.series = series
-        self.season = season
+    def __init__(
+        self,
+        url=None,
+        series=None,
+        season=None,
+        episode_number=None,
+        title_de=None,
+        title_en=None,
+    ):
+        self._series = series
+        self._season = season
         self.url = url
 
         self.title_de = title_de
@@ -147,6 +156,39 @@ class AniworldEpisode:
         self.__is_movie = None
 
         self.__html = None
+
+    @property
+    def season(self):
+        if self._season is None:
+            if not self.url:
+                raise ValueError("Episode URL is required to auto-generate season")
+
+            from .season import AniworldSeason
+
+            if self.is_movie:
+                # https://aniworld.to/anime/stream/masamune-kuns-revenge/filme
+                movie_match = re.search(
+                    r"^(https://aniworld\.to/anime/stream/[^/]+/filme)",
+                    self.url,
+                )
+                if not movie_match:
+                    raise ValueError(
+                        f"Could not extract movie season from URL: {self.url}"
+                    )
+                season_url = movie_match.group(1)
+            else:
+                # https://aniworld.to/anime/stream/masamune-kuns-revenge/staffel-1
+                season_match = re.search(
+                    r"^(https://aniworld\.to/anime/stream/[^/]+/staffel-\d+)",
+                    self.url,
+                )
+                if not season_match:
+                    raise ValueError(f"Could not extract season from URL: {self.url}")
+                season_url = season_match.group(1)
+
+            self._season = AniworldSeason(season_url, series=self.series)
+
+        return self._season
 
     @property
     def _html(self):
@@ -202,6 +244,33 @@ class AniworldEpisode:
                 return None
 
         return provider_dict.get(provider)
+
+    def download(self):
+        print(f"[DOWNLOADING] {self.url}")
+
+        for _ in range(3):
+            print(".", end="", flush=True)
+            # time.sleep(0.1)
+
+        print()
+
+    def watch(self):
+        print(f"[WATCHING] {self.url}")
+
+        for _ in range(3):
+            print(".", end="", flush=True)
+            # time.sleep(0.1)
+
+        print()
+
+    def syncplay(self):
+        print(f"[SYNCPLAYING] {self.url}")
+
+        for _ in range(3):
+            print(".", end="", flush=True)
+            # time.sleep(0.1)
+
+        print()
 
     # -----------------------------
     # Extraction helpers
@@ -393,65 +462,3 @@ class AniworldEpisode:
         """
         pattern = r"^https://aniworld\.to/anime/stream/[^/]+/filme/film-\d+/?$"
         return re.match(pattern, self.url) is not None
-
-
-if __name__ == "__main__":
-    """
-    from .series import AniworldSeries
-    series = AniworldSeries("https://aniworld.to/anime/stream/goblin-slayer")
-        print(series.url)
-        print(series.title)
-        print(series.description)
-        print(series.genres)
-        print(series.release_year)
-        print(series.poster_url)
-        print(series.directors)
-        print(series.actors)
-        print(series.producer)
-        print(series.country)
-        print(series.age_rating)
-        print(series.rating)
-        print(series.seasons)
-
-        input(f"\n{'=' * 40}\nENTER TO QUIT\n{'=' * 40}\n")
-    """
-
-    """
-    series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
-    print(f"Testing Series: {series.title}")
-    print(f"Series URL: {series.url}")
-    print(f"Has movies: {series.has_movies}")
-    print(f"Number of seasons: {len(series.seasons)}")
-
-    print("\n--- Testing Seasons ---")
-    for i, season in enumerate(series.seasons, 1):
-        print(f"\nSeason {i}:")
-        print(f"  URL: {season.url}")
-        # print(f"  Season Number: {season.season_number}")
-        # print(f"  Episode Count: {season.episode_count}")
-        # print(f"  Episodes: {len(season.episodes)} objects")
-        if season.episodes:
-            print(f"  First Episode: {season.episodes[0].title_de}")
-            print(f"  First Episode: {season.episodes[0].language}")
-
-    """
-
-    """
-    
-    TODO:
-    - Copy provider extractors from next
-    - Add .watch() .download() and .syncplay() function
-
-"""
-    from .series import AniworldSeries
-
-    series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
-
-    episode = series.seasons[0].episodes[0]
-
-    print(episode.url)
-    print(episode.title_de)
-    print(episode.provider_data)
-
-    result = episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
-    print(result)
