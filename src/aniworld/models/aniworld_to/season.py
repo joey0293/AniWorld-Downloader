@@ -1,8 +1,7 @@
 import re
 
-from config import logger, GLOBAL_SESSION
-from AniworldSeries import AniworldSeries
-from AniworldEpisode import AniworldEpisode
+from ...config import logger, GLOBAL_SESSION
+from .episode import AniworldEpisode
 
 
 class AniworldSeason:
@@ -40,6 +39,8 @@ class AniworldSeason:
         if self._series is None:
             # Extract series URL from season URL by removing /staffel-X part
             series_url = self.url.split("/staffel-")[0]
+            from .series import AniworldSeries
+
             self._series = AniworldSeries(series_url)
         return self._series
 
@@ -84,19 +85,47 @@ class AniworldSeason:
     # -----------------------------
 
     def __check_if_are_movies(self):
+        """
+        Check whether the current URL represents the movie collection page
+        of a series on AniWorld.
+
+        A movie collection URL follows this pattern:
+            https://aniworld.to/anime/stream/<series>/filme
+
+        Returns:
+            bool: True if the URL matches the movie collection pattern,
+                otherwise False.
+        """
         return (
             re.fullmatch(r"https://aniworld\.to/anime/stream/[^/]+/filme", self.url)
             is not None
         )
 
     def __extract_season_number(self):
+        """
+        Extract the season number from the URL.
+
+        Behavior:
+        - If the series consists only of movies (no seasons), return 0.
+        - If the URL contains a season indicator of the form "staffel-<number>",
+        return that number.
+        - If no season number can be determined, raise a ValueError.
+
+        Returns:
+            int: The extracted season number, or 0 for movie-only series.
+
+        Raises:
+            ValueError: If the URL does not contain a valid season number and the
+                        series is not movie-only.
+        """
         if self.are_movies:
             return 0
 
         match = re.search(r"staffel-(\d+)", self.url)
         if match:
             return int(match.group(1))
-        return None
+
+        raise ValueError(f"Could not extract season number from URL: {self.url}")
 
     def __extract_episodes(self):
         """
@@ -270,6 +299,8 @@ class AniworldSeason:
 
 
 if __name__ == "__main__":
+    from .series import AniworldSeries
+
     series = AniworldSeries("https://aniworld.to/anime/stream/kaguya-sama-love-is-war")
 
     print("\n" + "=" * 60)

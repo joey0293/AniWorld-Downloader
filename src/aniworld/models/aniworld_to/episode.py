@@ -4,15 +4,22 @@ from enum import Enum
 from typing import Tuple
 from urllib.parse import urlparse
 
-from config import logger, GLOBAL_SESSION
-from AniworldSeries import AniworldSeries
+from ...config import logger, GLOBAL_SESSION
 
 
 class Audio(Enum):
     """
-    Japenese Dub -> Quelle: German Sub, English Sub
-    German Dub   -> Quelle: German Dub
-    English Dub  -> Quelle: English Dub
+    Available audio language options:
+
+        - JAPANESE: Japanese dubbed audio
+        - GERMAN:   German dubbed audio
+        - ENGLISH:  English dubbed audio
+
+    Required source for each option:
+
+        Japanese Dub -> Source: German Sub, English Sub
+        German Dub   -> Source: German Dub
+        English Dub  -> Source: English Dub
     """
 
     JAPANESE = "Japanese"
@@ -22,8 +29,16 @@ class Audio(Enum):
 
 class Subtitles(Enum):
     """
-    German Sub   -> Quelle: German Sub
-    English Sub  -> Quelle: English Sub
+    Available subtitle language options:
+
+        - NONE:    No subtitles
+        - GERMAN:  German subtitles
+        - ENGLISH: English subtitles
+
+    Required source for each option:
+
+        German Sub   -> Source: German Sub
+        English Sub  -> Source: English Sub
     """
 
     NONE = "None"
@@ -33,7 +48,15 @@ class Subtitles(Enum):
 
 class ProviderData:
     """
-    dict[(Audio, Subtitles)][provider_name]
+    Container for provider URLs grouped by language settings.
+
+    The internal structure is:
+
+        dict[(Audio, Subtitles)][provider_name] -> url
+
+    Meaning:
+    - The key is a tuple of (Audio, Subtitles)
+    - The value is a dictionary mapping provider names to their URLs
     """
 
     def __init__(self, data):
@@ -65,7 +88,7 @@ class ProviderData:
     def get(self, lang_tuple: Tuple[Audio, Subtitles]):
         return self._data.get(lang_tuple, {})
 
-    # Optional: behave like a dictionary
+    # Behave like a dictionary
     def __getitem__(self, lang_tuple: Tuple[Audio, Subtitles]):
         return self._data[lang_tuple]
 
@@ -362,13 +385,20 @@ class AniworldEpisode:
         return provider_dict.get(self.selected_provider)
 
     def __extract_is_movie(self):
+        """
+        Determine whether the current URL points to a movie page.
+
+        Returns:
+            bool: True if the URL matches the movie pattern, otherwise False.
+        """
         pattern = r"^https://aniworld\.to/anime/stream/[^/]+/filme/film-\d+/?$"
         return re.match(pattern, self.url) is not None
 
 
 if __name__ == "__main__":
     """
-        series = AniworldSeries("https://aniworld.to/anime/stream/goblin-slayer")
+    from .series import AniworldSeries
+    series = AniworldSeries("https://aniworld.to/anime/stream/goblin-slayer")
         print(series.url)
         print(series.title)
         print(series.description)
@@ -412,7 +442,8 @@ if __name__ == "__main__":
     - Copy provider extractors from next
     - Add .watch() .download() and .syncplay() function
 
-    """
+"""
+    from .series import AniworldSeries
 
     series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
 
