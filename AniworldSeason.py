@@ -31,9 +31,7 @@ class AniworldSeason:
         self.__are_movies = None
         self.__season_number = None
         self.__episode_count = None
-        self.__episodes = (
-            None  # TODO IMPORTANT: episode objects are not being created for movies
-        )
+        self.__episodes = None  # TODO IMPORTANT: episode objects are not being created for movies so fix this please
 
         self.__html = None
 
@@ -100,7 +98,7 @@ class AniworldSeason:
             return int(match.group(1))
         return None
 
-    # TODO: FIXXX - DOES NOT WORK
+    # TODO: fix movies not creating episode objects
     def __extract_episodes(self):
         """
             <tbody id="season1">
@@ -120,153 +118,83 @@ class AniworldSeason:
                 <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-2"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
                 <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-2"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
             </tr>
+            <tr class="" data-episode-id="2313" data-episode-season-id="3" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
+                <td class="season1EpisodeID">
+                    <meta itemprop="episodeNumber" content="3"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-3"> Folge 3 </a>
+                </td>
+                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-3"> <strong>Unerwarteter Besuch</strong> - <span>Unexpected Visitors</span> </a></td>
+                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-3"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
+                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-3"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
+            </tr>
             ...
         </tbody>
         """
+        logger.debug("extracting episodes...")
 
-        """
-            TODO for Tobias:
-            I have those entries like above this comment and I want to create episode objects for each episode lol
+        html = self._html
+        episodes = []
 
-            you need to create a providers variable which holds languages and providers and this combo gives you a direct link
-            
-            after that count all languages that can be build using this:
+        marker = 'itemtype="http://schema.org/Episode"'
+        pos = 0
 
-            class Audio(Enum):
-                JAPANESE = "Japanese"
-                GERMAN = "German"
-                ENGLISH = "English"
+        while True:
+            pos = html.find(marker, pos)
+            if pos == -1:
+                break
 
+            tr_start = html.rfind("<tr", 0, pos)
+            tr_end = html.find("</tr>", pos)
+            if tr_start == -1 or tr_end == -1:
+                break
 
-            class Subtitles(Enum):
-                NONE = "None"
-                GERMAN = "German"
-                ENGLISH = "English"
+            tr_html = html[tr_start:tr_end]
 
+            # Episode number
+            ep_num = None
+            meta_pos = tr_html.find('itemprop="episodeNumber"')
+            if meta_pos != -1:
+                c_start = tr_html.find('content="', meta_pos) + 9
+                c_end = tr_html.find('"', c_start)
+                ep_num = int(tr_html[c_start:c_end])
 
-            def parse_source(source: str):
-                source = source.lower()
+            # Episode URL
+            ep_url = None
+            url_pos = tr_html.find('itemprop="url"')
+            if url_pos != -1:
+                h_start = tr_html.find('href="', url_pos) + 6
+                h_end = tr_html.find('"', h_start)
+                ep_url = tr_html[h_start:h_end]
+                if ep_url.startswith("/"):
+                    ep_url = "https://aniworld.to" + ep_url
 
-                # Audio
-                if "dub" in source:
-                    if "german" in source:
-                        audio = Audio.GERMAN
-                    elif "english" in source:
-                        audio = Audio.ENGLISH
-                    else:
-                        audio = Audio.JAPANESE
-                    subtitles = Subtitles.NONE
+            # Titles
+            title_de = None
+            s_start = tr_html.find("<strong>")
+            if s_start != -1:
+                s_start += 8
+                s_end = tr_html.find("</strong>", s_start)
+                title_de = tr_html[s_start:s_end].strip()
 
-                # Subtitles
-                elif "sub" in source:
-                    audio = Audio.JAPANESE
-                    if "german" in source:
-                        subtitles = Subtitles.GERMAN
-                    elif "english" in source:
-                        subtitles = Subtitles.ENGLISH
-                    else:
-                        subtitles = Subtitles.NONE
-
-                else:
-                    raise ValueError(f"Unknown source format: {source}")
-
-                return audio, subtitles
-
-
-            for example if there only is German Dub available you need to somehow store this information in languages
-
-            that will tell me that only audio german and no subtitles are possible
-
-            but in a way that I am able to access this direct link using a language and provider pair when querying
+            title_en = None
+            span_start = tr_html.find("<span>")
+            if span_start != -1:
+                span_start += 6
+                span_end = tr_html.find("</span>", span_start)
+                title_en = tr_html[span_start:span_end].strip()
 
             if ep_url and ep_num:
                 episodes.append(
                     AniworldEpisode(
+                        series=self.series,
                         season=self,
                         url=ep_url,
                         episode_number=ep_num,
                         title_de=title_de,
                         title_en=title_en,
-                        languages=languages,  # just pass all languages that are contained in the providers dict
-                        providers=providers,
                     )
                 )
-        """
 
-        from bs4 import BeautifulSoup
-
-        episodes = []
-
-        soup = BeautifulSoup(self._html, "html.parser")
-        rows = soup.select("tbody#season1 tr")
-
-        for row in rows:
-            # Episode number
-            ep_num = int(row.select_one("meta[itemprop='episodeNumber']")["content"])
-
-            # Titles
-            title_de = row.select_one("td.seasonEpisodeTitle strong").get_text(
-                strip=True
-            )
-            title_en_span = row.select_one("td.seasonEpisodeTitle span")
-            title_en = title_en_span.get_text(strip=True) if title_en_span else title_de
-
-            # Generic episode URL
-            ep_url = row.select_one("td.season1EpisodeID a")["href"]
-
-            # Hosters and their direct links
-            hoster_links = {}
-            for i_tag in row.select("td a i.icon"):
-                hoster_name = i_tag.get("title")
-                if hoster_name:
-                    hoster_links[hoster_name] = i_tag.find_parent("a")["href"]
-
-            # Languages and providers mapping
-            providers = {}
-            languages_set = set()
-            flags = [img["title"] for img in row.select("td.editFunctions img")]
-
-            for flag in flags:
-                if "Deutsch/German" in flag:
-                    src_str = "German Dub"
-                elif "Englisch" in flag and "Untertitel" not in flag:
-                    src_str = "English Dub"
-                elif "Mit deutschem Untertitel" in flag:
-                    src_str = "German Sub"
-                elif "Mit englischem Untertitel" in flag:
-                    src_str = "English Sub"
-                else:
-                    continue
-
-                # Parse audio/subtitle
-                from config import parse_source
-
-                audio, sub = parse_source(src_str)
-                languages_set.add((audio, sub))
-
-                # Map each hoster to its direct link
-                for hoster_name, link in hoster_links.items():
-                    providers[(audio, sub, hoster_name)] = link
-
-            languages = list(languages_set)
-
-            # Create episode object
-            episodes.append(
-                AniworldEpisode(
-                    season=self,
-                    url=ep_url,  # store the generic episode page URL
-                    episode_number=ep_num,
-                    title_de=title_de,
-                    title_en=title_en,
-                    languages=languages,
-                    providers=providers,
-                )
-            )
-
-            logger.warning(episodes[0].url)
-            logger.warning(episodes[0].episode_number)
-            logger.warning(episodes[0].languages)
-            logger.warning(episodes[0].providers)
+            pos = tr_end
 
         return episodes
 

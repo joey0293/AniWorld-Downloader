@@ -632,9 +632,7 @@ class AniworldSeries:
             seen.add(url)
             seasons.append(AniworldSeason(url, series=self))
 
-        logger.debug(
-            f"Found {len([s for s in seasons if not s.are_movies])} seasons (may include movies...)"
-        )
+        logger.debug(f"Found {len([s for s in seasons if not s.are_movies])} seasons")
 
         if self.has_movies:
             seasons.append(AniworldSeason(f"{self.url}/filme", series=self))
@@ -657,7 +655,7 @@ if __name__ == "__main__":
 
     print("\n" + "=" * 60)
     print(f"SERIES OVERVIEW — {series.title}")
-    print("=" * 60)
+    print("=" * 60 + "\n")
 
     fields = {
         "URL": series.url,
@@ -693,4 +691,4 @@ if __name__ == "__main__":
         print(f"  URL: {season.url}")
         print(f"  Episodes: {season.episode_count}")
 
-    print("=" * 60 + "\n")
+    print("\n" + "=" * 60)
