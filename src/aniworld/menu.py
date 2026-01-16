@@ -199,7 +199,7 @@ class MenuApp(npyscreen.NPSApp):
         # --- Return and print ---
         self.result = {
             "action": selected_action,
-            "path": str(selected_path),
+            "path": selected_path,
             "language": selected_language,
             "provider": selected_provider,
             "episodes": selected_episodes,
@@ -213,7 +213,13 @@ def app():
     app_instance = MenuApp()
     app_instance.run()
 
-    logger.debug("\n" + json.dumps(app_instance.result, indent=4))
+    # Prepare a copy of result for logging, convert Path to string
+    log_result = dict(app_instance.result)
+    if isinstance(log_result.get("path"), Path):
+        log_result["path"] = str(log_result["path"])
+
+    # Log JSON with leading newline
+    logger.debug("Menu Selection Output\n" + json.dumps(log_result, indent=4))
 
 
 if __name__ == "__main__":
