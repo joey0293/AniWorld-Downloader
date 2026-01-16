@@ -1,6 +1,6 @@
 import re
 
-from ...config import logger, GLOBAL_SESSION
+from ...config import GLOBAL_SESSION, logger
 from .season import AniworldSeason
 
 
@@ -53,6 +53,8 @@ class AniworldSeries:
         self.__season_count = None
 
         self.__html = None
+
+        logger.debug(f"Initialized {self.url}")
 
     # -----------------------------
     # PUBLIC PROPERTIES (lazy load)

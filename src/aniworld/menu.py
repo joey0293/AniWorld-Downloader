@@ -7,15 +7,9 @@ from pathlib import Path
 
 import npyscreen
 
-from .config import SUPPORTED_PROVIDERS, VERSION, logger
-from .models.aniworld_to.episode import LANG_KEY_MAP
-
-# TODO: use urls from AniworldSeries object instead
-urls = tuple(
-    f"https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-{i}"
-    for i in range(1, 13)
-)
-
+from .config import VERSION, logger
+from .models import AniworldSeries
+from .models.aniworld_to.episode import Audio, Subtitles
 
 # ============================================================
 # Patch: Fix for Python 3.14+ buffer overflow in npyscreen
@@ -106,6 +100,55 @@ class MenuApp(npyscreen.NPSApp):
 
         F = QuitForm(name=f"AniWorld-Downloader v.{VERSION}")
 
+        # ============================================================
+        # Get Values for series
+        # ============================================================
+        # TODO: put LANG_KEY_MAP, LANG_LABELS, INVERSE_LANG_KEY_MAP into a shared file
+        LANG_KEY_MAP = {
+            "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
+            "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
+            "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
+        }
+
+        LANG_LABELS = {
+            "1": "German Dub",
+            "2": "English Sub",
+            "3": "German Sub",
+        }
+
+        INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}
+
+        # Load series
+        series = AniworldSeries(self.url)
+
+        languages = []
+        providers = []
+        episodes = []
+
+        # Only use the first season and first episode for language/provider info
+        first_season = series.seasons[0]
+        first_episode = first_season.episodes[0]
+
+        # All episode URLs
+        for season in series.seasons:
+            for episode in season.episodes:
+                episodes.append(episode.url)
+
+        # Extract provider names from first episode
+        first_provider_dict = next(iter(first_episode.provider_data._data.values()))
+        providers = tuple(first_provider_dict.keys())
+
+        # Extract language labels from first episode
+        for key in first_episode.provider_data._data.keys():
+            site_key = INVERSE_LANG_KEY_MAP[key]  # "1", "2", "3"
+            label = LANG_LABELS[site_key]
+            if label not in languages:
+                languages.append(label)
+
+        # print("Languages:", languages)
+        # print("Providers:", providers)
+        # print("Episode URLs:", episodes)
+
         # Track vertical position
         y = 2  # leave space for form title
 
@@ -134,11 +177,11 @@ class MenuApp(npyscreen.NPSApp):
         y += path_height
 
         # --- Language ---
-        language_height = len(LANG_KEY_MAP) + 1
+        language_height = len(languages) + 1
         language = F.add(
             npyscreen.TitleSelectOne,
             name="Language",
-            values=list(("German Dub", "English Sub", "German Sub")),
+            values=languages,
             value=[0],
             max_height=language_height,
             rely=y,
@@ -147,11 +190,11 @@ class MenuApp(npyscreen.NPSApp):
         y += language_height
 
         # --- Provider ---
-        provider_height = len(SUPPORTED_PROVIDERS) + 1
+        provider_height = len(providers) + 1
         provider = F.add(
             npyscreen.TitleSelectOne,
             name="Provider",
-            values=list(SUPPORTED_PROVIDERS),
+            values=providers,
             value=[0],
             max_height=provider_height,
             rely=y,
@@ -168,7 +211,7 @@ class MenuApp(npyscreen.NPSApp):
         episodes = F.add(
             npyscreen.TitleMultiSelect,
             name="Episodes",
-            values=list(urls),
+            values=episodes,
             rely=y,
             max_height=episode_height,
             scroll_exit=True,
@@ -209,8 +252,9 @@ class MenuApp(npyscreen.NPSApp):
 # ============================================================
 # Entry Point
 # ============================================================
-def app():
+def app(url):
     app_instance = MenuApp()
+    app_instance.url = url
     app_instance.run()
 
     # Prepare a copy of result for logging, convert Path to string
@@ -220,7 +264,3 @@ def app():
 
     # Log JSON with leading newline
     logger.debug("Menu Selection Output\n" + json.dumps(log_result, indent=4))
-
-
-if __name__ == "__main__":
-    app()
