@@ -1,6 +1,6 @@
-from .series import AniworldSeries
+from .episode import LANG_KEY_MAP, AniworldEpisode, Audio, Subtitles
 from .season import AniworldSeason
-from .episode import Audio, Subtitles, AniworldEpisode
+from .series import AniworldSeries
 
 __all__ = [
     "AniworldSeries",
@@ -8,4 +8,5 @@ __all__ = [
     "AniworldEpisode",
     "Audio",
     "Subtitles",
+    LANG_KEY_MAP,
 ]

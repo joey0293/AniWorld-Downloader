@@ -1,7 +1,7 @@
 from .aniworld_to import (
-    AniworldSeries,
-    AniworldSeason,
     AniworldEpisode,
+    AniworldSeason,
+    AniworldSeries,
     Audio,
     Subtitles,
 )
