@@ -1,6 +1,8 @@
+import os
 import re
 from collections import defaultdict
 from enum import Enum
+from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
 
@@ -127,8 +129,10 @@ class AniworldEpisode:
 
         available_languages:    TODO -> implement
         available_providers:    TODO -> implement
+
         selected_language:      (Audio.JAPANESE, Subtitles.GERMAN)
         selected_provider:      Filemoon
+        selected_path:          PosixPath('/Users/phoenixthrush/Downloads')
 
         provider_link():        For example: provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
         TODO: maybe provider_link_image_preview url
@@ -145,6 +149,9 @@ class AniworldEpisode:
         episode_number=None,
         title_de=None,
         title_en=None,
+        selected_path=None,
+        selected_language=None,
+        selected_provider=None,
     ):
         self._series = series
         self._season = season
@@ -156,11 +163,9 @@ class AniworldEpisode:
 
         self.__provider_data = None
 
-        self.selected_language = (
-            Audio.JAPANESE,
-            Subtitles.GERMAN,
-        )  # TODO: defaults for now
-        self.selected_provider = "Filemoon"  # TODO: defaults for now
+        self.selected_path = selected_path or Path.home() / "Downloads"
+        self.selected_language = selected_language or "German Dub"
+        self.selected_provider = selected_provider or "Filemoon"
 
         self.__is_movie = None
 
@@ -210,9 +215,29 @@ class AniworldEpisode:
                     raise ValueError(f"Could not extract season from URL: {self.url}")
                 season_url = season_match.group(1)
 
-            self._season = AniworldSeason(season_url, series=self.series)
+            self._season = AniworldSeason(season_url, series=self._series)
 
         return self._season
+
+    @property
+    def series(self):
+        if self._series is None:
+            from .series import AniworldSeries
+            # Example URLs:
+            # https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+            # https://aniworld.to/anime/stream/highschool-dxd/filme/film-1
+
+            # Regex to match up to /stream/<series-name>
+            match = re.match(r"(https://aniworld\.to/anime/stream/[^/]+)", self.url)
+            if match:
+                series_url = match.group(1)
+            else:
+                # fallback to full URL if regex fails
+                series_url = self.url
+
+            self._series = AniworldSeries(series_url)
+
+        return self._series
 
     @property
     def _html(self):
@@ -325,29 +350,41 @@ class AniworldEpisode:
     def download(self):
         print(f"[DOWNLOADING] {self.url}")
 
-        for _ in range(3):
-            print(".", end="", flush=True)
-            # time.sleep(0.1)
+        series = self.series
+        season = self.season
 
-        print()
+        # https://jellyfin.org/docs/general/server/media/shows/#organization
+
+        # Base folder: Series title + year
+        base_folder = os.path.join(
+            self.selected_path, f"{series.title_cleaned} ({series.release_year})"
+        )
+
+        """
+        if self.is_movie:
+            folder_path = os.path.join(base_folder, "Season 00")
+            file_name = f"{series.title_cleaned} S{season.season_number:02d}E{self.episode_number:02d}.mp4"
+        else:
+            folder_path = os.path.join(
+                base_folder, f"Season {season.season_number:02d}"
+            )
+            file_name = f"{series.title_cleaned} S{season.season_number:02d}E{self.episode_number:02d}.mp4"
+        """
+
+        folder_path = os.path.join(base_folder, f"Season {season.season_number:02d}")
+        file_name = f"{series.title_cleaned} S{season.season_number:02d}E{self.episode_number:02d}.mp4"
+
+        # Create folder if it doesn't exist
+        os.makedirs(folder_path, exist_ok=True)
+
+        # Create the empty file
+        Path(os.path.join(folder_path, file_name)).touch()
 
     def watch(self):
-        print(f"[WATCHING] {self.url}")
-
-        for _ in range(3):
-            print(".", end="", flush=True)
-            # time.sleep(0.1)
-
-        print()
+        print(f"[WATCHING] {self.series.title} Movie E{self.episode_number:02d}.mp4")
 
     def syncplay(self):
-        print(f"[SYNCPLAYING] {self.url}")
-
-        for _ in range(3):
-            print(".", end="", flush=True)
-            # time.sleep(0.1)
-
-        print()
+        print(f"[SYNCPLAYING] {self.series.title} Movie E{self.episode_number:02d}.mp4")
 
     # -----------------------------
     # Extraction helpers
