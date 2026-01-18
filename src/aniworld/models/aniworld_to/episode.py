@@ -74,6 +74,7 @@ class ProviderData:
         self._data = data
 
     def __str__(self):
+        # return f"{self.__class__.__name__}({self._data!r})"
         lines = []
 
         for (audio, subtitles), providers in sorted(
@@ -109,48 +110,47 @@ class AniworldEpisode:
     Represents a single episode (or movie entry) of an AniWorld anime series.
 
     Parameters:
-        series:                 Parent series object.
-        season:                 Parent season object this episode belongs to.
-        url:                    Required. The AniWorld URL for this episode, e.g.
-                                https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
-        episode_number:         Episode index within the season. Movies may use a special numbering.
-        title_de:               German episode title.
-        title_en:               English episode title, if available.
+        url:                Required. The AniWorld URL for this episode, e.g.,
+                            https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+        series:             The parent series object.
+        season:             The parent season object this episode belongs to.
+        episode_number:     Optional. The episode index within the season; generated when creating a season object.
+        title_de:           Optional. The German episode title; generated when creating a season object.
+        title_en:           Optional. The English episode title; generated when creating a season object.
+        selected_path:      Optional. The chosen path; provided in cases such as using a menu.
+        selected_language:  Optional. The chosen language; provided in cases such as using a menu.
+        selected_provider:  Optional. The chosen provider; provided in cases such as using a menu.
 
     Attributes (Example):
+        url:                    "https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1"
         series:                 <AniworldSeries object>
         season:                 <AniworldSeason object>
-        url:                    https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+
+        title_de:               "Ich habe endlich eine Freundin!"
+        title_en:               "I Got a Girlfriend!"
         episode_number:         1
-        title_de:               "Wir machen einen Ausflug ans Meer!"
-        title_en:               "Going Sunbathing [Special]"
+        provider_data:          ProviderData({(<Audio.GERMAN: 'German'>, <Subtitles.NONE: 'None'>): {'VOE': 'https://aniworld.to/redirect/2526098', 'Filemoon': 'https://aniworld.to/redirect/2883363', 'Vidmoly': 'https://aniworld.to/redirect/3028732'}, (<Audio.JAPANESE: 'Japanese'>, <Subtitles.ENGLISH: 'English'>): {'VOE': 'https://aniworld.to/redirect/1791080', 'Filemoon': 'https://aniworld.to/redirect/2883251', 'Vidmoly': 'https://aniworld.to/redirect/3674098'}, (<Audio.JAPANESE: 'Japanese'>, <Subtitles.GERMAN: 'German'>): {'VOE': 'https://aniworld.to/redirect/1791211', 'Filemoon': 'https://aniworld.to/redirect/2883481', 'Vidmoly': 'https://aniworld.to/redirect/3028797'}})
 
-        provider_data:          For example: dict[(Audio, Subtitles)][provider_name]
-
-        available_languages:    TODO -> implement
-        available_providers:    TODO -> implement
-
-        selected_language:      (Audio.JAPANESE, Subtitles.GERMAN)
-        selected_provider:      Filemoon
-        selected_path:          PosixPath('/Users/phoenixthrush/Downloads')
+        selected_path:          "/Users/phoenixthrush/Downloads"
+        selected_language:      "German Dub"
+        selected_provider:      "Filemoon"
 
         self._base_folder:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)
         self._folder_path:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)/Season 01
         self._file_name:        Highschool DxD S01E01.mp4
         self._episode_path:     /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)/Season 01/Highschool DxD S01E01.mp4
 
-        provider_link():        For example: provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
-        TODO: maybe provider_link_image_preview(): https://...
+        is_movie                false
+        is_downloaded           true
 
-        _is_movie:              False
-        _is_downloaded:         True
-        _html:                  <!doctype html> ...
+        _html:                  "<!doctype html>[...]"
 
-    <many other internal functions being used here>
+    Methods:
+        download()
+        watch()
+        syncplay()
 
-    download()
-    watch()
-    syncplay()
+        provider_link(language=None, provider=None)  # <Audio.GERMAN: 'German'>, <Subtitles.NONE: 'None'>)
     """
 
     def __init__(
@@ -168,9 +168,10 @@ class AniworldEpisode:
         if not self.is_valid_aniworld_episode_url(url):
             raise ValueError(f"Invalid AniWorld episode URL: {url}")
 
+        self.url = url
+
         self._series = series
         self._season = season
-        self.url = url
 
         self.__title_de = title_de
         self.__title_en = title_en
