@@ -2,6 +2,7 @@
 from .arguments import parse_args
 from .logger import get_logger
 from .menu import app
+from .search import search
 
 logger = get_logger(__name__)
 logger.debug("")
@@ -13,7 +14,7 @@ def aniworld():
     if args.url:
         url = args.url
     else:
-        url = input("Search for a series: ")
+        url = search()
 
     app(url=url)
 

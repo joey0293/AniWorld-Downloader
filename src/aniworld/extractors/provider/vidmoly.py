@@ -1,6 +1,6 @@
 import re
 
-from ...config import GLOBAL_SESSION, RANDOM_USER_AGENT
+from ...config import GLOBAL_SESSION
 
 # -----------------------------
 # Constants
@@ -14,7 +14,7 @@ PREVIEW_IMAGE_PATTERN = re.compile(r'image\s*:\s*"([^"]+\.jpg)"')
 # -----------------------------
 def _get_headers():
     """Return headers for Vidmoly requests."""
-    return {"User-Agent": RANDOM_USER_AGENT, "Referer": "https://vidmoly.net"}
+    return {"Referer": "https://vidmoly.net"}
 
 
 def _extract_regex(pattern, content, name, url):
