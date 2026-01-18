@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
 
-# import time
 from ...config import (
     GLOBAL_SESSION,
     LANG_KEY_MAP,
@@ -14,6 +13,7 @@ from ...config import (
     Subtitles,
     logger,
 )
+from ...extractors import provider_functions
 
 
 class ProviderData:
@@ -92,7 +92,11 @@ class AniworldEpisode:
 
         selected_path:          "/Users/phoenixthrush/Downloads"
         selected_language:      "German Dub"
-        selected_provider:      "Filemoon"
+        selected_provider:      "VOE"
+
+        redirect_url:           "https://aniworld.to/redirect/2526098"
+        provider_url:           "https://voe.sx/e/brrfb6svahr0"
+        stream_url:             "https://cdn-9hkqbevdlsunmsrc.edgeon-bandwidth.com/engine/hls2-c/01/11265/brrfb6svahr0_,n,l,.urlset/master.m3u8?t=7H-ROabLHNhRW7YUk7ukuV3gtpx-WPTn0Lhl9ZYwqkk&s=1768754148&e=14400&f=56328906&node=j9A3uKlh9EJIvaW3p3v65VuzDBUEiinc24sqRscdXcg=&i=185.213&sp=2500&asn=39351&q=n,l&rq=F2b2aGFqiQE6hVBHR3zxjsqBxOeHRuB3Setre8LO"
 
         self._base_folder:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018) [imdbid-tt2230051]
         self._folder_path:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018) [imdbid-tt2230051]/Season 01
@@ -141,19 +145,18 @@ class AniworldEpisode:
 
         self.selected_path = selected_path or Path.home() / "Downloads"
         self.selected_language = selected_language or "German Dub"
-        self.selected_provider = selected_provider or "Filemoon"
+        self.selected_provider = selected_provider or "VOE"
 
-        ### PATHS
+        self.__redirect_url = None
+        self.__provider_url = None
+        self.__stream_url = None
 
         # https://jellyfin.org/docs/general/server/media/shows/#organization
-
         self.__base_folder = None
         self.__folder_path = None
         self.__file_name = None
         self.__file_extension = None
         self.__episode_path = None
-
-        ###
 
         self.__is_movie = None
         self.__is_downloaded = None
@@ -181,6 +184,28 @@ class AniworldEpisode:
         )
 
         return bool(re.match(pattern, url, re.IGNORECASE))
+
+    @property
+    def redirect_url(self):
+        if self.__redirect_url is None:
+            self.__redirect_url = self.provider_link(
+                self.__get_language(), self.selected_provider
+            )
+        return self.__redirect_url
+
+    @property
+    def provider_url(self):
+        if self.__provider_url is None:
+            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url).url
+        return self.__provider_url
+
+    @property
+    def stream_url(self):
+        if self.__stream_url is None:
+            self.__stream_url = provider_functions[
+                f"get_direct_link_from_{self.selected_provider.lower()}"
+            ](self.provider_url)
+        return self.__stream_url
 
     @property
     def _base_folder(self):
@@ -417,15 +442,9 @@ class AniworldEpisode:
         # Create folder if it doesn't exist
         os.makedirs(self._folder_path, exist_ok=True)
 
-        # print(self.selected_language)  # "German Dub"
-        # print(self.__get_language())
-        # print(self.selected_provider)
-
-        redirect_url = self.provider_link(self.__get_language(), "Filemoon")
-        provider_url = GLOBAL_SESSION.get(redirect_url).url
-
-        print(redirect_url)
-        print(provider_url)
+        print(self.redirect_url)
+        print(self.provider_url)
+        print(self.stream_url)
 
         # Downloading
         logger.debug(f"Downloading {self._episode_path}...")
@@ -435,7 +454,7 @@ class AniworldEpisode:
         print(f"[WATCHING] {self._file_name}")
 
         stream_url = GLOBAL_SESSION.get(
-            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "VOE")
         ).url
 
         logger.debug(stream_url)
@@ -444,7 +463,7 @@ class AniworldEpisode:
         print(f"[SYNCPLAYING] {self._file_name}")
 
         stream_url = GLOBAL_SESSION.get(
-            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "VOE")
         ).url
 
         logger.debug(stream_url)
