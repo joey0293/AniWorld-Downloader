@@ -1,8 +1,9 @@
 import json
+
 from aniworld.models import (
-    AniworldSeries,
-    AniworldSeason,
     AniworldEpisode,
+    AniworldSeason,
+    AniworldSeries,
 )
 
 

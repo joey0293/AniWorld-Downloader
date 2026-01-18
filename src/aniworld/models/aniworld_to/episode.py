@@ -471,6 +471,7 @@ class AniworldEpisode:
     # Extraction helpers
     # -----------------------------
 
+    # TODO: extract thumbnail lazy loaded too
     def __extract_provider_data(self):
         """
         Extract provider links grouped by (Audio, Subtitles).
