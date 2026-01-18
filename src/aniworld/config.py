@@ -1,3 +1,5 @@
+from enum import Enum
+
 from niquests import Session
 
 from .logger import get_logger
@@ -5,6 +7,8 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 VERSION = "4.0.0"
+
+# NIQUESTS
 
 GLOBAL_SESSION = Session(
     resolver=["doh+google://"],
@@ -26,6 +30,8 @@ GLOBAL_SESSION = Session(
 )
 
 logger.debug("Config initialized successfully")
+
+### PROVIDER
 
 SUPPORTED_PROVIDERS = (
     "Filemoon",
@@ -66,3 +72,60 @@ PROVIDER_HEADERS_W = {
     "Luluvdo": {"User-Agent": LULUVDO_USER_AGENT},
     "Filemoon": {"User-Agent": RANDOM_USER_AGENT, "Referer": "https://filemoon.to"},
 }
+
+# LANGUAGE
+
+
+class Audio(Enum):
+    """
+    Available audio language options:
+
+        - JAPANESE: Japanese dubbed audio
+        - GERMAN:   German dubbed audio
+        - ENGLISH:  English dubbed audio
+
+    Required source for each option:
+
+        Japanese Dub -> Source: German Sub, English Sub
+        German Dub   -> Source: German Dub
+        English Dub  -> Source: English Dub
+    """
+
+    JAPANESE = "Japanese"
+    GERMAN = "German"
+    ENGLISH = "English"
+
+
+class Subtitles(Enum):
+    """
+    Available subtitle language options:
+
+        - NONE:    No subtitles
+        - GERMAN:  German subtitles
+        - ENGLISH: English subtitles
+
+    Required source for each option:
+
+        German Sub   -> Source: German Sub
+        English Sub  -> Source: English Sub
+    """
+
+    NONE = "None"
+    GERMAN = "German"
+    ENGLISH = "English"
+
+
+# Map site-specific language keys to semantic meaning
+LANG_KEY_MAP = {
+    "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
+    "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
+    "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
+}
+
+LANG_LABELS = {
+    "1": "German Dub",
+    "2": "English Sub",
+    "3": "German Sub",
+}
+
+INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}

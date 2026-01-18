@@ -7,9 +7,8 @@ from pathlib import Path
 
 import npyscreen
 
-from .config import VERSION, logger
+from .config import INVERSE_LANG_KEY_MAP, LANG_LABELS, VERSION, logger
 from .models import AniworldEpisode, AniworldSeries
-from .models.aniworld_to.episode import Audio, Subtitles
 
 # ============================================================
 # Patch: Fix for Python 3.14+ buffer overflow in npyscreen
@@ -103,20 +102,6 @@ class MenuApp(npyscreen.NPSApp):
         # ============================================================
         # Get Values for series
         # ============================================================
-        # TODO: put LANG_KEY_MAP, LANG_LABELS, INVERSE_LANG_KEY_MAP into a shared file
-        LANG_KEY_MAP = {
-            "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
-            "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
-            "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
-        }
-
-        LANG_LABELS = {
-            "1": "German Dub",
-            "2": "English Sub",
-            "3": "German Sub",
-        }
-
-        INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}
 
         # Load series
         series = AniworldSeries(self.url)

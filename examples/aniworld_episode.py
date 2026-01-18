@@ -1,4 +1,4 @@
-from aniworld.models import AniworldSeries, Audio, Subtitles
+from aniworld.models import AniworldSeries
 
 """
 from .series import AniworldSeries
@@ -53,17 +53,19 @@ series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
 episode = series.seasons[0].episodes[0]
 
 print(episode.url)
-print(episode.title_de)
+# print(episode.title_de)
 print(episode.provider_data)
 
-result = episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
-print(result)
+# result = episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+# print(result)
 
+"""
 print(episode._base_folder)
 print(episode._folder_path)
 print(episode._file_name)
 print(episode._file_extension)
 print(episode._episode_path)
+"""
 
 episode.download()
-print(episode.is_downloaded)
+# print(episode.is_downloaded)

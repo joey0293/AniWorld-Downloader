@@ -1,6 +1,6 @@
 import re
 
-from aniworld.config import GLOBAL_SESSION, RANDOM_USER_AGENT
+from ...config import GLOBAL_SESSION, RANDOM_USER_AGENT
 
 # -----------------------------
 # Constants
