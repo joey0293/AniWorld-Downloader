@@ -34,14 +34,14 @@ class CustomTheme(npyscreen.ThemeManager):
 
     default_colors = {
         "DEFAULT": "WHITE_BLACK",
-        "FORMDEFAULT": "MAGENTA_BLACK",  # WHITE_BLACK
+        "FORMDEFAULT": "MAGENTA_BLACK",
         "NO_EDIT": "BLUE_BLACK",
         "STANDOUT": "CYAN_BLACK",
         "CURSOR": "WHITE_BLACK",
         "CURSOR_INVERSE": "BLACK_WHITE",
-        "LABEL": "CYAN_BLACK",  # GREEN_BLACK
-        "LABELBOLD": "CYAN_BLACK",  # WHITE_BLACK
-        "CONTROL": "GREEN_BLACK",  # YELLOW_BLACK
+        "LABEL": "CYAN_BLACK",
+        "LABELBOLD": "CYAN_BLACK",
+        "CONTROL": "GREEN_BLACK",
         "IMPORTANT": "GREEN_BLACK",
         "SAFE": "GREEN_BLACK",
         "WARNING": "YELLOW_BLACK",
@@ -61,30 +61,12 @@ class CustomTheme(npyscreen.ThemeManager):
 class QuitForm(npyscreen.Form):
     def set_up_handlers(self):
         super().set_up_handlers()
-
-        # Quit on Ctrl‑C
-        self.add_handlers(
-            {
-                curses.ascii.ETX: self.exit_editing,
-            }
-        )
-
-        # Quit on 'q'
-        self.add_handlers(
-            {
-                ord("q"): self.exit_editing,
-            }
-        )
+        self.add_handlers({curses.ascii.ETX: self.exit_editing})
+        self.add_handlers({ord("q"): self.exit_editing})
 
 
-# ============================================================
-#
 # ============================================================
 class Action(Enum):
-    """
-    asd
-    """
-
     DOWNLOAD = "Download"
     WATCH = "Watch"
     SYNCPLAY = "Syncplay"
@@ -96,7 +78,6 @@ class Action(Enum):
 class MenuApp(npyscreen.NPSApp):
     def main(self):
         npyscreen.setTheme(CustomTheme)
-
         F = QuitForm(name=f"AniWorld-Downloader v.{VERSION}")
 
         # ============================================================
@@ -125,14 +106,10 @@ class MenuApp(npyscreen.NPSApp):
 
         # Extract language labels from first episode
         for key in first_episode.provider_data._data.keys():
-            site_key = INVERSE_LANG_KEY_MAP[key]  # "1", "2", "3"
+            site_key = INVERSE_LANG_KEY_MAP[key]
             label = LANG_LABELS[site_key]
             if label not in languages:
                 languages.append(label)
-
-        # print("Languages:", languages)
-        # print("Providers:", providers)
-        # print("Episode URLs:", episodes)
 
         # Track vertical position
         y = 2  # leave space for form title
@@ -159,7 +136,38 @@ class MenuApp(npyscreen.NPSApp):
             rely=y,
             max_height=path_height,
         )
-        y += path_height
+
+        # --- Aniskip ---
+        aniskip_height = 2
+        aniskip = F.add(
+            npyscreen.TitleMultiSelect,
+            name="Aniskip",
+            values=["Enabled"],
+            max_height=aniskip_height,
+            rely=y,
+            scroll_exit=True,
+        )
+
+        # --- Function to update visibility based on action ---
+        def update_visibility():
+            selected = action.get_selected_objects()
+            selected_action = selected[0] if selected else Action.DOWNLOAD.value
+
+            if selected_action in [Action.WATCH.value, Action.SYNCPLAY.value]:
+                path.hidden = True
+                aniskip.hidden = False
+            else:  # DOWNLOAD
+                path.hidden = False
+                aniskip.hidden = True
+
+            # Refresh the form layout
+            F.display()
+
+        # Attach handler: update visibility when action changes
+        action.when_value_edited = update_visibility
+
+        # Initialize visibility
+        update_visibility()
 
         # --- Language ---
         language_height = len(languages) + 1
@@ -169,10 +177,9 @@ class MenuApp(npyscreen.NPSApp):
             values=languages,
             value=[0],
             max_height=language_height,
-            rely=y,
+            rely=y + 2,  # adjust position after path/aniskip
             scroll_exit=True,
         )
-        y += language_height
 
         # --- Provider ---
         provider_height = len(providers) + 1
@@ -182,22 +189,21 @@ class MenuApp(npyscreen.NPSApp):
             values=providers,
             value=[0],
             max_height=provider_height,
-            rely=y,
+            rely=y + 2 + language_height,
             scroll_exit=True,
         )
-        y += provider_height
 
         # --- Episodes ---
         term_height = curses.LINES
-        remaining_height = term_height - y - 2
+        remaining_height = term_height - (y + 2 + language_height + provider_height) - 2
         min_episode_height = 4
         episode_height = max(min_episode_height, remaining_height)
 
-        episodes = F.add(
+        episodes_widget = F.add(
             npyscreen.TitleMultiSelect,
             name="Episodes",
             values=episodes,
-            rely=y,
+            rely=y + 2 + language_height + provider_height,
             max_height=episode_height,
             scroll_exit=True,
         )
@@ -221,7 +227,9 @@ class MenuApp(npyscreen.NPSApp):
             else None
         )
         selected_episodes = (
-            [episodes.values[i] for i in episodes.value] if episodes.value else []
+            [episodes_widget.values[i] for i in episodes_widget.value]
+            if episodes_widget.value
+            else []
         )
 
         # --- Return and print ---
@@ -263,6 +271,11 @@ def app(url):
         selected_path = app_instance.result.get("path")
         selected_language = app_instance.result.get("language")
         selected_provider = app_instance.result.get("provider")
+
+        if app_instance.result.get("aniskip"):
+            os.environ["ANISKIP"] = "1"  # "Enabled"
+        else:
+            os.environ["ANISKIP"] = "0"
 
         if action in action_methods:
             method_name = action_methods[action]
