@@ -165,6 +165,9 @@ class AniworldEpisode:
         selected_language=None,
         selected_provider=None,
     ):
+        if not self.is_valid_aniworld_episode_url(url):
+            raise ValueError(f"Invalid AniWorld episode URL: {url}")
+
         self._series = series
         self._season = season
         self.url = url
@@ -194,6 +197,28 @@ class AniworldEpisode:
         self.__is_downloaded = None
 
         self.__html = None
+
+    @staticmethod
+    def is_valid_aniworld_episode_url(url: str) -> bool:
+        """
+        Checks if the URL is a valid AniWorld episode URL.
+        """
+
+        # https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+        # or
+        # https://aniworld.to/anime/stream/highschool-dxd/filme/film-1
+
+        url = url.strip()
+
+        pattern = (
+            r"^https?://(www\.)?aniworld\.to/anime/stream/"
+            r"[a-zA-Z0-9\-]+/"  # series slug
+            r"(staffel-\d+/episode-\d+|"  # season/episode
+            r"filme/film-\d+)"  # movie/film
+            r"/?$"
+        )
+
+        return bool(re.match(pattern, url, re.IGNORECASE))
 
     @property
     def _base_folder(self):
@@ -408,19 +433,38 @@ class AniworldEpisode:
         return provider_dict.get(provider)
 
     def download(self):
-        print(f"[DOWNLOADING] {self.url}")
+        print(f"[DOWNLOADING] {self._file_name}")
 
         # Create folder if it doesn't exist
         os.makedirs(self._folder_path, exist_ok=True)
 
-        # Create the empty file
-        Path(self._episode_path).touch()
+        stream_url = GLOBAL_SESSION.get(
+            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+        ).url
+
+        logger.debug(stream_url)
+
+        # Downloading
+        logger.debug(f"Downloading {self._episode_path}...")
+        # (ffmpeg.input(stream_url).output(self._episode_path, c="copy").run())
 
     def watch(self):
-        print(f"[WATCHING] {self.series.title} Movie E{self.episode_number:02d}.mp4")
+        print(f"[WATCHING] {self._file_name}")
+
+        stream_url = GLOBAL_SESSION.get(
+            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+        ).url
+
+        logger.debug(stream_url)
 
     def syncplay(self):
-        print(f"[SYNCPLAYING] {self.series.title} Movie E{self.episode_number:02d}.mp4")
+        print(f"[SYNCPLAYING] {self._file_name}")
+
+        stream_url = GLOBAL_SESSION.get(
+            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+        ).url
+
+        logger.debug(stream_url)
 
     # -----------------------------
     # Extraction helpers

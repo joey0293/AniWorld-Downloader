@@ -24,6 +24,9 @@ class AniworldSeason:
     """
 
     def __init__(self, url, series=None):
+        if not self.is_valid_aniworld_season_url(url):
+            raise ValueError(f"Invalid AniWorld season URL: {url}")
+
         self._series = series
         self.url = url
 
@@ -33,6 +36,28 @@ class AniworldSeason:
         self.__episodes = None
 
         self.__html = None
+
+    @staticmethod
+    def is_valid_aniworld_season_url(url: str) -> bool:
+        """
+        Checks if the URL is a valid AniWorld season URL.
+        """
+
+        # https://aniworld.to/anime/stream/highschool-dxd/staffel-1
+        # or
+        # https://aniworld.to/anime/stream/highschool-dxd/filme
+
+        url = url.strip()
+
+        # series slug + (/staffel-N or /filme)
+        pattern = (
+            r"^https?://(www\.)?aniworld\.to/anime/stream/"
+            r"[a-zA-Z0-9\-]+/"  # series slug
+            r"(staffel-\d+|filme)"  # season or movie
+            r"/?$"
+        )
+
+        return bool(re.match(pattern, url, re.IGNORECASE))
 
     @property
     def series(self):
