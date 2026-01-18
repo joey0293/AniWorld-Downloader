@@ -26,6 +26,7 @@ class AniworldSeries:
         country:        "Japan"
         age_rating:     "16"
         rating:         "4/5"
+        imbd:           "tt1596341"
         has_movies:     true
         seasons:        [<aniworld.models.aniworld_to.season.AniworldSeason object at 0x10afe5fd0>, [...]]
         season_count:   4
@@ -56,6 +57,7 @@ class AniworldSeries:
         self.__country = None
         self.__age_rating = None
         self.__rating = None
+        self.__imbd = None
 
         self.__has_movies = None
 
@@ -170,6 +172,12 @@ class AniworldSeries:
         if self.__rating is None:
             self.__rating = self.__extract_rating()
         return self.__rating
+
+    @property
+    def imbd(self) -> str:
+        if self.__imbd is None:
+            self.__imbd = self.__extract_imbd()
+        return self.__imbd
 
     @property
     def has_movies(self):
@@ -625,6 +633,18 @@ class AniworldSeries:
         best_rating = html[start_best:end_best].strip()
 
         return f"{rating_value}/{best_rating}"
+
+    def __extract_imbd(self):
+        """
+        Extract the IMDB ID from the series HTML
+        <a href="https://www.imdb.com/title/tt2230051" title="IMDB ID: " data-imdb="tt2230051" class="imdb-link" target="_blank" rel="noopener">IMDB</a>
+        """
+
+        match = re.search(r'data-imdb="(tt\d+)"', self._html)
+        if match:
+            return match.group(1)
+
+        return None
 
     def __extract_movies(self):
         """

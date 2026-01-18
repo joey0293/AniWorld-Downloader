@@ -62,6 +62,7 @@ print(result)
 print(episode._base_folder)
 print(episode._folder_path)
 print(episode._file_name)
+print(episode._file_extension)
 print(episode._episode_path)
 
 episode.download()
