@@ -1,6 +1,6 @@
 import re
 
-from ...config import logger, GLOBAL_SESSION
+from ...config import GLOBAL_SESSION, logger
 from .episode import AniworldEpisode
 
 

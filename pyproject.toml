@@ -13,6 +13,8 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     'niquests',
+    'npyscreen',
+    'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"',
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

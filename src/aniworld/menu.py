@@ -253,40 +253,43 @@ class MenuApp(npyscreen.NPSApp):
 # Entry Point
 # ============================================================
 def app(url):
-    app_instance = MenuApp()
-    app_instance.url = url
-    app_instance.run()
+    try:
+        app_instance = MenuApp()
+        app_instance.url = url
+        app_instance.run()
 
-    # Prepare a copy of result for logging, convert Path to string
-    log_result = dict(app_instance.result)
-    if isinstance(log_result.get("path"), Path):
-        log_result["path"] = str(log_result["path"])
+        # Prepare a copy of result for logging, convert Path to string
+        log_result = dict(app_instance.result)
+        if isinstance(log_result.get("path"), Path):
+            log_result["path"] = str(log_result["path"])
 
-    # Log JSON with leading newline
-    logger.debug("Menu Selection Output\n" + json.dumps(log_result, indent=4))
+        # Log JSON with leading newline
+        logger.debug("Menu Selection Output\n" + json.dumps(log_result, indent=4))
 
-    # Map action names to methods
-    action_methods = {
-        "Download": "download",
-        "Watch": "watch",
-        "Syncplay": "syncplay",
-    }
+        # Map action names to methods
+        action_methods = {
+            "Download": "download",
+            "Watch": "watch",
+            "Syncplay": "syncplay",
+        }
 
-    action = app_instance.result.get("action")
-    episodes = app_instance.result.get("episodes", [])
-    selected_path = app_instance.result.get("path")
-    selected_language = app_instance.result.get("language")
-    selected_provider = app_instance.result.get("provider")
+        action = app_instance.result.get("action")
+        episodes = app_instance.result.get("episodes", [])
+        selected_path = app_instance.result.get("path")
+        selected_language = app_instance.result.get("language")
+        selected_provider = app_instance.result.get("provider")
 
-    if action in action_methods:
-        method_name = action_methods[action]
-        for episode_url in episodes:
-            episode = AniworldEpisode(
-                url=episode_url,
-                selected_path=selected_path,
-                selected_language=selected_language,
-                selected_provider=selected_provider,
-            )
+        if action in action_methods:
+            method_name = action_methods[action]
+            for episode_url in episodes:
+                episode = AniworldEpisode(
+                    url=episode_url,
+                    selected_path=selected_path,
+                    selected_language=selected_language,
+                    selected_provider=selected_provider,
+                )
 
-            # Call the method dynamically
-            getattr(episode, method_name)()
+                # Call the method dynamically
+                getattr(episode, method_name)()
+    except KeyboardInterrupt:
+        pass
