@@ -1,5 +1,6 @@
 import os
 import re
+import subprocess
 from collections import defaultdict
 from pathlib import Path
 from typing import Tuple
@@ -11,6 +12,10 @@ from ...config import (
     GLOBAL_SESSION,
     LANG_KEY_MAP,
     LANG_LABELS,
+    MPV_PATH,
+    PROVIDER_HEADERS_D,
+    PROVIDER_HEADERS_W,
+    SYNCPLAY_PATH,
     Audio,
     Subtitles,
     logger,
@@ -438,33 +443,73 @@ class AniworldEpisode:
             return "Unknown"
         return LANG_KEY_MAP[key]
 
+    # TODO: fix
     def download(self):
         print(f"[DOWNLOADING] {self._file_name}")
 
         # Create folder if it doesn't exist
         os.makedirs(self._folder_path, exist_ok=True)
 
-        # Downloading
-        logger.debug(f"Downloading {self._episode_path}...")
-        (ffmpeg.input(self.stream_url).output(self._episode_path, c="copy").run())
+        # Get headers for the selected provider only
+        headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
+
+        # Format headers for ffmpeg (CRLF-separated string)
+        input_kwargs = {}
+        if headers:
+            header_list = [f"{k}: {v}" for k, v in headers.items()]
+            input_kwargs["headers"] = "\\r\\n".join(header_list)
+
+        # Run ffmpeg to download the file
+        ffmpeg.input(self.stream_url, **input_kwargs).output(
+            self._episode_path, c="copy", threads=4
+        ).run()
 
     def watch(self):
+        """Watch the current episode using mpv with provider headers."""
         print(f"[WATCHING] {self._file_name}")
 
-        stream_url = GLOBAL_SESSION.get(
-            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "VOE")
-        ).url
+        # Get headers for the selected provider
+        headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
 
-        logger.debug(stream_url)
+        # Build --http-header-fields arguments for mpv
+        header_args = [f'{k}: "{v}"' for k, v in headers.items()]
 
+        # Build the full command as a string for the shell
+        cmd_parts = [f'{MPV_PATH} "{self.stream_url}"']
+        if header_args:
+            cmd_parts.append("--http-header-fields=" + ",".join(header_args))
+
+        cmd_str = " ".join(cmd_parts)
+
+        # Print the shell-safe command for reference
+        print(cmd_str)
+
+        # Run the command using the shell
+        subprocess.run(cmd_str, shell=True)
+
+    # TODO: fix
     def syncplay(self):
+        """Play the current episode via mpv (for Syncplay) with provider headers."""
         print(f"[SYNCPLAYING] {self._file_name}")
 
-        stream_url = GLOBAL_SESSION.get(
-            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "VOE")
-        ).url
+        # Get headers for the selected provider
+        headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
 
-        logger.debug(stream_url)
+        # Build --http-header-fields arguments for mpv
+        header_args = [f'{k}: "{v}"' for k, v in headers.items()]
+
+        # Build the full command as a string for the shell
+        cmd_parts = [f'{SYNCPLAY_PATH} "{self.stream_url}"']
+        if header_args:
+            cmd_parts.append("--http-header-fields=" + ",".join(header_args))
+
+        cmd_str = " ".join(cmd_parts)
+
+        # Print the shell-safe command for reference
+        print(cmd_str)
+
+        # Run the command using the shell
+        subprocess.run(cmd_str, shell=True)
 
     # -----------------------------
     # Extraction helpers

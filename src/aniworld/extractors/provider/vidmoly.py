@@ -1,6 +1,9 @@
 import re
 
-from ...config import GLOBAL_SESSION
+try:
+    from ...config import GLOBAL_SESSION
+except ImportError:
+    from aniworld.config import GLOBAL_SESSION
 
 # -----------------------------
 # Constants
