@@ -5,6 +5,9 @@
 - [ ] Create full project roadmap
 - [ ] Implement a configuration system (environment‑based or similar)
 - [ ] Port provider extractors from the "next" branch
+- [ ] Syncplay
+- [ ] Aniskip
+- [ ] Anime4K
 
 ## Working Providers
 
