@@ -4,12 +4,12 @@
 
 - [ ] Create full project roadmap
 - [ ] Implement a configuration system (environment‑based or similar)
-- [ ] Port provider extractors from the "next" branch/module
+- [ ] Port provider extractors from the "next" branch
 
 ## Working Providers
 
 - [ ] Filemoon
-- [-] Vidmoly
+- [x] Vidmoly
 - [x] VOE
 - [ ] LoadX
 - [ ] Luluvdo

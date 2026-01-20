@@ -448,8 +448,8 @@ class AniworldEpisode:
             return "Unknown"
         return LANG_KEY_MAP[key]
 
-    # TODO: fix
     def download(self):
+        # TODO: check if already downloaded
         print(f"[DOWNLOADING] {self._file_name}")
 
         # Create folder if it doesn't exist
@@ -492,7 +492,7 @@ class AniworldEpisode:
         # Run the command using the shell
         subprocess.run(cmd_str, shell=True)
 
-    # TODO: fix
+    # TODO: implement Syncplay
     def syncplay(self):
         """Play the current episode via mpv (for Syncplay) with provider headers."""
         print(f"[SYNCPLAYING] {self._file_name}")
