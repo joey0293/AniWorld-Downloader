@@ -2,7 +2,6 @@ import os
 import re
 import subprocess
 from collections import defaultdict
-from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
 
@@ -12,12 +11,13 @@ from ...config import (
     GLOBAL_SESSION,
     LANG_KEY_MAP,
     LANG_LABELS,
-    MPV_PATH,
+    NAMING_TEMPLATE,
     PROVIDER_HEADERS_D,
     PROVIDER_HEADERS_W,
-    SYNCPLAY_PATH,
     Audio,
     Subtitles,
+    get_mpv_path,
+    get_syncplay_path,
     logger,
 )
 from ...extractors import provider_functions
@@ -223,41 +223,74 @@ class AniworldEpisode:
                 )
         return self.__stream_url
 
+    # TODO: fix those lol
     @property
     def _base_folder(self):
         if self.__base_folder is None:
-            # Base folder: Series title + year
-            self.__base_folder = (
-                Path(self.selected_path)
-                / f"{self.series.title_cleaned} ({self.series.release_year}) [imdbid-{self.series.imbd}]"
+            series_folder_template = NAMING_TEMPLATE.split("/")[0]
+            folder_str = series_folder_template.format(
+                title=self.series.title_cleaned,
+                year=self.series.release_year,
+                imdbid=self.series.imbd,
+                season=f"{self.season.season_number:02d}",
+                episode=f"{self.episode_number:02d}",
             )
+            self.__base_folder = self.selected_path / folder_str
         return self.__base_folder
 
     @property
     def _folder_path(self):
         if self.__folder_path is None:
-            self.__folder_path = (
-                Path(self._base_folder) / f"Season {self.season.season_number:02d}"
+            try:
+                season_folder_template = NAMING_TEMPLATE.split("/")[1]
+            except IndexError:
+                season_folder_template = f"Season {self.season.season_number:02d}"
+            folder_str = season_folder_template.format(
+                title=self.series.title_cleaned,
+                year=self.series.release_year,
+                imdbid=self.series.imbd,
+                season=f"{self.season.season_number:02d}",
+                episode=f"{self.episode_number:02d}",
             )
+            self.__folder_path = self._base_folder / folder_str
         return self.__folder_path
 
     @property
     def _file_name(self):
         if self.__file_name is None:
-            self.__file_name = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:02d}"
+            try:
+                file_template = NAMING_TEMPLATE.split("/")[-1]
+            except IndexError:
+                file_template = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:02d}.mkv"
+
+            # Remove extension
+            if "." in file_template:
+                file_template = ".".join(file_template.split(".")[:-1])
+
+            self.__file_name = file_template.format(
+                title=self.series.title_cleaned,
+                year=self.series.release_year,
+                imdbid=self.series.imbd,
+                season=f"{self.season.season_number:02d}",
+                episode=f"{self.episode_number:02d}",
+            )
         return self.__file_name
 
     @property
     def _file_extension(self):
         if self.__file_extension is None:
-            self.__file_extension = "mkv"
+            try:
+                ext = NAMING_TEMPLATE.split("/")[-1].split(".")[-1]
+                self.__file_extension = ext if ext else "mkv"
+            except IndexError:
+                self.__file_extension = "mkv"
         return self.__file_extension
 
     @property
     def _episode_path(self):
         if self.__episode_path is None:
             self.__episode_path = (
-                Path(self._folder_path) / f"{self._file_name}.{self._file_extension}"
+                self._folder_path / f"{self._file_name}.{self._file_extension}"
             )
         return self.__episode_path
 
@@ -512,7 +545,7 @@ class AniworldEpisode:
         header_args = [f'{k}: "{v}"' for k, v in headers.items()]
 
         # Build the full command as a string for the shell
-        cmd_parts = [f'{MPV_PATH} "{self.stream_url}"']
+        cmd_parts = [f'{get_mpv_path()} "{self.stream_url}"']
         if header_args:
             cmd_parts.append("--http-header-fields=" + ",".join(header_args))
 
@@ -536,7 +569,7 @@ class AniworldEpisode:
         header_args = [f'{k}: "{v}"' for k, v in headers.items()]
 
         # Build the full command as a string for the shell
-        cmd_parts = [f'{SYNCPLAY_PATH} "{self.stream_url}"']
+        cmd_parts = [f'{get_syncplay_path()} "{self.stream_url}"']
         if header_args:
             cmd_parts.append("--http-header-fields=" + ",".join(header_args))
 

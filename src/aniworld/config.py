@@ -1,3 +1,4 @@
+import os
 from enum import Enum
 
 from niquests import Session
@@ -8,6 +9,11 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 VERSION = "4.0.0"
+
+NAMING_TEMPLATE = os.getenv(
+    "ANIWORLD_NAMING_TEMPLATE",
+    "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv",
+)
 
 # NIQUESTS
 
@@ -165,12 +171,12 @@ deps = {
     },
 }
 
-# TODO: maybe lazy load later :)
 
-deps_manager = DependencyManager(deps=deps)
+def get_mpv_path():
+    deps_manager = DependencyManager(deps=deps)
+    return deps_manager.fetch_binary("mpv")
 
-mpv_path = deps_manager.fetch_binary("mpv")
-syncplay_path = deps_manager.fetch_binary("syncplay")
 
-MPV_PATH = mpv_path
-SYNCPLAY_PATH = syncplay_path
+def get_syncplay_path():
+    deps_manager = DependencyManager(deps=deps)
+    return deps_manager.fetch_binary("syncplay")
