@@ -1,6 +1,7 @@
 import logging
 import os
 import tempfile
+from pathlib import Path
 
 _global_logger = None
 
@@ -18,7 +19,7 @@ def get_logger(name=__name__, level=logging.WARNING):
 
         # Determine temp log path
         temp_dir = tempfile.gettempdir()
-        log_file_path = os.path.join(temp_dir, "aniworld.log")
+        log_file_path = Path(temp_dir) / "aniworld.log"
 
         # File handler (overwrite each run)
         handler = logging.FileHandler(log_file_path, mode="w", encoding="utf-8")

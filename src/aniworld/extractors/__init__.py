@@ -1,11 +1,11 @@
 import importlib
 import inspect
-import os
 import pkgutil
+from pathlib import Path
 
 provider_functions = {}
 
-provider_path = os.path.join(__path__[0], "provider")
+provider_path = Path(__path__[0]) / "provider"
 
 for _, module_name, _ in pkgutil.iter_modules([provider_path]):
     mod = importlib.import_module(f".provider.{module_name}", __name__)
