@@ -72,7 +72,7 @@ def get_preview_image_link_from_vidmoly(embed_url):
 
 
 if __name__ == "__main__":
-    # Tested on 2026/01 -> NOT WORKING
+    # Tested on 2026/01/20 -> KIND OF WORKING
     # Example: https://vidmoly.net/embed-zquo82b8dm1k.html
 
     link = input("Enter Vidmoly Link: ").strip()

@@ -4,7 +4,6 @@ import json
 import re
 
 import niquests
-from bs4 import BeautifulSoup
 
 try:
     from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
@@ -64,17 +63,29 @@ def decode_voe_string(encoded):
         raise ValueError(f"Failed to decode VOE string: {err}") from err
 
 
-# TODO: remove BeautifulSoup dependency
 def extract_voe_source_from_html(html):
-    """Extract VOE video source using BeautifulSoup + decode_voe_string"""
+    """Extract VOE video source using regex + decode_voe_string"""
     try:
-        soup = BeautifulSoup(html, "html.parser")
-        script = soup.find("script", type="application/json")
-        if script and script.text:
-            # remove wrapping quotes
-            encoded_text = script.text[2:-2]
-            decoded = decode_voe_string(encoded_text)
-            return decoded.get("source")
+        script_blocks = re.findall(r'<script\s+type=["\']application/json["\']>(.*?)</script>', html, re.DOTALL)
+        if not script_blocks:
+            return None
+
+        for script_block in script_blocks:
+            encoded_text = script_block.strip()
+            if encoded_text.startswith('"') and encoded_text.endswith('"'):
+                encoded_text = encoded_text[1:-1]
+
+            encoded_text = encoded_text.encode().decode('unicode_escape')
+
+            try:
+                decoded = decode_voe_string(encoded_text)
+                source = decoded.get("source")
+                if source:
+                    return source
+            except ValueError:
+                continue
+
+        return None
     except Exception:
         return None
 
