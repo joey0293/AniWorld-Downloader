@@ -12,6 +12,12 @@ logger = get_logger(__name__)
 def parse_args():
     parser = argparse.ArgumentParser(prog="aniworld", description="AniWorld-Downloader")
 
+    parser.add_argument(
+        "--random-anime",
+        action="store_true",
+        help="<TODO>",
+    )
+
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     parser.add_argument(
@@ -27,6 +33,9 @@ def parse_args():
     )
 
     args = parser.parse_args()
+
+    if args.random_anime:
+        os.environ["ANIWORLD_RANDOM_ANIME"] = "1"
 
     if args.debug:
         # Set environment variable for debug mode
