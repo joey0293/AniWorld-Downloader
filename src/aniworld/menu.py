@@ -208,6 +208,8 @@ class MenuApp(npyscreen.NPSApp):
             scroll_exit=True,
         )
 
+        # TODO: add select all button
+
         # --- Edit the form ---
         F.edit()
 
