@@ -70,8 +70,11 @@ class AniworldSeason:
     @property
     def series(self):
         if self._series is None:
-            # Extract series URL from season URL by removing /staffel-X part
-            series_url = self.url.split("/staffel-")[0]
+            # Extract series URL from season URL by removing /staffel-X or /filme part
+            if self.are_movies:
+                series_url = self.url.split("/filme")[0]
+            else:
+                series_url = self.url.split("/staffel-")[0]
             from .series import AniworldSeries
 
             self._series = AniworldSeries(series_url)

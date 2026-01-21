@@ -539,7 +539,7 @@ class AniworldEpisode:
 
         # Run ffmpeg to download the file
         ffmpeg.input(self.stream_url, **input_kwargs).output(
-            self._episode_path, c="copy", threads=4
+            str(self._episode_path), c="copy", threads=4
         ).run()
 
     def watch(self):
