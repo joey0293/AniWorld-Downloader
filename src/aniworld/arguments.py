@@ -13,6 +13,12 @@ def parse_args():
     parser = argparse.ArgumentParser(prog="aniworld", description="AniWorld-Downloader")
 
     parser.add_argument(
+        "--action",
+        choices=["Download", "Watch", "Syncplay"],
+        help="Choose what to do: Download, Watch, or Syncplay",
+    )
+
+    parser.add_argument(
         "--random-anime",
         action="store_true",
         help="Select a random anime",
@@ -27,15 +33,24 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--no-menu",
+        action="store_true",
+        help="Run without interactive menu",
+    )
+
+    parser.add_argument(
         "url",
-        nargs="?",
-        help="Series or Episode URL",
+        nargs="*",
+        help="Series or Episode URL(s)",
     )
 
     args = parser.parse_args()
 
     if args.random_anime:
         os.environ["ANIWORLD_RANDOM_ANIME"] = "1"
+
+    if args.no_menu:
+        os.environ["ANIWORLD_NO_MENU"] = "1"
 
     if args.debug:
         # Set environment variable for debug mode

@@ -1,6 +1,6 @@
 import re
 
-from ...config import GLOBAL_SESSION, logger
+from ...config import ANIWORLD_SEASON_PATTERN, GLOBAL_SESSION, logger
 from .episode import AniworldEpisode
 
 
@@ -57,15 +57,7 @@ class AniworldSeason:
 
         url = url.strip()
 
-        # series slug + (/staffel-N or /filme)
-        pattern = (
-            r"^https?://(www\.)?aniworld\.to/anime/stream/"
-            r"[a-zA-Z0-9\-]+/"  # series slug
-            r"(staffel-\d+|filme)"  # season or movie
-            r"/?$"
-        )
-
-        return bool(re.match(pattern, url, re.IGNORECASE))
+        return bool(ANIWORLD_SEASON_PATTERN.match(url))
 
     @property
     def series(self):

@@ -1,5 +1,6 @@
 import os
 import platform
+import re
 from enum import Enum
 
 from niquests import Session
@@ -194,3 +195,31 @@ def get_player_path():
 def get_syncplay_path():
     deps_manager = DependencyManager(deps=deps)
     return deps_manager.fetch_binary("syncplay")
+
+
+# -----------------------------
+# Patterns
+# -----------------------------
+
+
+ANIWORLD_SERIES_PATTERN = re.compile(
+    r"^https?://(www\.)?aniworld\.to/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+)
+
+# series slug + (/staffel-N or /filme)
+ANIWORLD_SEASON_PATTERN = re.compile(
+    r"^https?://(www\.)?aniworld\.to/anime/stream/"
+    r"[a-zA-Z0-9\-]+/"
+    r"(staffel-\d+|filme)"
+    r"/?$",
+    re.IGNORECASE,
+)
+
+ANIWORLD_EPISODE_PATTERN = re.compile(
+    r"^https?://(www\.)?aniworld\.to/anime/stream/"
+    r"[a-zA-Z0-9\-]+/"  # series slug
+    r"(staffel-\d+/episode-\d+|"  # season/episode
+    r"filme/film-\d+)"  # movie/film
+    r"/?$",
+    re.IGNORECASE,
+)

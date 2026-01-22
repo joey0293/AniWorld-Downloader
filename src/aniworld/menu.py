@@ -8,7 +8,7 @@ from pathlib import Path
 import npyscreen
 
 from .config import INVERSE_LANG_KEY_MAP, LANG_LABELS, VERSION, logger
-from .models import AniworldEpisode, AniworldSeries
+from .models import AniworldSeries
 
 # ============================================================
 # Patch: Fix for Python 3.14+ buffer overflow in npyscreen
@@ -259,38 +259,10 @@ def app(url):
         if isinstance(log_result.get("path"), Path):
             log_result["path"] = str(log_result["path"])
 
-        # Log JSON with leading newline
         logger.debug("Menu Selection Output\n" + json.dumps(log_result, indent=4))
 
-        # Map action names to methods
-        action_methods = {
-            "Download": "download",
-            "Watch": "watch",
-            "Syncplay": "syncplay",
-        }
+        # Return the result to the caller
+        return app_instance.result
 
-        action = app_instance.result.get("action")
-        episodes = app_instance.result.get("episodes", [])
-        selected_path = app_instance.result.get("path")
-        selected_language = app_instance.result.get("language")
-        selected_provider = app_instance.result.get("provider")
-
-        if app_instance.result.get("aniskip"):
-            os.environ["ANIWORLD_USE_ANISKIP"] = "1"  # "Enabled"
-        else:
-            os.environ["ANIWORLD_USE_ANISKIP"] = "0"
-
-        if action in action_methods:
-            method_name = action_methods[action]
-            for episode_url in episodes:
-                episode = AniworldEpisode(
-                    url=episode_url,
-                    selected_path=selected_path,
-                    selected_language=selected_language,
-                    selected_provider=selected_provider,
-                )
-
-                # Call the method dynamically
-                getattr(episode, method_name)()
     except KeyboardInterrupt:
-        pass
+        return None

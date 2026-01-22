@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 import ffmpeg
 
 from ...config import (
+    ANIWORLD_EPISODE_PATTERN,
     GLOBAL_SESSION,
     LANG_KEY_MAP,
     LANG_LABELS,
@@ -187,15 +188,7 @@ class AniworldEpisode:
 
         url = url.strip()
 
-        pattern = (
-            r"^https?://(www\.)?aniworld\.to/anime/stream/"
-            r"[a-zA-Z0-9\-]+/"  # series slug
-            r"(staffel-\d+/episode-\d+|"  # season/episode
-            r"filme/film-\d+)"  # movie/film
-            r"/?$"
-        )
-
-        return bool(re.match(pattern, url, re.IGNORECASE))
+        return bool(ANIWORLD_EPISODE_PATTERN.match(url))
 
     @property
     def redirect_url(self):
