@@ -276,9 +276,9 @@ def app(url):
         selected_provider = app_instance.result.get("provider")
 
         if app_instance.result.get("aniskip"):
-            os.environ["ANISKIP"] = "1"  # "Enabled"
+            os.environ["ANIWORLD_USE_ANISKIP"] = "1"  # "Enabled"
         else:
-            os.environ["ANISKIP"] = "0"
+            os.environ["ANIWORLD_USE_ANISKIP"] = "0"
 
         if action in action_methods:
             method_name = action_methods[action]
