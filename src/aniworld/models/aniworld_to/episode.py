@@ -545,21 +545,25 @@ class AniworldEpisode:
         # Get headers for the selected provider
         headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
 
-        # Build --http-header-fields arguments
-        header_args = [f'{k}: "{v}"' for k, v in headers.items()]
+        # Build command as list to avoid shell injection issues
+        cmd = [str(get_player_path()), self.stream_url]
 
-        # Build the full command as a string for the shell
-        cmd_parts = [f'{get_player_path()} "{self.stream_url}"']
-        if header_args:
-            cmd_parts.append("--http-header-fields=" + ",".join(header_args))
+        # Add mpv options
+        cmd.extend(
+            ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
+        )
 
-        cmd_str = " ".join(cmd_parts)
+        # Add headers if present
+        if headers:
+            # Build header arguments properly escaped
+            header_args = [f"{k}: {v}" for k, v in headers.items()]
+            cmd.append("--http-header-fields=" + ",".join(header_args))
 
-        # Print the shell-safe command for reference
-        print(cmd_str)
+        # Print the command for reference
+        print(" ".join(cmd))
 
-        # Run the command using the shell
-        subprocess.run(cmd_str, shell=True)
+        # Run the command using argument list (no shell)
+        subprocess.run(cmd)
 
     # TODO: implement Syncplay
     def syncplay(self):
@@ -575,7 +579,7 @@ class AniworldEpisode:
         # Build the full command as a string for the shell
         cmd_parts = [f'{get_syncplay_path()} "{self.stream_url}"']
         if header_args:
-            cmd_parts.append("--http-header-fields=" + ",".join(header_args))
+            cmd_parts.append("--no-ytdl --http-header-fields=" + ",".join(header_args))
 
         cmd_str = " ".join(cmd_parts)
 

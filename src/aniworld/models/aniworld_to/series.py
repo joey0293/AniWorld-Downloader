@@ -692,8 +692,6 @@ class AniworldSeries:
 
         if self.has_movies:
             seasons.append(AniworldSeason(f"{self.url}/filme", series=self))
-        else:
-            logger.debug("Has movies: False")
 
         seasons.sort(key=lambda s: (s.are_movies, s.season_number or 0))
 
