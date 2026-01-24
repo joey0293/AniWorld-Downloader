@@ -54,7 +54,7 @@ def parse_args():
 
     if args.debug:
         # Set environment variable for debug mode
-        os.environ["ANIWORLD_DEBUG"] = "1"
+        os.environ["ANIWORLD_DEBUG_MODE"] = "1"
 
         # Set level on all existing loggers
         logging.getLogger().setLevel(logging.DEBUG)
