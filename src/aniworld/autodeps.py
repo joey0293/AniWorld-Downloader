@@ -212,8 +212,15 @@ def get_player_path():
     return manager.fetch_binary("mpv")
 
 
+# TODO: implement syncplay instead of mpv
+def get_syncplay_path():
+    manager = DependencyManager()
+    return manager.fetch_binary("mpv")
+
+
 # -----------------------------
 # Testing
 # -----------------------------
 if __name__ == "__main__":
     print(get_player_path())
+    print(get_syncplay_path())
