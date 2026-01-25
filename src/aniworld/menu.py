@@ -99,14 +99,15 @@ class MenuApp(npyscreen.NPSApp):
         except OSError:
             terminal_height = 24
 
-        # Calculate reserved height for all widgets (title + action + path/aniskip + language + provider + spacing)
+        # Calculate reserved height for all widgets (title + action + path/aniskip + language + provider + select all button + spacing)
         total_reserved_height = (
             2  # form title space
             + 4  # action widget
             + 2  # path/aniskip widget (only one visible at a time)
             + max(2, languages_count)  # language widget
             + max(2, providers_count)  # provider widget
-            + 5  # spacing and bottom padding
+            + 1  # select all button
+            + 6  # spacing and bottom padding
         )
 
         max_episode_height = max(3, terminal_height - total_reserved_height)
@@ -238,6 +239,24 @@ class MenuApp(npyscreen.NPSApp):
 
         # Store reference for resize handling
         self._episodes_widget = episodes_widget
+
+        # --- Select All Button ---
+        select_all_button = F.add(
+            npyscreen.ButtonPress,
+            name="Select All",
+            rely=episodes_rely + max_episode_height + 1,
+        )
+
+        def toggle_select_all():
+            if len(episodes_widget.value) == len(episodes):
+                episodes_widget.value = []
+                select_all_button.name = "Select All"
+            else:
+                episodes_widget.value = list(range(len(episodes)))
+                select_all_button.name = "Deselect All"
+            F.display()
+
+        select_all_button.whenPressed = toggle_select_all
 
         # Set up resize handler
         def handle_resize(input):
