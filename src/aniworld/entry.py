@@ -4,7 +4,10 @@ import sys
 from dotenv import load_dotenv
 
 from .arguments import parse_args
+
+# Load environment variables from ~/.aniworld/.env file
 from .config import (
+    ANIWORLD_CONFIG_DIR,
     ANIWORLD_EPISODE_PATTERN,
     ANIWORLD_SEASON_PATTERN,
     ANIWORLD_SERIES_PATTERN,
@@ -15,8 +18,7 @@ from .menu import app
 from .models import AniworldEpisode, AniworldSeason, AniworldSeries
 from .search import search
 
-# Load environment variables from .env file
-load_dotenv()
+load_dotenv(ANIWORLD_CONFIG_DIR / ".env")
 
 
 logger = get_logger(__name__)

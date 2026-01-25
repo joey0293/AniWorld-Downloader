@@ -1,6 +1,7 @@
 import os
 import re
 from enum import Enum
+from pathlib import Path
 
 from fake_useragent import UserAgent
 from niquests import Session
@@ -10,6 +11,9 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 VERSION = "4.0.0"
+
+# AniWorld configuration directory
+ANIWORLD_CONFIG_DIR = Path.home() / ".aniworld"
 
 NAMING_TEMPLATE = os.getenv(
     "ANIWORLD_NAMING_TEMPLATE",
