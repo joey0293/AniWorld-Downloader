@@ -139,7 +139,18 @@ LANG_LABELS = {
     "3": "German Sub",
 }
 
+LANG_CODE_MAP = {
+    Audio.ENGLISH: "eng",
+    Audio.GERMAN: "deu",
+    Audio.JAPANESE: "jpn",
+    Subtitles.ENGLISH: "eng",
+    Subtitles.GERMAN: "deu",
+    Subtitles.NONE: None,
+}
+
+
 INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}
+INVERSE_LANG_LABELS = {v: k for k, v in LANG_LABELS.items()}
 
 # -----------------------------
 # Patterns
