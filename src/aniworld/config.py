@@ -46,7 +46,7 @@ def get_video_codec():
 # NIQUESTS
 
 # DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone16,2; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Resorts/4.7.5"
-DEFAULT_USER_AGENT = str(UserAgent().random)
+DEFAULT_USER_AGENT = str(UserAgent(os=["Windows", "Mac OS X"]).random)
 
 LULUVDO_USER_AGENT = (
     "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
