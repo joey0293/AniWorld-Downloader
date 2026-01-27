@@ -384,7 +384,7 @@ class AniworldEpisode:
     def selected_path(self):
         if self.__selected_path is None:
             self.__selected_path = self.__selected_path_param or os.getenv(
-                "ANIWORLD_DOWNLOAD_PATH", "Downloads"
+                "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
             )
         return self.__selected_path
 
@@ -415,8 +415,7 @@ class AniworldEpisode:
     @property
     def is_downloaded(self):
         if self.__is_downloaded is None:
-            # TODO: disabled for testing muxing, needs video & audio checking later
-            self.__is_downloaded = False or os.path.isfile(self._episode_path)
+            self.__is_downloaded = self.__check_downloaded()
         return self.__is_downloaded
 
     def __extract_episode_number(self):
@@ -515,48 +514,182 @@ class AniworldEpisode:
             return "Unknown"
         return LANG_KEY_MAP[key]
 
+    def __check_downloaded(self):
+        result = {
+            "exists": False,
+            "video_langs": set(),
+            "audio_langs": set(),
+        }
+
+        if not self._episode_path.exists():
+            return result
+
+        result["exists"] = True
+
+        try:
+            probe = ffmpeg.probe(str(self._episode_path))
+        except ffmpeg.Error:
+            return result
+
+        streams = probe.get("streams", [])
+
+        for s in streams:
+            lang = s.get("tags", {}).get("language", "und")
+            if s.get("codec_type") == "video":
+                result["video_langs"].add(lang)
+            elif s.get("codec_type") == "audio":
+                result["audio_langs"].add(lang)
+
+        return result
+
     def download(self):
-        if os.path.exists(self._episode_path):
-            print(f"[SKIPPED] {self._file_name}")
-            return
+        """
+        Download required audio/video streams for this episode.
 
-        print(f"[DOWNLOADING] {self._file_name}")
+        Supports:
+        - Full preset download if neither audio nor video exists.
+        - Partial download if only one stream is missing.
+        - Reuses streams when possible to avoid duplicate downloads.
+        """
 
-        os.makedirs(self._folder_path, exist_ok=True)
+        # ---------------------------------------------------------
+        # 1) Check existing streams
+        # ---------------------------------------------------------
+        check = self.__check_downloaded()
 
-        # Prepare headers
+        # ---------------------------------------------------------
+        # 2) Prepare HTTP headers
+        # ---------------------------------------------------------
         headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
         input_kwargs = {}
         if headers:
             header_list = [f"{k}: {v}" for k, v in headers.items()]
-            input_kwargs["headers"] = "\\r\\n".join(header_list)
+            input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
 
-        # Resolve language selection
+        # ---------------------------------------------------------
+        # 3) Resolve user language selection
+        # ---------------------------------------------------------
         selected_key = INVERSE_LANG_LABELS[self.selected_language]
-        audio_lang_enum, subtitle_lang_enum = LANG_KEY_MAP[selected_key]
+        audio_enum, sub_enum = LANG_KEY_MAP[selected_key]
 
-        # Convert to ISO codes
-        # Convert to ISO codes
-        audio_code = LANG_CODE_MAP[audio_lang_enum]
+        audio_code = LANG_CODE_MAP[audio_enum]
+        wants_clean_video = sub_enum == Subtitles.NONE
+        sub_video_code = None if wants_clean_video else LANG_CODE_MAP[sub_enum]
 
-        # Determine video language correctly
-        if subtitle_lang_enum == Subtitles.NONE:
-            video_code = "und"  # undefined video language
+        # ---------------------------------------------------------
+        # 4) Determine missing streams
+        # ---------------------------------------------------------
+        has_video = bool(check["video_langs"])
+        has_audio = audio_code in check["audio_langs"]
+
+        need_audio = not has_audio
+        if not has_video:
+            need_video = True
+        elif not wants_clean_video:
+            need_video = sub_video_code not in check["video_langs"]
         else:
-            video_code = LANG_CODE_MAP[subtitle_lang_enum]
+            need_video = False
 
-        # Build metadata arguments
-        metadata_args = {
-            "metadata:s:v:0": f"language={video_code}",
-            "metadata:s:a:0": f"language={audio_code}",
-        }
+        # ---------------------------------------------------------
+        # 5) Skip if nothing is missing
+        # ---------------------------------------------------------
+        if not need_audio and not need_video:
+            logger.warning(f"[SKIPPED] {self._file_name}")
+            return
 
-        # Run ffmpeg
-        (
-            ffmpeg.input(self.stream_url, **input_kwargs)
-            .output(str(self._episode_path), c="copy", threads=4, **metadata_args)
-            .run()
+        os.makedirs(self._folder_path, exist_ok=True)
+
+        # ---------------------------------------------------------
+        # 6) Decide if we can download a single full stream
+        # ---------------------------------------------------------
+        # German Dub or other source containing both video+audio needed
+        full_stream_needed = need_audio and need_video and wants_clean_video
+
+        temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
+        temp_video = self._episode_path.with_suffix(".temp_video.mkv")
+        temp_full = self._episode_path.with_suffix(".temp_full.mkv")
+
+        if full_stream_needed:
+            logger.warning("[DOWNLOADING] full preset (audio + video together)")
+
+            # Prepare per-stream metadata
+            stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
+            if not wants_clean_video:
+                stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
+
+            # Download full stream
+            ffmpeg.input(self.stream_url, **input_kwargs).output(
+                str(temp_full), c="copy", **stream_metadata
+            ).run()
+
+            # Mux into final file (or just move if file didn't exist before)
+            if self._episode_path.exists():
+                inputs = [
+                    ffmpeg.input(str(self._episode_path)),
+                    ffmpeg.input(str(temp_full)),
+                ]
+                output_path = self._episode_path.with_suffix(".new.mkv")
+                ffmpeg.output(*inputs, str(output_path), c="copy").run()
+                os.replace(output_path, self._episode_path)
+            else:
+                # First file, just move
+                os.replace(temp_full, self._episode_path)
+
+            # Cleanup
+            if temp_full.exists():
+                temp_full.unlink()
+            return
+
+        # ---------------------------------------------------------
+        # 7) Partial downloads
+        # ---------------------------------------------------------
+        if need_audio:
+            logger.warning("[DOWNLOADING] audio stream")
+            ffmpeg.input(self.stream_url, **input_kwargs).output(
+                str(temp_audio),
+                c="copy",
+                map="0:a:0?",
+                **{"metadata:s:a:0": f"language={audio_code}"},
+            ).run()
+
+        if need_video:
+            logger.warning("[DOWNLOADING] video stream")
+            ffmpeg.input(self.stream_url, **input_kwargs).output(
+                str(temp_video),
+                c="copy",
+                map="0:v:0?",
+                **(
+                    {}
+                    if wants_clean_video
+                    else {"metadata:s:v:0": f"language={sub_video_code}"}
+                ),
+            ).run()
+
+        # ---------------------------------------------------------
+        # 8) Mux downloaded streams with existing file
+        # ---------------------------------------------------------
+        logger.warning("[MUXING] combining streams")
+        inputs = (
+            [ffmpeg.input(str(self._episode_path))]
+            if self._episode_path.exists()
+            else []
         )
+
+        if need_audio:
+            inputs.append(ffmpeg.input(str(temp_audio)))
+        if need_video:
+            inputs.append(ffmpeg.input(str(temp_video)))
+
+        output_path = self._episode_path.with_suffix(".new.mkv")
+        ffmpeg.output(*inputs, str(output_path), c="copy").run()
+        os.replace(output_path, self._episode_path)
+
+        # ---------------------------------------------------------
+        # 9) Cleanup temporary files
+        # ---------------------------------------------------------
+        for f in (temp_audio, temp_video):
+            if f.exists():
+                f.unlink()
 
     def watch(self):
         """Watch the current episode with provider headers."""
