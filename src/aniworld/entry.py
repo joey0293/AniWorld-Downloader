@@ -1,16 +1,19 @@
 import os
 import sys
-
-from dotenv import load_dotenv
+from pathlib import Path
 
 from .arguments import parse_args
 from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
+from .env import merge_env
 from .logger import get_logger
 from .menu import app
 from .providers import resolve_provider
 from .search import search
 
-load_dotenv(ANIWORLD_CONFIG_DIR / ".env")
+merge_env(
+    Path(__file__).resolve().parents[2] / ".env.example",
+    ANIWORLD_CONFIG_DIR / ".env",
+)
 
 logger = get_logger(__name__)
 
