@@ -125,7 +125,7 @@ def get_all_seasons_by_query(query="love is war"):
         return []
 
     all_ids = get_all_related_ids(season1_id)
-    logger.info(f"All related MAL IDs found: {all_ids}")
+    logger.debug(f"All related MAL IDs found: {all_ids}")
     return sorted(all_ids)
 
 

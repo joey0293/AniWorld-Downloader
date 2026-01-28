@@ -219,3 +219,17 @@ HANIME_TV_SERIES_PATTERN = re.compile(
     r"^https?://(?:www\.)?hanime\.tv/videos/hentai/[A-Za-z0-9\-]+/?$",
     re.IGNORECASE,
 )
+
+# -----------------------------
+# Directories
+# -----------------------------
+
+# TODO: add many other directories and use them throughout the app
+
+# Determine mpv scripts directory
+# On Linux/macOS: ~/.config/mpv/scripts
+# On Windows: %APPDATA%\mpv\scripts
+if os.name == "nt":
+    MPV_SCRIPTS_DIR = Path(os.getenv("APPDATA")) / "mpv" / "scripts"
+else:
+    MPV_SCRIPTS_DIR = Path.home() / ".config" / "mpv" / "scripts"
