@@ -1,0 +1,2 @@
+include src/aniworld/.env.example
+include src/aniworld/ascii/ASCII.txt
