@@ -118,6 +118,8 @@ class AniworldEpisode:
         is_movie                false
         is_downloaded           true
 
+        skip_times:             {'found': True, 'results': [{'interval': {'start_time': 123.014, 'end_time': 213.014}, 'skip_type': 'op', 'skip_id': '1fd0d19a-4332-479e-9e3d-03e9b293db6a', 'episode_length': 1422.0416}, {'interval': {'start_time': 1187.09, 'end_time': 1277.09}, 'skip_type': 'ed', 'skip_id': '17a28c6e-5104-4142-9334-b57dbd024425', 'episode_length': 1422.0416}]}
+
         _html:                  "<!doctype html>[...]"
 
     Methods:
@@ -175,6 +177,8 @@ class AniworldEpisode:
 
         self.__is_movie = None
         self.__is_downloaded = None
+
+        self.__skip_times = None
 
         self.__html = None
 
@@ -418,6 +422,12 @@ class AniworldEpisode:
         if self.__is_downloaded is None:
             self.__is_downloaded = self.__check_downloaded()
         return self.__is_downloaded
+
+    @property
+    def skip_times(self):
+        if self.__skip_times is None:
+            self.__skip_times = self.__extract_skip_times()
+        return self.__skip_times
 
     def __extract_episode_number(self):
         """
@@ -918,3 +928,17 @@ class AniworldEpisode:
         """
         pattern = r"^https://aniworld\.to/anime/stream/[^/]+/filme/film-\d+/?$"
         return re.match(pattern, self.url) is not None
+
+    def __extract_skip_times(self):
+        from ...aniskip import get_skip_times
+
+        mal_id = self._series.mal_id
+        logger.debug(f"Fetching MAL IDs for series: {mal_id}")
+
+        season_number = self.season.season_number - 1
+        logger.debug(f"Using season number: {season_number + 1}")
+
+        episode_number = self.episode_number
+        logger.debug(f"Using episode number: {episode_number}")
+
+        return get_skip_times(mal_id[season_number], episode_number)
