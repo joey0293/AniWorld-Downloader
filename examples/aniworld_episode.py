@@ -1,63 +1,98 @@
+"""
+Example: AniWorld Episode usage
+
+This example prints all available episode values and shows what you can do
+with them.
+
+You can use this file as a reference for:
+- Accessing metadata
+- Accessing provider data
+- Generating provider links
+- Downloading / Watching / Syncplay
+"""
+
+from aniworld.config import Audio, Subtitles
 from aniworld.models import AniworldSeries
 
-"""
-from .series import AniworldSeries
-series = AniworldSeries("https://aniworld.to/anime/stream/goblin-slayer")
-    print(series.url)
-    print(series.title)
-    print(series.description)
-    print(series.genres)
-    print(series.release_year)
-    print(series.poster_url)
-    print(series.directors)
-    print(series.actors)
-    print(series.producer)
-    print(series.country)
-    print(series.age_rating)
-    print(series.rating)
-    print(series.seasons)
+# ----------------------------
+# 1. Load the series
+# ----------------------------
+series_url = "https://aniworld.to/anime/stream/highschool-dxd"
+series = AniworldSeries(series_url)
 
-    input(f"\n{'=' * 40}\nENTER TO QUIT\n{'=' * 40}\n")
-"""
+print("=== SERIES INFO ===")
+print("Title:", series.title)
+print("URL:", series.url)
+print("Description:", series.description)
+print("Genres:", series.genres)
+print("Release year:", series.release_year)
+print("Poster URL:", series.poster_url)
+print("Directors:", series.directors)
+print("Actors:", series.actors)
+print("Producer:", series.producer)
+print("Country:", series.country)
+print("Age rating:", series.age_rating)
+print("Rating:", series.rating)
+print("Number of seasons:", len(series.seasons))
+print("Has movies:", series.has_movies)
+print()
 
-"""
-series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
-print(f"Testing Series: {series.title}")
-print(f"Series URL: {series.url}")
-print(f"Has movies: {series.has_movies}")
-print(f"Number of seasons: {len(series.seasons)}")
+# ----------------------------
+# 2. Select first season and episode
+# ----------------------------
+season = series.seasons[0]
+episode = season.episodes[0]
 
-print("\n--- Testing Seasons ---")
-for i, season in enumerate(series.seasons, 1):
-    print(f"\nSeason {i}:")
-    print(f"  URL: {season.url}")
-    # print(f"  Season Number: {season.season_number}")
-    # print(f"  Episode Count: {season.episode_count}")
-    # print(f"  Episodes: {len(season.episodes)} objects")
-    if season.episodes:
-        print(f"  First Episode: {season.episodes[0].title_de}")
-        print(f"  First Episode: {season.episodes[0].language}")
+print("=== EPISODE INFO ===")
+print("Episode URL:", episode.url)
+print("Episode number:", episode.episode_number)
+print("Title (DE):", episode.title_de)
+print("Title (EN):", episode.title_en)
+print("Is movie:", episode.is_movie)
+print("Is downloaded:", episode.is_downloaded["exists"])
 
-"""
+print()
 
-series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
+# ----------------------------
+# 3. Provider data
+# ----------------------------
+print("Provider data:", episode.provider_data)
+print()
 
-episode = series.seasons[0].episodes[0]
+# ----------------------------
+# 4. Provider link
+# ----------------------------
+# Example: German audio + no subtitles, provider VOE
+lang = (Audio.GERMAN, Subtitles.NONE)
+provider_name = "VOE"
 
-print(episode.url)
-# print(episode.title_de)
-print(episode.provider_data)
+provider_link = episode.provider_link(language=lang, provider=provider_name)
+print("Provider link:", provider_link)
+print()
 
-# result = episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
-# print(result)
+# ----------------------------
+# 5. URL chain values
+# ----------------------------
+# These are computed from provider link / redirect
+print("Redirect URL:", episode.redirect_url)
+print("Provider URL:", episode.provider_url)
+print("Stream URL:", episode.stream_url)
+print()
 
+# ----------------------------
+# 6. File path helpers
+# ----------------------------
+print("Base folder:", episode._base_folder)
+print("Folder path:", episode._folder_path)
+print("File name:", episode._file_name)
+print("File extension:", episode._file_extension)
+print("Full episode path:", episode._episode_path)
+print()
 
-print(episode._base_folder)
-print(episode._folder_path)
-print(episode._file_name)
-print(episode._file_extension)
-print(episode._episode_path)
-
-
+# ----------------------------
+# 7. Actions
+# ----------------------------
+# Uncomment to enable:
+# episode.download()
 # episode.watch()
-# print(episode.is_downloaded)
+# episode.syncplay()
