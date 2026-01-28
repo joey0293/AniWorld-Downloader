@@ -31,6 +31,12 @@ VIDEO_CODEC_MAP = {
     "av1": "libsvtav1",
 }
 
+ACTION_METHODS = {
+    "Download": "download",
+    "Watch": "watch",
+    "Syncplay": "syncplay",
+}
+
 
 def get_video_codec():
     """Get and validate video codec from environment variable."""
@@ -199,5 +205,10 @@ ANIWORLD_EPISODE_PATTERN = re.compile(
     r"(staffel-\d+/episode-\d+|"  # season/episode
     r"filme/film-\d+)"  # movie/film
     r"/?$",
+    re.IGNORECASE,
+)
+
+HANIME_TV_SERIES_PATTERN = re.compile(
+    r"^https?://(?:www\.)?hanime\.tv/videos/hentai/[A-Za-z0-9\-]+/?$",
     re.IGNORECASE,
 )

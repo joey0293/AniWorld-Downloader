@@ -4,22 +4,13 @@ import sys
 from dotenv import load_dotenv
 
 from .arguments import parse_args
-
-# Load environment variables from ~/.aniworld/.env file
-from .config import (
-    ANIWORLD_CONFIG_DIR,
-    ANIWORLD_EPISODE_PATTERN,
-    ANIWORLD_SEASON_PATTERN,
-    ANIWORLD_SERIES_PATTERN,
-    VERSION,
-)
+from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .logger import get_logger
 from .menu import app
-from .models import AniworldEpisode, AniworldSeason, AniworldSeries
+from .providers import resolve_provider
 from .search import search
 
 load_dotenv(ANIWORLD_CONFIG_DIR / ".env")
-
 
 logger = get_logger(__name__)
 
@@ -31,6 +22,16 @@ def set_terminal_title():
         print(f"\033]0;{title}\007", end="", flush=True)
 
 
+def validate_action(action: str):
+    if action not in ACTION_METHODS.values():
+        raise ValueError(f"Invalid action: {action}")
+
+
+def run_action(obj, action: str):
+    validate_action(action)
+    getattr(obj, action)()
+
+
 def aniworld():
     """Main entry point"""
     try:
@@ -38,7 +39,9 @@ def aniworld():
         set_terminal_title()
 
         args = parse_args()
+        action = (args.action or "download").lower()
 
+        # ===== no-menu path =====
         if os.getenv("ANIWORLD_NO_MENU") == "1":
             urls = args.url
             logger.debug(urls)
@@ -47,34 +50,41 @@ def aniworld():
                 raise ValueError("No URLs provided while using --no-menu")
 
             for url in urls:
-                # Match URL type
-                if ANIWORLD_SERIES_PATTERN.match(url):
-                    obj = AniworldSeries(url=url)
-                elif ANIWORLD_SEASON_PATTERN.match(url):
-                    obj = AniworldSeason(url=url)
-                elif ANIWORLD_EPISODE_PATTERN.match(url):
-                    obj = AniworldEpisode(url=url)
-                else:
-                    raise ValueError("Invalid AniWorld URL format")
+                provider = resolve_provider(url)
 
-                # TODO: I don't like this...
-                action = args.action.lower() if args.action else "download"
-                getattr(obj, action)()
+                # Use provider to select correct class
+                if provider.series_pattern and provider.series_pattern.fullmatch(url):
+                    obj = provider.series_cls(url=url)
+
+                elif provider.season_pattern and provider.season_pattern.fullmatch(url):
+                    obj = provider.season_cls(url=url)
+
+                elif provider.episode_pattern and provider.episode_pattern.fullmatch(
+                    url
+                ):
+                    obj = provider.episode_cls(url=url)
+
+                else:
+                    raise ValueError(f"Invalid URL for provider: {url}")
+
+                run_action(obj, action)
 
             return 0
 
+        # ===== menu path =====
         url = args.url[0] if args.url else search()
+
+        # If URL is supported but not AniWorld, bypass menu
+        provider = resolve_provider(url)
+        if provider.name != "AniWorld":
+            obj = provider.episode_cls(url=url)
+            run_action(obj, action)
+            return 0
+
+        # AniWorld menu path (unchanged behavior)
         result = app(url=url)
-
         if not result:
-            return 130  # user aborted
-
-        # Map action names to methods
-        action_methods = {
-            "Download": "download",
-            "Watch": "watch",
-            "Syncplay": "syncplay",
-        }
+            return 130
 
         action = result.get("action")
         episodes = result.get("episodes", [])
@@ -84,10 +94,10 @@ def aniworld():
 
         os.environ["ANIWORLD_USE_ANISKIP"] = "1" if result.get("aniskip") else "0"
 
-        if action in action_methods:
-            method_name = action_methods[action]
+        if action in ACTION_METHODS:
+            method_name = ACTION_METHODS[action]
             for episode_url in episodes:
-                episode = AniworldEpisode(
+                episode = provider.episode_cls(
                     url=episode_url,
                     selected_path=selected_path,
                     selected_language=selected_language,
