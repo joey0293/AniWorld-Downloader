@@ -68,13 +68,16 @@ LULUVDO_USER_AGENT = (
 GLOBAL_SESSION = Session(
     resolver=["doh+google://"],
     headers={
-        "User-Agent": DEFAULT_USER_AGENT,
-        "Accept": "application/json",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-Dest": "document",
         "Accept-Language": "en-US,en;q=0.9",
-        "Connection": "keep-alive",
+        "Sec-Fetch-Mode": "navigate",
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept-Encoding": "gzip, deflate, br",
+        "Referer": "https://aniworld.to/search",
+        "Priority": "u=0, i",
     },
-    timeout=10,
 )
 
 logger.debug("Config initialized successfully")
