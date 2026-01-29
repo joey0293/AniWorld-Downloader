@@ -22,6 +22,7 @@ series = AniworldSeries(series_url)
 
 print("=== SERIES INFO ===")
 print("Title:", series.title)
+print("Cleaned Title:", series.title_cleaned)
 print("URL:", series.url)
 print("Description:", series.description)
 print("Genres:", series.genres)

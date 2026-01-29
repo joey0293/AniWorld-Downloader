@@ -1,6 +1,7 @@
 import re
 
 from ...config import ANIWORLD_SERIES_PATTERN, GLOBAL_SESSION, logger
+from ..common import clean_title
 from .season import AniworldSeason
 
 
@@ -77,9 +78,7 @@ class AniworldSeries:
 
     @staticmethod
     def is_valid_aniworld_series_url(url):
-        """
-        Checks if the URL is a valid AniWorld series URL.
-        """
+        """Checks if the URL is a valid AniWorld series URL."""
 
         return bool(ANIWORLD_SERIES_PATTERN.match(url))
 
@@ -104,14 +103,7 @@ class AniworldSeries:
     @property
     def title_cleaned(self):
         if self.__title_cleaned is None:
-            # Remove only forbidden characters for Windows/macOS/Linux
-            forbidden_chars = r'[<>:"/\\|?*\:]'  # colon included for macOS
-            cleaned = re.sub(forbidden_chars, "_", self.title)
-
-            # Strip leading/trailing whitespace
-            cleaned = cleaned.strip()
-
-            self.__title_cleaned = cleaned
+            self.__title_cleaned = clean_title(self.title)
         return self.__title_cleaned
 
     @property
@@ -716,6 +708,10 @@ class AniworldSeries:
             return len(self.seasons) - 1
 
         return len(self.seasons)
+
+    # -----------------------------
+    # PUBLIC METHODS
+    # -----------------------------
 
     def download(self):
         for season in self.seasons:

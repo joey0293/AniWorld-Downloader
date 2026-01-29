@@ -225,6 +225,10 @@ HANIME_TV_SERIES_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+SERIENSTREAM_SERIES_PATTERN = re.compile(
+    r"^https?://(www\.)?serienstream\.to/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+)
+
 # -----------------------------
 # Directories
 # -----------------------------
