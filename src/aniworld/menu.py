@@ -207,7 +207,11 @@ class MenuApp(npyscreen.NPSApp):
             npyscreen.TitleSelectOne,
             name="Language",
             values=languages,
-            value=[0],
+            value=(
+                os.getenv("ANIWORLD_LANGUAGE") in languages
+                and [languages.index(os.getenv("ANIWORLD_LANGUAGE"))]
+                or [0]
+            ),
             max_height=max(2, len(languages)),
             rely=y + 6,
             scroll_exit=True,
@@ -218,7 +222,11 @@ class MenuApp(npyscreen.NPSApp):
             npyscreen.TitleSelectOne,
             name="Provider",
             values=providers,
-            value=[0],
+            value=(
+                os.getenv("ANIWORLD_PROVIDER") in providers
+                and [providers.index(os.getenv("ANIWORLD_PROVIDER"))]
+                or [0]
+            ),
             max_height=max(2, len(providers)),
             rely=y + 6 + max(2, len(languages)) + 1,
             scroll_exit=True,
