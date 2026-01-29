@@ -37,7 +37,7 @@ fields = {
     "Country": series.country,
     "Age Rating": series.age_rating,
     "Rating": series.rating,
-    "IMDb": getattr(series, "imbd", None),
+    "IMDb": getattr(series, "imdb", None),
     "MAL ID": getattr(series, "mal_id", None),
     "Has Movies": series.has_movies,
     "Season Count": series.season_count,

@@ -149,13 +149,13 @@ class SerienstreamSeason:
     # PUBLIC METHODS
     # -----------------------------
     def download(self):
-        """Downloads the series."""
-        pass
+        for episode in self.episodes:
+            episode.download()
 
     def watch(self):
-        """Watches the series."""
-        pass
+        for episode in self.episodes:
+            episode.watch()
 
     def syncplay(self):
-        """Syncplay the series."""
-        pass
+        for episode in self.episodes:
+            episode.syncplay()

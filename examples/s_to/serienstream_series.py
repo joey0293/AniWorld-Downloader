@@ -23,3 +23,5 @@ print("IMDB ID:", series.imdb)
 print("Seasons:", series.seasons)
 print("Number of seasons:", len(series.seasons))
 print()
+
+series.download()

@@ -4,6 +4,9 @@ from aniworld.models import (
     AniworldEpisode,
     AniworldSeason,
     AniworldSeries,
+    SerienstreamEpisode,
+    SerienstreamSeason,
+    SerienstreamSeries,
 )
 
 
@@ -53,6 +56,27 @@ def test_aniworld_models_aniworld_episode():
     print(object_to_json(episode))
 
 
+def test_serienstream_episode():
+    episode = SerienstreamEpisode(
+        "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1"
+    )
+    print(object_to_json(episode))
+
+
+def test_serienstream_season():
+    season = SerienstreamSeason(
+        "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1"
+    )
+    print(object_to_json(season))
+
+
+def test_serienstream_series():
+    series = SerienstreamSeries(
+        "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir"
+    )
+    print(object_to_json(series))
+
+
 if __name__ == "__main__":
     print("=" * 80)
     test_aniworld_models_aniworld_series()
@@ -64,4 +88,16 @@ if __name__ == "__main__":
 
     print("=" * 80)
     test_aniworld_models_aniworld_episode()
+    print("=" * 80)
+
+    print("=" * 80)
+    test_serienstream_series()
+    print("=" * 80)
+
+    print("=" * 80)
+    test_serienstream_season()
+    print("=" * 80)
+
+    print("=" * 80)
+    test_serienstream_episode()
     print("=" * 80)

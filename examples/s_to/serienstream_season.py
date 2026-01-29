@@ -10,3 +10,5 @@ print(f"Series Title: {season.series.title}")
 print(f"Season Number: {season.season_number}")
 print(f"Episode Count: {season.episode_count}")
 print(f"Episodes: {season.episodes}")
+
+season.download()
