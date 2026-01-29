@@ -42,6 +42,7 @@ def aniworld():
         set_terminal_title()
 
         args = parse_args()
+
         action = (args.action or "download").lower()
 
         # ===== no-menu path =====
