@@ -24,7 +24,6 @@
 
 # nuitka-project-if: {OS} in ("Windows", "Linux", "FreeBSD"):
 #    nuitka-project: --onefile
-#    nuitka-project: --console=force
 #    nuitka-project: --windows-icon-from-ico=src/aniworld/nuitka/icon.webp
 
 # ========================
