@@ -4,39 +4,57 @@ import os
 import sys
 
 from .anime4k import anime4k
-from .config import LANG_LABELS, SUPPORTED_PROVIDERS, VERSION
+from .config import ACTION_METHODS, LANG_LABELS, SUPPORTED_PROVIDERS, VERSION
 from .logger import get_logger
 
 logger = get_logger(__name__)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(prog="aniworld", description="AniWorld-Downloader")
+    parser = argparse.ArgumentParser(
+        prog="aniworld",
+        description=(
+            "AniWorld Downloader is a cross-platform tool for streaming and "
+            "downloading anime from aniworld.to, as well as movies and series "
+            "from s.to. It runs on Windows, macOS, and Linux, providing a "
+            "seamless experience for offline viewing or instant playback."
+        ),
+    )
 
     parser.add_argument(
         "--action",
-        choices=["Download", "Watch", "Syncplay"],
-        help="Choose what to do: Download, Watch, or Syncplay",
+        choices=sorted(ACTION_METHODS.keys()),
+        help="Choose action method",
     )
 
     parser.add_argument(
         "--language",
-        choices=LANG_LABELS.values(),
-        help="Choose language: "
-        + ", ".join(f"'{value}'" for value in LANG_LABELS.values()),
+        choices=sorted(LANG_LABELS.values()),
+        help="Choose language",
     )
 
     parser.add_argument(
         "--provider",
-        choices=SUPPORTED_PROVIDERS,
-        help="Choose provider: "
-        + ", ".join(f"'{value}'" for value in SUPPORTED_PROVIDERS),
+        choices=sorted(SUPPORTED_PROVIDERS),
+        help="Choose provider",
     )
 
     parser.add_argument(
         "--random-anime",
         action="store_true",
-        help="Select a random anime",
+        help="Fetch a random anime series",
+    )
+
+    parser.add_argument(
+        "--anime4k",
+        choices=["High", "Low", "Remove"],
+        help="Enable Anime4K upscaling with specified mode",
+    )
+
+    parser.add_argument(
+        "--no-menu",
+        action="store_true",
+        help="Disable interactive menu",
     )
 
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
@@ -44,25 +62,13 @@ def parse_args():
     parser.add_argument(
         "--version",
         action="store_true",
-        help="Show version and exit",
-    )
-
-    parser.add_argument(
-        "--no-menu",
-        action="store_true",
-        help="Run without interactive menu",
-    )
-
-    parser.add_argument(
-        "--anime4k",
-        choices=["High", "Low", "Remove"],
-        help="Set Anime4K upscaling: High, Low, or Remove",
+        help="Show version information and exit",
     )
 
     parser.add_argument(
         "url",
         nargs="*",
-        help="Series or Episode URL(s)",
+        help="URLs of series, season, or episodes",
     )
 
     args = parser.parse_args()
