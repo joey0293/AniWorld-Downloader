@@ -340,9 +340,13 @@ class AniworldEpisode:
     @property
     def selected_path(self):
         if self.__selected_path is None:
-            self.__selected_path = self.__selected_path_param or os.getenv(
+            raw_path = self.__selected_path_param or os.getenv(
                 "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
             )
+            path = Path(raw_path).expanduser()
+            if not path.is_absolute():
+                path = Path.home() / path
+            self.__selected_path = str(path)
         return self.__selected_path
 
     @property

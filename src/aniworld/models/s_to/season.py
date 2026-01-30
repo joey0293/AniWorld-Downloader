@@ -102,7 +102,7 @@ class SerienstreamSeason:
         Extract from URL the season number.
         """
 
-        return self.url.rstrip("/").split("-")[-1]
+        return int(self.url.rstrip("/").split("-")[-1])
 
     def __extract_episode_count(self):
         """
@@ -113,7 +113,7 @@ class SerienstreamSeason:
         """
 
         pattern = (
-            r'<a href="https://serienstream\.to/serie/.+/staffel-'
+            r'<a href="https://(?:serienstream|s)\.to/serie/.+/staffel-'
             + str(self.season_number)
             + r'/episode-\d+"'
         )
@@ -132,7 +132,7 @@ class SerienstreamSeason:
         from .episode import SerienstreamEpisode
 
         pattern = (
-            r'<a href="(https://serienstream\.to/serie/.+/staffel-'
+            r'<a href="(https://(?:serienstream|s)\.to/serie/.+/staffel-'
             + str(self.season_number)
             + r'/episode-\d+)"'
         )

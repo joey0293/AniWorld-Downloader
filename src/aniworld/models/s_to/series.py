@@ -233,7 +233,7 @@ class SerienstreamSeries:
         """<a class="small text-muted" href="https://serienstream.to/jahr/2011">2011</a>"""
 
         pattern = re.compile(
-            r'<a class="small text-muted" href="https://serienstream.to/jahr/(\d{4})">(\d{4})</a>'
+            r'<a class="small text-muted" href="https://(?:serienstream|s)\.to/jahr/(\d{4})">(\d{4})</a>'
         )
 
         match = pattern.search(self._html)
@@ -256,7 +256,7 @@ class SerienstreamSeries:
         """
 
         pattern = re.compile(
-            r'<img data-src="(https://serienstream.to/media/images/[^"]+)"'
+            r'<img data-src="(https://(?:serienstream|s)\.to/media/images/[^"]+)"'
         )
 
         match = pattern.search(self._html)
@@ -506,7 +506,7 @@ class SerienstreamSeries:
         from .season import SerienstreamSeason
 
         pattern = re.compile(
-            r'href="(https://serienstream.to/serie/[^/]+/staffel-\d+)"'
+            r'href="(https://(?:serienstream|s)\.to/serie/[^/]+/staffel-\d+)"'
         )
 
         matches = pattern.findall(self._html)
@@ -527,7 +527,7 @@ class SerienstreamSeries:
         """
 
         pattern = re.compile(
-            r'href="https://serienstream.to/serie/[^/]+/staffel-(\d+)"'
+            r'href="https://(?:serienstream|s)\.to/serie/[^/]+/staffel-(\d+)"'
         )
 
         matches = pattern.findall(self._html)
