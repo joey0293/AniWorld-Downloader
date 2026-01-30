@@ -24,3 +24,5 @@ print(f"File Name: {episode._file_name}")
 print(f"File Extension: {episode._file_extension}")
 print(f"Episode Path: {episode._episode_path}")
 print(f"Is Downloaded: {episode.is_downloaded}")
+
+episode.download()

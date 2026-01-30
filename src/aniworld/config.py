@@ -226,11 +226,11 @@ HANIME_TV_SERIES_PATTERN = re.compile(
 )
 
 SERIENSTREAM_SERIES_PATTERN = re.compile(
-    r"^https?://(www\.)?serienstream\.to/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+    r"^https?://(www\.)?(serienstream|s)\.to/serie/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
 )
 
 SERIENSTREAM_SEASON_PATTERN = re.compile(
-    r"^https?://(www\.)?serienstream\.to/serie/"
+    r"^https?://(www\.)?(serienstream|s)\.to/serie/"
     r"[a-zA-Z0-9\-]+/"
     r"staffel-\d+"
     r"/?$",
@@ -238,7 +238,7 @@ SERIENSTREAM_SEASON_PATTERN = re.compile(
 )
 
 SERIENSTREAM_EPISODE_PATTERN = re.compile(
-    r"^https?://(www\.)?serienstream\.to/serie/"
+    r"^https?://(www\.)?(serienstream|s)\.to/serie/"
     r"[a-zA-Z0-9\-]+/"
     r"staffel-\d+/episode-\d+"
     r"/?$",
