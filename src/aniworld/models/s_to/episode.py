@@ -6,8 +6,11 @@ from ...config import (
     GLOBAL_SESSION,
     NAMING_TEMPLATE,
     SERIENSTREAM_EPISODE_PATTERN,
+    Audio,
+    Subtitles,
     logger,
 )
+from ...extractors import provider_functions
 from ..common import check_downloaded
 
 
@@ -29,13 +32,13 @@ class SerienstreamEpisode:
 
     Attributes (Example):
         url:                    "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1"
-        series:                 <SerienstreamSeries object>
-        season:                 <SerienstreamSeason object>
+        series:                 <aniworld.models.s_to.series.SerienstreamSeries object at 0x10ad96cf0>
+        season:                 <aniworld.models.s_to.season.SerienstreamSeason object at 0x10ad96e40>
 
         title_de:               "Neuanfang"
         title_en:               "Pilot"
         episode_number:         1
-        provider_data:          TODO: ProviderData({(<Audio.GERMAN: 'German'>, <Subtitles.NONE: 'None'>): {'VOE': 'https://aniworld.to/redirect/2526098', 'Filemoon': 'https://aniworld.to/redirect/2883363', 'Vidmoly': 'https://aniworld.to/redirect/3028732'}, (<Audio.JAPANESE: 'Japanese'>, <Subtitles.ENGLISH: 'English'>): {'VOE': 'https://aniworld.to/redirect/1791080', 'Filemoon': 'https://aniworld.to/redirect/2883251', 'Vidmoly': 'https://aniworld.to/redirect/3674098'}, (<Audio.JAPANESE: 'Japanese'>, <Subtitles.GERMAN: 'German'>): {'VOE': 'https://aniworld.to/redirect/1791211', 'Filemoon': 'https://aniworld.to/redirect/2883481', 'Vidmoly': 'https://aniworld.to/redirect/3028797'}})
+        provider_data:          {('German', 'None'): {'VOE': 'https://serienstream.to/r?t=eyJpdiI6IkdVR2hyQjFXOUVLUGRqRGd1Ylo3cUE9PSIsInZhbHVlIjoiRDVIOEdHb2xOcGk3MmsrTVB2Yk9lakZoYS9YVXFsNlJ0SVJwYTNXZTM1bmQvOFpQaFJ4TWdoSHRzUEhzRTZoQVg1Zkx1OFVxZjhpNWYyR3VUd1U0SVE9PSIsIm1hYyI6IjAzOTAxNjA1YTFkMmM0OWI0MDEzNGE3NzQ5YzI0NWZmYTRiZDgxZDRiMDg0ZGYzOGE2M2JiZDQyMjgyZGE4YjMiLCJ0YWciOiIifQ%3D%3D'}, ('English', 'None'): {'VOE': 'https://serienstream.to/r?t=eyJpdiI6IitKSjl2K1EwOGcyZjNHS1VrRW0yQ0E9PSIsInZhbHVlIjoiVDRSQ01RMnpUdFZLblpLb1BGSm1LdE5RQ0U2b2h0cmdDRGRlTi82Q1VPMWJGellGQjhGZE45TldoeE9ESWNxWEhNNDBPQWl0OHM1MjJlaDNRdVY3Z0E9PSIsIm1hYyI6IjUyYjNkZjIwZGMwZWFlZjA1ZTgzNzIzNWI0M2FmZDI3NDcxNmY3OTQ3YTMxNGE0ZjFkNjcyYzFiZWM0MWE2YWUiLCJ0YWciOiIifQ%3D%3D'}}
 
         selected_path:          Downloads
         selected_language:      "German Dub"
@@ -128,6 +131,8 @@ class SerienstreamEpisode:
         if self._series is None:
             from .series import SerienstreamSeries
 
+            if not self.url:
+                raise ValueError("Episode URL is missing for series extraction.")
             series_url = self.url.rsplit("/staffel-", 1)[0]
             self._series = SerienstreamSeries(url=series_url)
         return self._series
@@ -137,6 +142,8 @@ class SerienstreamEpisode:
         if self._season is None:
             from .season import SerienstreamSeason
 
+            if not self.url:
+                raise ValueError("Episode URL is missing for season extraction.")
             season_url = self.url.rsplit("/episode-", 1)[0]
             self._season = SerienstreamSeason(url=season_url)
         return self._season
@@ -162,7 +169,7 @@ class SerienstreamEpisode:
     @property
     def provider_data(self):
         if self.__provider_data is None:
-            self.__provider_data = "TODO"
+            self.__provider_data = self.__extract_provider_data()
         return self.__provider_data
 
     @property
@@ -177,7 +184,7 @@ class SerienstreamEpisode:
     def selected_language(self):
         if self.__selected_language is None:
             self.__selected_language = self.__selected_language_param or os.getenv(
-                "ANIWORLD_LANGUAGE", "German Dub"
+                "ANIWORLD_LANGUAGE", "German"
             )
         return self.__selected_language
 
@@ -192,18 +199,29 @@ class SerienstreamEpisode:
     @property
     def redirect_url(self):
         if self.__redirect_url is None:
-            self.__redirect_url = "TODO"
+            self.__redirect_url = self.provider_link(
+                self.selected_language, self.selected_provider
+            )
         return self.__redirect_url
 
     @property
     def provider_url(self):
         if self.__provider_url is None:
-            self.__provider_url = "TODO"
+            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url).url
         return self.__provider_url
 
     @property
     def stream_url(self):
-        return "TODO"
+        try:
+            stream_url = provider_functions[
+                f"get_direct_link_from_{self.selected_provider.lower()}"
+            ](self.provider_url)
+        except KeyError:
+            raise ValueError(
+                f"The provider '{self.selected_provider}' is not yet implemented."
+            )
+
+        return stream_url
 
     # TODO: add this into a common base class
     @property
@@ -294,6 +312,8 @@ class SerienstreamEpisode:
     @property
     def _html(self):
         if self.__html is None:
+            if not self.url:
+                raise ValueError("Episode URL is missing for HTML fetch.")
             logger.debug(f"fetching ({self.url})...")
             resp = GLOBAL_SESSION.get(self.url)
             self.__html = resp.text
@@ -308,6 +328,8 @@ class SerienstreamEpisode:
         https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1
         """
 
+        if not self.url:
+            raise ValueError("Episode URL is missing for episode number extraction.")
         return int(self.url.rstrip("/").split("-")[-1])
 
     def __extract_title_de(self):
@@ -318,11 +340,12 @@ class SerienstreamEpisode:
         """
 
         pattern = r"S\d{2}E\d{2}:\s(.*?)(\s\(|</h2>)"
-        match = re.search(pattern, self._html)
-
+        html = self._html
+        if not html:
+            return ""
+        match = re.search(pattern, html)
         if match:
             return match.group(1).strip()
-
         return ""
 
     def __extract_title_en(self):
@@ -333,12 +356,99 @@ class SerienstreamEpisode:
         """
 
         pattern = r"S\d{2}E\d{2}:\s.*\((.*?)\)"
-        match = re.search(pattern, self._html)
-
+        html = self._html
+        if not html:
+            return ""
+        match = re.search(pattern, html)
         if match:
             return match.group(1).strip()
-
         return ""
+
+    def __extract_provider_data(self):
+        """
+        Extract provider links grouped by (Audio, Subtitles).
+
+        Returns:
+            dict[(Audio, Subtitles)][provider_name]
+        """
+
+        pattern = r'data-play-url="(.*?)".*?data-provider-name="(.*?)".*?data-language-label="(.*?)"'
+
+        matches = re.findall(pattern, self._html, re.DOTALL)
+
+        provider_data = {}
+
+        for play_url, provider_name, language_label in matches:
+            if language_label == "Deutsch":
+                key = (Audio.GERMAN, Subtitles.NONE)
+            elif language_label == "Englisch":
+                key = (Audio.ENGLISH, Subtitles.NONE)
+            else:
+                continue
+
+            provider_data.setdefault(key, {})[provider_name] = (
+                f"https://serienstream.to{play_url}"
+            )
+
+        return provider_data
+
+    def _normalize_language(self, language):
+        """
+        Convert a string language description to a (Audio, Subtitles) tuple if necessary.
+        """
+        if isinstance(language, tuple) and len(language) == 2:
+            return language
+        if isinstance(language, tuple) and len(language) == 2:
+            return language
+        if language in ["German Dub", "German", "Deutsch"]:
+            return (Audio.GERMAN, Subtitles.NONE)
+        if language in ["English Dub", "English", "Englisch"]:
+            return (Audio.ENGLISH, Subtitles.NONE)
+        raise ValueError(
+            f"Only 'Deutsch'/'German Dub' and 'Englisch'/'English Dub' are supported for serienstream.to (got: {language})"
+        )
+
+    def provider_link(self, language=None, provider=None):
+        """
+        Get the provider URL for a given language and provider name.
+
+        Args:
+            language: tuple (Audio, Subtitles) or str. Defaults to self.selected_language.
+            provider: str, provider name. Defaults to self.selected_provider.
+
+        Returns:
+            str URL if found, else raises ValueError
+        """
+
+        if language is None:
+            language = self.selected_language
+
+        language = self._normalize_language(language)
+
+        if provider is None:
+            provider = self.selected_provider
+
+        provider_dict = self.provider_data.get(language)
+
+        if not provider_dict:
+            # Try fallback (by value in tuple): sometimes enums mismatch, fallback to value match
+            for key, pdict in self.provider_data.items():
+                if (
+                    key[0].value == language[0].value
+                    and key[1].value == language[1].value
+                ):
+                    provider_dict = pdict
+                    break
+
+        if not provider_dict:
+            raise ValueError(f"No provider data found for language: {language}")
+
+        url = provider_dict.get(provider)
+
+        if url:
+            return url
+
+        raise ValueError(f"Provider '{provider}' not found for language: {language}.")
 
     # -----------------------------
     # PUBLIC METHODS
