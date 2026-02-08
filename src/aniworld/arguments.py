@@ -57,6 +57,11 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--provider-url",
+        help="Custom provider URL",
+    )
+
+    parser.add_argument(
         "--no-menu",
         action="store_true",
         help="Disable interactive menu",
@@ -117,6 +122,41 @@ def parse_args():
         except Exception as e:
             logger.error(f"Failed to read episode file: {e}")
             sys.exit(1)
+
+    if args.provider_url and args.provider:
+        import ffmpeg
+
+        from .config import PROVIDER_HEADERS_D
+        from .extractors import provider_functions
+
+        provider_key = (args.provider or "").strip()
+        headers = PROVIDER_HEADERS_D.get(provider_key, {})
+
+        # ffmpeg expects headers as a single string with CRLF line endings
+        headers_str = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
+
+        # Resolve the provider page URL to a direct media URL
+        direct_link = provider_functions[
+            f"get_direct_link_from_{provider_key.lower()}"
+        ](args.provider_url)
+
+        download_dir = os.getenv("ANIWORLD_DOWNLOAD_PATH", ".")
+        output_path = os.path.join(download_dir, "input.mkv")
+
+        (
+            ffmpeg.input(
+                direct_link,
+                headers=headers_str if headers_str else None,
+            )
+            .output(
+                output_path,
+                c="copy",  # stream copy (no re-encode)
+                f="matroska",  # optional; inferred from .mkv
+            )
+            .run()
+        )
+
+        sys.exit(0)
 
     if args.version:
         # TODO: add logic
