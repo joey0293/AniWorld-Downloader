@@ -94,7 +94,6 @@ print()
 # ----------------------------
 # 7. Actions
 # ----------------------------
-# Uncomment to enable:
-# episode.download()
-# episode.watch()
-# episode.syncplay()
+episode.download()
+episode.watch()
+episode.syncplay()

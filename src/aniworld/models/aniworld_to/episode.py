@@ -1,29 +1,24 @@
 import os
 import re
-import subprocess
 from collections import defaultdict
 from pathlib import Path
 from urllib.parse import urlparse
 
-import ffmpeg
-
-from ...autodeps import get_player_path, get_syncplay_path
 from ...config import (
     ANIWORLD_EPISODE_PATTERN,
     GLOBAL_SESSION,
-    INVERSE_LANG_LABELS,
-    LANG_CODE_MAP,
     LANG_KEY_MAP,
     LANG_LABELS,
     NAMING_TEMPLATE,
-    PROVIDER_HEADERS_D,
-    PROVIDER_HEADERS_W,
-    Subtitles,
-    get_video_codec,
     logger,
 )
 from ...extractors import provider_functions
 from ..common import ProviderData, check_downloaded
+from ..common.common import (
+    download as episode_download,
+    syncplay as episode_syncplay,
+    watch as episode_watch,
+)
 
 
 class AniworldEpisode:
@@ -484,260 +479,10 @@ class AniworldEpisode:
             return "Unknown"
         return LANG_KEY_MAP[key]
 
-    def download(self):
-        """
-        Download required audio/video streams for this episode.
-
-        Supports:
-        - Full preset download if neither audio nor video exists.
-        - Partial download if only one stream is missing.
-        - Reuses streams when possible to avoid duplicate downloads.
-        """
-
-        # ---------------------------------------------------------
-        # 1) Check existing streams
-        # ---------------------------------------------------------
-        check = check_downloaded(self._episode_path)
-
-        # ---------------------------------------------------------
-        # 2) Prepare HTTP headers
-        # ---------------------------------------------------------
-        headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
-        input_kwargs = {}
-        if headers:
-            header_list = [f"{k}: {v}" for k, v in headers.items()]
-            input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
-
-        # ---------------------------------------------------------
-        # 3) Resolve user language selection
-        # ---------------------------------------------------------
-        selected_key = INVERSE_LANG_LABELS[self.selected_language]
-        audio_enum, sub_enum = LANG_KEY_MAP[selected_key]
-
-        audio_code = LANG_CODE_MAP[audio_enum]
-        wants_clean_video = sub_enum == Subtitles.NONE
-        sub_video_code = None if wants_clean_video else LANG_CODE_MAP[sub_enum]
-
-        # ---------------------------------------------------------
-        # 4) Determine missing streams
-        # ---------------------------------------------------------
-        has_video = bool(check["video_langs"])
-        has_audio = audio_code in check["audio_langs"]
-
-        need_audio = not has_audio
-        if not has_video:
-            need_video = True
-        elif not wants_clean_video:
-            need_video = sub_video_code not in check["video_langs"]
-        else:
-            need_video = False
-
-        # ---------------------------------------------------------
-        # 5) Skip if nothing is missing
-        # ---------------------------------------------------------
-        if not need_audio and not need_video:
-            logger.debug(f"[SKIPPED] {self._file_name}")
-            return
-
-        os.makedirs(self._folder_path, exist_ok=True)
-
-        # ---------------------------------------------------------
-        # 6) Decide if we can download a single full stream
-        # ---------------------------------------------------------
-        # Download single stream when both audio and video needed (includes all language configs)
-        full_stream_needed = need_audio and need_video
-
-        temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
-        temp_video = self._episode_path.with_suffix(".temp_video.mkv")
-        temp_full = self._episode_path.with_suffix(".temp_full.mkv")
-
-        if full_stream_needed:
-            logger.debug("[DOWNLOADING] full preset (audio + video together)")
-
-            # Prepare per-stream metadata
-            stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
-            if not wants_clean_video:
-                stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
-
-            # Download full stream
-            video_codec = get_video_codec()
-            ffmpeg.input(self.stream_url, **input_kwargs).output(
-                str(temp_full),
-                vcodec=video_codec,
-                acodec=video_codec,
-                **stream_metadata,
-            ).run()
-
-            # Mux into final file (or just move if file didn't exist before)
-            if self._episode_path.exists():
-                inputs = [
-                    ffmpeg.input(str(self._episode_path)),
-                    ffmpeg.input(str(temp_full)),
-                ]
-                output_path = self._episode_path.with_suffix(".new.mkv")
-                ffmpeg.output(*inputs, str(output_path), c="copy").run()
-                os.replace(output_path, self._episode_path)
-            else:
-                # First file, just move
-                os.replace(temp_full, self._episode_path)
-
-            # Cleanup
-            if temp_full.exists():
-                temp_full.unlink()
-            return
-
-        # ---------------------------------------------------------
-        # 7) Partial downloads
-        # ---------------------------------------------------------
-        if need_audio:
-            logger.debug("[DOWNLOADING] audio stream")
-            video_codec = get_video_codec()
-            ffmpeg.input(self.stream_url, **input_kwargs).output(
-                str(temp_audio),
-                acodec=video_codec,
-                map="0:a:0?",
-                **{"metadata:s:a:0": f"language={audio_code}"},
-            ).run()
-
-        if need_video:
-            logger.debug("[DOWNLOADING] video stream")
-            video_codec = get_video_codec()
-            ffmpeg.input(self.stream_url, **input_kwargs).output(
-                str(temp_video),
-                vcodec=video_codec,
-                map="0:v:0?",
-                **(
-                    {}
-                    if wants_clean_video
-                    else {"metadata:s:v:0": f"language={sub_video_code}"}
-                ),
-            ).run()
-
-        # ---------------------------------------------------------
-        # 8) Mux downloaded streams with existing file
-        # ---------------------------------------------------------
-        logger.debug("[MUXING] combining streams")
-        inputs = (
-            [ffmpeg.input(str(self._episode_path))]
-            if self._episode_path.exists()
-            else []
-        )
-
-        if need_audio:
-            inputs.append(ffmpeg.input(str(temp_audio)))
-        if need_video:
-            inputs.append(ffmpeg.input(str(temp_video)))
-
-        output_path = self._episode_path.with_suffix(".new.mkv")
-        ffmpeg.output(*inputs, str(output_path), c="copy").run()
-        os.replace(output_path, self._episode_path)
-
-        # ---------------------------------------------------------
-        # 9) Cleanup temporary files
-        # ---------------------------------------------------------
-        for f in (temp_audio, temp_video):
-            if f.exists():
-                f.unlink()
-
-    def watch(self):
-        """Watch the current episode with provider headers."""
-        print(f"[WATCHING] {self._file_name}")
-
-        # Get headers for the selected provider
-        headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
-
-        # Build command as list to avoid shell injection issues
-        cmd = [str(get_player_path()), self.stream_url]
-
-        # Check if aniskip is enabled
-        aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
-        logger.debug(f"[ANISKIP ENABLED]: {aniskip_enabled}")
-
-        skip_times = self.skip_times if aniskip_enabled else None
-
-        if skip_times:
-            from ...aniskip import build_mpv_flags, setup_aniskip
-
-            setup_aniskip()
-
-            skip_flags = build_mpv_flags(skip_times).split()
-            cmd.extend(skip_flags)
-            logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
-
-        # Add mpv options
-        cmd.extend(
-            ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
-        )
-
-        # Add headers if present
-        if headers:
-            # Build header arguments properly escaped
-            header_args = [f"{k}: {v}" for k, v in headers.items()]
-            cmd.append("--http-header-fields=" + ",".join(header_args))
-
-        # Print the command for reference
-        print(" ".join(cmd))
-
-        # Run the command using argument list (no shell)
-        subprocess.run(cmd)
-
-    # TODO: implement Syncplay
-    def syncplay(self):
-        """Watch the current episode with provider headers."""
-        print(f"[Syncplaying] {self._file_name}")
-
-        # Get headers for the selected provider
-        headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
-
-        cmd = [
-            str(get_syncplay_path()),
-            "--no-gui",
-            "--no-store",
-            "--host",
-            os.getenv("SYNCPLAY_HOST", "syncplay.pl:8997"),  # TODO
-            "--room",
-            os.getenv("SYNCPLAY_ROOM", "AniWorld-Downloader-Room"),  # TODO
-            "--name",
-            os.getenv("SYNCPLAY_USERNAME", "AniWorld-Downloader"),  # TODO
-            "--player-path",
-            "IINA" if os.getenv("ANIWORLD_USE_IINA") else "mpv",
-            self.stream_url,
-        ]
-
-        # Prepend with -- to pass options to mpv
-        cmd.append("--")
-
-        # Check if aniskip is enabled
-        aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
-        logger.debug(f"[ANISKIP ENABLED]: {aniskip_enabled}")
-
-        skip_times = self.skip_times if aniskip_enabled else None
-
-        if skip_times:
-            from ...aniskip import build_mpv_flags, setup_aniskip
-
-            setup_aniskip()
-
-            skip_flags = build_mpv_flags(skip_times).split()
-            cmd.extend(skip_flags)
-            logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
-
-        # Add mpv options
-        cmd.extend(
-            ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
-        )
-
-        # Add headers if present
-        if headers:
-            # Build header arguments properly escaped
-            header_args = [f"{k}: {v}" for k, v in headers.items()]
-            cmd.append("--http-header-fields=" + ",".join(header_args))
-
-        # Print the command for reference
-        print(" ".join(cmd))
-
-        # Run the command using argument list (no shell)
-        subprocess.run(cmd)
+    # Episode actions are implemented in aniworld.models.common.common
+    download = episode_download
+    watch = episode_watch
+    syncplay = episode_syncplay
 
     # -----------------------------
     # Extraction helpers
