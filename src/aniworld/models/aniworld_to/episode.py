@@ -343,6 +343,9 @@ class AniworldEpisode:
             raw_path = self.__selected_path_param or os.getenv(
                 "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
             )
+            # Docker detection
+            if os.getenv("ANIWORLD_DOCKER") == "1":
+                raw_path = os.getenv("ANIWORLD_DOWNLOAD_PATH", "/app/Downloads")
             path = Path(raw_path).expanduser()
             if not path.is_absolute():
                 path = Path.home() / path
