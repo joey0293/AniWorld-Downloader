@@ -4,7 +4,9 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-PLATFORM = "Windows"  # override platform.system() for development/testing
+import platform
+
+PLATFORM = platform.system()
 
 try:
     from .common import fetch_github_asset_urls
@@ -200,8 +202,12 @@ def get_player_path() -> Path:
 
 
 def get_syncplay_path() -> Path:
+    if PLATFORM == "Darwin":
+        syncplay_path = Path("/Applications/Syncplay.app/Contents/MacOS/Syncplay")
+        if syncplay_path.exists():
+            return syncplay_path
     manager = DependencyManager()
-    return manager.fetch_binary("mpv")
+    return manager.fetch_binary("syncplay")
 
 
 # -----------------------------

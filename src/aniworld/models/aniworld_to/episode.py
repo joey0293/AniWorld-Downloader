@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import ffmpeg
 
-from ...autodeps import get_player_path
+from ...autodeps import get_player_path, get_syncplay_path
 from ...config import (
     ANIWORLD_EPISODE_PATTERN,
     GLOBAL_SESSION,
@@ -683,7 +683,61 @@ class AniworldEpisode:
 
     # TODO: implement Syncplay
     def syncplay(self):
-        self.watch()
+        """Watch the current episode with provider headers."""
+        print(f"[Syncplaying] {self._file_name}")
+
+        # Get headers for the selected provider
+        headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
+
+        cmd = [
+            str(get_syncplay_path()),
+            "--no-gui",
+            "--no-store",
+            "--host",
+            os.getenv("SYNCPLAY_HOST", "syncplay.pl:8997"),  # TODO
+            "--room",
+            os.getenv("SYNCPLAY_ROOM", "AniWorld-Downloader-Room"),  # TODO
+            "--name",
+            os.getenv("SYNCPLAY_USERNAME", "AniWorld-Downloader"),  # TODO
+            "--player-path",
+            "IINA" if os.getenv("ANIWORLD_USE_IINA") else "mpv",
+            self.stream_url,
+        ]
+
+        # Prepend with -- to pass options to mpv
+        cmd.append("--")
+
+        # Check if aniskip is enabled
+        aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
+        logger.debug(f"[ANISKIP ENABLED]: {aniskip_enabled}")
+
+        skip_times = self.skip_times if aniskip_enabled else None
+
+        if skip_times:
+            from ...aniskip import build_mpv_flags, setup_aniskip
+
+            setup_aniskip()
+
+            skip_flags = build_mpv_flags(skip_times).split()
+            cmd.extend(skip_flags)
+            logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
+
+        # Add mpv options
+        cmd.extend(
+            ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
+        )
+
+        # Add headers if present
+        if headers:
+            # Build header arguments properly escaped
+            header_args = [f"{k}: {v}" for k, v in headers.items()]
+            cmd.append("--http-header-fields=" + ",".join(header_args))
+
+        # Print the command for reference
+        print(" ".join(cmd))
+
+        # Run the command using argument list (no shell)
+        subprocess.run(cmd)
 
     # -----------------------------
     # Extraction helpers

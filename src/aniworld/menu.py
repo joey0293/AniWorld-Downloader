@@ -155,7 +155,9 @@ class MenuApp(npyscreen.NPSApp):
         action = F.add(
             npyscreen.TitleSelectOne,
             name="Action",
-            values=[Action.DOWNLOAD.value, Action.WATCH.value, Action.SYNCPLAY.value],
+            values=[Action.DOWNLOAD.value]
+            if os.getenv("ANIWORLD_DOCKER") == "1"
+            else [Action.DOWNLOAD.value, Action.WATCH.value, Action.SYNCPLAY.value],
             value=[0],
             max_height=3,
             rely=y,
