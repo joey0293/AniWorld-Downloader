@@ -2,7 +2,7 @@ import re
 import threading
 import uuid
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 
 from ..config import LANG_LABELS, SUPPORTED_PROVIDERS
 from ..logger import get_logger
@@ -50,8 +50,35 @@ def _run_download(download_id, episodes, language, provider):
         _downloads[download_id]["current"] = total
 
 
-def create_app():
+def create_app(auth_enabled=False):
     app = Flask(__name__)
+
+    if auth_enabled:
+        from .auth import auth_bp, get_current_user, get_or_create_secret_key, login_required
+        from .db import has_any_admin, init_db
+
+        app.secret_key = get_or_create_secret_key()
+        init_db()
+        app.register_blueprint(auth_bp)
+
+        @app.before_request
+        def _check_setup():
+            if request.endpoint and request.endpoint.startswith("auth."):
+                return None
+            if request.endpoint == "static":
+                return None
+            if not has_any_admin():
+                return redirect(url_for("auth.setup"))
+            return None
+
+        @app.context_processor
+        def _inject_auth():
+            return {"current_user": get_current_user(), "auth_enabled": True}
+    else:
+
+        @app.context_processor
+        def _inject_no_auth():
+            return {"current_user": None, "auth_enabled": False}
 
     @app.route("/")
     def index():
@@ -229,15 +256,22 @@ def create_app():
             }
         return jsonify({"downloads": all_downloads})
 
+    if auth_enabled:
+        # Wrap all non-auth, non-static view functions with login_required
+        _exempt = {"static", "auth.login", "auth.logout", "auth.setup"}
+        for endpoint, view_func in list(app.view_functions.items()):
+            if endpoint not in _exempt:
+                app.view_functions[endpoint] = login_required(view_func)
+
     return app
 
 
-def start_web_ui(host="127.0.0.1", port=5000, open_browser=True):
+def start_web_ui(host="127.0.0.1", port=5000, open_browser=True, auth_enabled=False):
     """Start the Flask web UI server."""
     import threading
     import webbrowser
 
-    app = create_app()
+    app = create_app(auth_enabled=auth_enabled)
     url = f"http://{'localhost' if host in ('0.0.0.0', '127.0.0.1') else host}:{port}"
     print(f"Starting AniWorld Web UI on {url}")
 
