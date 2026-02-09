@@ -13,11 +13,24 @@
   {% if error %}
   <div class="auth-error">{{ error }}</div>
   {% endif %}
+
+  {% if not force_sso %}
   <form method="post" action="{{ url_for('auth.login') }}">
     <input type="text" name="username" placeholder="Username" required autofocus>
     <input type="password" name="password" placeholder="Password" required>
     <button type="submit">Log In</button>
   </form>
+  {% endif %}
+
+  {% if oidc_enabled and not force_sso %}
+  <div class="auth-divider"><span>or</span></div>
+  {% endif %}
+
+  {% if oidc_enabled %}
+  <a href="{{ url_for('auth.oidc_login') }}" class="sso-button">
+    Sign in with {{ oidc_display_name }}
+  </a>
+  {% endif %}
 </div>
 </body>
 </html>

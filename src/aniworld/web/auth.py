@@ -1,10 +1,12 @@
 import os
+import re
 import secrets
 from functools import wraps
 
+from authlib.integrations.flask_client import OAuth
 from flask import (
     Blueprint,
-    flash,
+    current_app,
     jsonify,
     redirect,
     render_template,
@@ -17,6 +19,7 @@ from ..config import ANIWORLD_CONFIG_DIR
 from .db import (
     create_user,
     delete_user,
+    find_or_create_sso_user,
     has_any_admin,
     list_users,
     update_user_role,
@@ -24,6 +27,47 @@ from .db import (
 )
 
 _SECRET_KEY_PATH = ANIWORLD_CONFIG_DIR / ".flask_secret"
+
+oauth = OAuth()
+
+
+def get_oidc_config():
+    issuer = os.environ.get("ANIWORLD_OIDC_ISSUER_URL", "").strip()
+    client_id = os.environ.get("ANIWORLD_OIDC_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("ANIWORLD_OIDC_CLIENT_SECRET", "").strip()
+    if not (issuer and client_id and client_secret):
+        return None
+    return {
+        "issuer_url": issuer,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "display_name": os.environ.get("ANIWORLD_OIDC_DISPLAY_NAME", "SSO").strip() or "SSO",
+        "admin_user": os.environ.get("ANIWORLD_OIDC_ADMIN_USER", "").strip() or None,
+    }
+
+
+def init_oidc(app, force_sso=False):
+    cfg = get_oidc_config()
+    if cfg is None:
+        app.config["OIDC_ENABLED"] = False
+        app.config["OIDC_DISPLAY_NAME"] = "SSO"
+        app.config["OIDC_ADMIN_USER"] = None
+        app.config["FORCE_SSO"] = force_sso
+        return
+
+    oauth.init_app(app)
+    oauth.register(
+        name="oidc",
+        client_id=cfg["client_id"],
+        client_secret=cfg["client_secret"],
+        server_metadata_url=cfg["issuer_url"].rstrip("/") + "/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+
+    app.config["OIDC_ENABLED"] = True
+    app.config["OIDC_DISPLAY_NAME"] = cfg["display_name"]
+    app.config["OIDC_ADMIN_USER"] = cfg["admin_user"]
+    app.config["FORCE_SSO"] = force_sso
 
 
 def get_or_create_secret_key():
@@ -82,22 +126,32 @@ auth_bp = Blueprint("auth", __name__)
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    if not has_any_admin():
+    force_sso = current_app.config.get("FORCE_SSO", False)
+    oidc_enabled = current_app.config.get("OIDC_ENABLED", False)
+    oidc_display_name = current_app.config.get("OIDC_DISPLAY_NAME", "SSO")
+
+    if not force_sso and not has_any_admin():
         return redirect(url_for("auth.setup"))
 
     error = None
-    if request.method == "POST":
+    if request.method == "POST" and not force_sso:
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
-        user = verify_user(username, password)
+        user, err = verify_user(username, password)
         if user:
             session["user_id"] = user["id"]
             session["user_name"] = user["username"]
             session["user_role"] = user["role"]
             return redirect(url_for("index"))
-        error = "Invalid username or password."
+        error = err
 
-    return render_template("login.html", error=error)
+    return render_template(
+        "login.html",
+        error=error,
+        oidc_enabled=oidc_enabled,
+        oidc_display_name=oidc_display_name,
+        force_sso=force_sso,
+    )
 
 
 @auth_bp.route("/logout")
@@ -108,6 +162,9 @@ def logout():
 
 @auth_bp.route("/setup", methods=["GET", "POST"])
 def setup():
+    if current_app.config.get("FORCE_SSO", False):
+        return redirect(url_for("auth.login"))
+
     if has_any_admin():
         return redirect(url_for("auth.login"))
 
@@ -131,6 +188,82 @@ def setup():
             return redirect(url_for("index"))
 
     return render_template("setup.html", error=error)
+
+
+# ---------------------------------------------------------------------------
+# OIDC routes
+# ---------------------------------------------------------------------------
+
+@auth_bp.route("/oidc/login")
+def oidc_login():
+    if not current_app.config.get("OIDC_ENABLED", False):
+        return redirect(url_for("auth.login"))
+    try:
+        nonce = secrets.token_urlsafe(32)
+        session["oidc_nonce"] = nonce
+        redirect_uri = url_for("auth.oidc_callback", _external=True)
+        return oauth.oidc.authorize_redirect(redirect_uri, nonce=nonce)
+    except Exception as e:
+        return render_template(
+            "login.html",
+            error=f"SSO provider is unavailable: {e}",
+            oidc_enabled=current_app.config.get("OIDC_ENABLED", False),
+            oidc_display_name=current_app.config.get("OIDC_DISPLAY_NAME", "SSO"),
+            force_sso=current_app.config.get("FORCE_SSO", False),
+        )
+
+
+@auth_bp.route("/oidc/callback")
+def oidc_callback():
+    if not current_app.config.get("OIDC_ENABLED", False):
+        return redirect(url_for("auth.login"))
+
+    try:
+        token = oauth.oidc.authorize_access_token()
+        nonce = session.pop("oidc_nonce", None)
+        userinfo = token.get("userinfo")
+        if userinfo is None:
+            userinfo = oauth.oidc.parse_id_token(token, nonce=nonce)
+
+        subject = userinfo.get("sub", "")
+        username = userinfo.get("preferred_username") or userinfo.get("email") or subject
+        username = re.sub(r"[^a-zA-Z0-9._-]", "_", username)
+
+        issuer = userinfo.get("iss", "")
+        if not issuer:
+            cfg = get_oidc_config()
+            issuer = cfg["issuer_url"] if cfg else ""
+
+        admin_username = current_app.config.get("OIDC_ADMIN_USER")
+
+        user = find_or_create_sso_user(
+            issuer=issuer,
+            subject=subject,
+            username=username,
+            admin_username=admin_username,
+        )
+
+        session["user_id"] = user["id"]
+        session["user_name"] = user["username"]
+        session["user_role"] = user["role"]
+        return redirect(url_for("index"))
+
+    except ValueError as e:
+        return render_template(
+            "login.html",
+            error=str(e),
+            oidc_enabled=current_app.config.get("OIDC_ENABLED", False),
+            oidc_display_name=current_app.config.get("OIDC_DISPLAY_NAME", "SSO"),
+            force_sso=current_app.config.get("FORCE_SSO", False),
+        )
+    except Exception as e:
+        return render_template(
+            "login.html",
+            error=f"SSO login failed: {e}",
+            oidc_enabled=current_app.config.get("OIDC_ENABLED", False),
+            oidc_display_name=current_app.config.get("OIDC_DISPLAY_NAME", "SSO"),
+            force_sso=current_app.config.get("FORCE_SSO", False),
+        )
 
 
 # ---------------------------------------------------------------------------
