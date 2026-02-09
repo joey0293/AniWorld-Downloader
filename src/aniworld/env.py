@@ -36,6 +36,7 @@ def merge_env(example_path: Path, env_path: Path):
         else:
             merged_lines.append(f"{key}={default_value}")
 
+    env_path.parent.mkdir(parents=True, exist_ok=True)
     env_path.write_text("\n".join(merged_lines) + "\n")
 
     # Load the merged env file
