@@ -1,0 +1,46 @@
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f0f;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh}
+a{color:#7eb8da;text-decoration:none}
+.container{max-width:960px;margin:0 auto;padding:20px}
+h1{text-align:center;margin-bottom:24px;font-size:1.6rem;color:#fff}
+.search-bar{display:flex;gap:8px;margin-bottom:24px}
+.search-bar input{flex:1;padding:10px 14px;border-radius:6px;border:1px solid #333;background:#1a1a1a;color:#e0e0e0;font-size:1rem;outline:none}
+.search-bar input:focus{border-color:#7eb8da}
+.search-bar button{padding:10px 20px;border-radius:6px;border:none;background:#2563eb;color:#fff;font-size:1rem;cursor:pointer}
+.search-bar button:hover{background:#1d4ed8}
+.search-bar button:disabled{background:#333;cursor:not-allowed}
+.spinner{display:none;text-align:center;padding:20px;color:#888}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+.card{background:#1a1a1a;border-radius:8px;overflow:hidden;cursor:pointer;transition:transform .15s,box-shadow .15s;border:1px solid #222}
+.card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.card img{width:100%;height:260px;object-fit:cover;background:#222}
+.card .info{padding:10px}
+.card .title{font-size:.9rem;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:100;overflow-y:auto}
+.modal{background:#1a1a1a;max-width:720px;margin:40px auto;border-radius:10px;padding:24px;position:relative;border:1px solid #333}
+.modal .close{position:absolute;top:12px;right:16px;font-size:1.5rem;cursor:pointer;color:#888;background:none;border:none}
+.modal .close:hover{color:#fff}
+.modal-header{display:flex;gap:16px;margin-bottom:16px}
+.modal-header img{width:140px;height:200px;object-fit:cover;border-radius:6px;background:#222;flex-shrink:0}
+.modal-meta h2{font-size:1.2rem;margin-bottom:6px;color:#fff}
+.modal-meta .genres{font-size:.8rem;color:#7eb8da;margin-bottom:6px}
+.modal-meta .year{font-size:.8rem;color:#888;margin-bottom:8px}
+.modal-meta .desc{font-size:.85rem;color:#aaa;line-height:1.4;max-height:120px;overflow-y:auto}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center}
+.controls select,.controls button{padding:8px 12px;border-radius:6px;border:1px solid #333;background:#222;color:#e0e0e0;font-size:.85rem;cursor:pointer}
+.controls button{background:#2563eb;color:#fff;border:none}
+.controls button:hover{background:#1d4ed8}
+.controls button:disabled{background:#333;cursor:not-allowed}
+.episodes-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.episodes-header h3{font-size:1rem}
+.select-all-label{font-size:.8rem;color:#888;cursor:pointer;user-select:none}
+.select-all-label input{margin-right:4px}
+.episode-list{max-height:320px;overflow-y:auto;border:1px solid #222;border-radius:6px;background:#111}
+.episode-item{display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #1a1a1a;font-size:.85rem}
+.episode-item:last-child{border-bottom:none}
+.episode-item input{margin-right:10px;flex-shrink:0}
+.episode-item .ep-num{color:#7eb8da;width:50px;flex-shrink:0}
+.episode-item .ep-title{color:#ccc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status-bar{margin-top:16px;padding:10px;background:#111;border-radius:6px;font-size:.85rem;color:#888;display:none}
+.status-bar.active{display:block}
+.toast{position:fixed;bottom:20px;right:20px;background:#222;border:1px solid #333;border-radius:8px;padding:12px 18px;color:#e0e0e0;font-size:.85rem;z-index:200;display:none;max-width:340px}

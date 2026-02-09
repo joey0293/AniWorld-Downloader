@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AniWorld Downloader</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="container">
+  <h1>AniWorld Downloader</h1>
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search for anime..." autofocus>
+    <button id="searchBtn" onclick="doSearch()">Search</button>
+  </div>
+  <div class="spinner" id="searchSpinner">Searching...</div>
+  <div class="results" id="results"></div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal">
+    <button class="close" onclick="closeModal()">&times;</button>
+    <div class="modal-header">
+      <img id="modalPoster" src="" alt="">
+      <div class="modal-meta">
+        <h2 id="modalTitle"></h2>
+        <div class="genres" id="modalGenres"></div>
+        <div class="year" id="modalYear"></div>
+        <div class="desc" id="modalDesc"></div>
+      </div>
+    </div>
+    <div class="controls">
+      <select id="seasonSelect" onchange="loadEpisodes()"></select>
+      <select id="languageSelect">
+        {% for key, label in lang_labels.items() %}
+        <option value="{{ label }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select id="providerSelect">
+        {% for p in supported_providers %}
+        <option value="{{ p }}">{{ p }}</option>
+        {% endfor %}
+      </select>
+      <button id="downloadBtn" onclick="startDownload()">Download Selected</button>
+    </div>
+    <div class="episodes-header">
+      <h3>Episodes</h3>
+      <label class="select-all-label"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> Select All</label>
+    </div>
+    <div class="episode-list" id="episodeList"></div>
+    <div class="spinner" id="episodeSpinner">Loading episodes...</div>
+    <div class="status-bar" id="statusBar">
+      <span id="statusText"></span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
