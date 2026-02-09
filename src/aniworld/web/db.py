@@ -114,7 +114,14 @@ def verify_user(username, password):
         conn.close()
 
 
-def find_or_create_sso_user(issuer, subject, username, admin_username=None):
+def find_or_create_sso_user(issuer, subject, username, admin_username=None, admin_subject=None):
+    def _should_be_admin():
+        if admin_subject and subject == admin_subject:
+            return True
+        if admin_username and username == admin_username:
+            return True
+        return False
+
     conn = get_db()
     try:
         row = conn.execute(
@@ -124,7 +131,7 @@ def find_or_create_sso_user(issuer, subject, username, admin_username=None):
 
         if row:
             user = {"id": row["id"], "username": row["username"], "role": row["role"]}
-            if admin_username and username == admin_username and row["role"] != "admin":
+            if _should_be_admin() and row["role"] != "admin":
                 conn.execute("UPDATE users SET role = 'admin' WHERE id = ?", (row["id"],))
                 conn.commit()
                 user["role"] = "admin"
@@ -140,7 +147,7 @@ def find_or_create_sso_user(issuer, subject, username, admin_username=None):
                 f"Username '{username}' is already taken by a local account."
             )
 
-        role = "admin" if (admin_username and username == admin_username) else "user"
+        role = "admin" if _should_be_admin() else "user"
         cur = conn.execute(
             "INSERT INTO users (username, password_hash, role, auth_method, sso_subject, sso_issuer) "
             "VALUES (?, ?, ?, 'oidc', ?, ?)",

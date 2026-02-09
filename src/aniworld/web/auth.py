@@ -1,6 +1,7 @@
 import os
 import re
 import secrets
+import time
 from functools import wraps
 
 from authlib.integrations.flask_client import OAuth
@@ -16,15 +17,19 @@ from flask import (
 )
 
 from ..config import ANIWORLD_CONFIG_DIR
+from ..logger import get_logger
 from .db import (
     create_user,
     delete_user,
     find_or_create_sso_user,
+    get_db,
     has_any_admin,
     list_users,
     update_user_role,
     verify_user,
 )
+
+logger = get_logger(__name__)
 
 _SECRET_KEY_PATH = ANIWORLD_CONFIG_DIR / ".flask_secret"
 
@@ -43,6 +48,7 @@ def get_oidc_config():
         "client_secret": client_secret,
         "display_name": os.environ.get("ANIWORLD_OIDC_DISPLAY_NAME", "SSO").strip() or "SSO",
         "admin_user": os.environ.get("ANIWORLD_OIDC_ADMIN_USER", "").strip() or None,
+        "admin_subject": os.environ.get("ANIWORLD_OIDC_ADMIN_SUBJECT", "").strip() or None,
     }
 
 
@@ -52,6 +58,7 @@ def init_oidc(app, force_sso=False):
         app.config["OIDC_ENABLED"] = False
         app.config["OIDC_DISPLAY_NAME"] = "SSO"
         app.config["OIDC_ADMIN_USER"] = None
+        app.config["OIDC_ADMIN_SUBJECT"] = None
         app.config["FORCE_SSO"] = force_sso
         return
 
@@ -67,6 +74,7 @@ def init_oidc(app, force_sso=False):
     app.config["OIDC_ENABLED"] = True
     app.config["OIDC_DISPLAY_NAME"] = cfg["display_name"]
     app.config["OIDC_ADMIN_USER"] = cfg["admin_user"]
+    app.config["OIDC_ADMIN_SUBJECT"] = cfg["admin_subject"]
     app.config["FORCE_SSO"] = force_sso
 
 
@@ -75,8 +83,11 @@ def get_or_create_secret_key():
     if _SECRET_KEY_PATH.exists():
         return _SECRET_KEY_PATH.read_bytes()
     key = secrets.token_bytes(32)
-    _SECRET_KEY_PATH.write_bytes(key)
-    os.chmod(str(_SECRET_KEY_PATH), 0o600)
+    fd = os.open(str(_SECRET_KEY_PATH), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.write(fd, key)
+    finally:
+        os.close(fd)
     return key
 
 
@@ -89,6 +100,27 @@ def get_current_user():
         "username": session.get("user_name", ""),
         "role": session.get("user_role", "user"),
     }
+
+
+def refresh_session_role():
+    """Re-check the user's role from the DB periodically (every 60s)."""
+    uid = session.get("user_id")
+    if uid is None:
+        return None
+    last_check = session.get("_role_checked", 0)
+    if time.time() - last_check < 60:
+        return None
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT role FROM users WHERE id = ?", (uid,)).fetchone()
+        if not row:
+            session.clear()
+            return redirect(url_for("auth.login"))
+        session["user_role"] = row["role"]
+        session["_role_checked"] = time.time()
+    finally:
+        conn.close()
+    return None
 
 
 def login_required(f):
@@ -139,6 +171,7 @@ def login():
         password = request.form.get("password") or ""
         user, err = verify_user(username, password)
         if user:
+            session.permanent = True
             session["user_id"] = user["id"]
             session["user_name"] = user["username"]
             session["user_role"] = user["role"]
@@ -176,12 +209,17 @@ def setup():
 
         if not username:
             error = "Username is required."
-        elif len(password) < 4:
-            error = "Password must be at least 4 characters."
+        elif len(username) > 64:
+            error = "Username must be at most 64 characters."
+        elif not re.match(r"^[a-zA-Z0-9._-]+$", username):
+            error = "Username may only contain letters, digits, dots, hyphens, and underscores."
+        elif len(password) < 8:
+            error = "Password must be at least 8 characters."
         elif password != confirm:
             error = "Passwords do not match."
         else:
             uid = create_user(username, password, role="admin")
+            session.permanent = True
             session["user_id"] = uid
             session["user_name"] = username
             session["user_role"] = "admin"
@@ -203,10 +241,11 @@ def oidc_login():
         session["oidc_nonce"] = nonce
         redirect_uri = url_for("auth.oidc_callback", _external=True)
         return oauth.oidc.authorize_redirect(redirect_uri, nonce=nonce)
-    except Exception as e:
+    except Exception:
+        logger.exception("SSO provider unavailable")
         return render_template(
             "login.html",
-            error=f"SSO provider is unavailable: {e}",
+            error="SSO provider is currently unavailable. Please try again later.",
             oidc_enabled=current_app.config.get("OIDC_ENABLED", False),
             oidc_display_name=current_app.config.get("OIDC_DISPLAY_NAME", "SSO"),
             force_sso=current_app.config.get("FORCE_SSO", False),
@@ -235,14 +274,19 @@ def oidc_callback():
             issuer = cfg["issuer_url"] if cfg else ""
 
         admin_username = current_app.config.get("OIDC_ADMIN_USER")
+        admin_subject = current_app.config.get("OIDC_ADMIN_SUBJECT")
 
         user = find_or_create_sso_user(
             issuer=issuer,
             subject=subject,
             username=username,
             admin_username=admin_username,
+            admin_subject=admin_subject,
         )
 
+        logger.info("SSO login: user=%s subject=%s issuer=%s", username, subject, issuer)
+
+        session.permanent = True
         session["user_id"] = user["id"]
         session["user_name"] = user["username"]
         session["user_role"] = user["role"]
@@ -256,10 +300,11 @@ def oidc_callback():
             oidc_display_name=current_app.config.get("OIDC_DISPLAY_NAME", "SSO"),
             force_sso=current_app.config.get("FORCE_SSO", False),
         )
-    except Exception as e:
+    except Exception:
+        logger.exception("SSO login failed")
         return render_template(
             "login.html",
-            error=f"SSO login failed: {e}",
+            error="SSO login failed. Please try again or contact an administrator.",
             oidc_enabled=current_app.config.get("OIDC_ENABLED", False),
             oidc_display_name=current_app.config.get("OIDC_DISPLAY_NAME", "SSO"),
             force_sso=current_app.config.get("FORCE_SSO", False),
@@ -292,8 +337,12 @@ def admin_create_user():
 
     if not username:
         return jsonify({"error": "Username is required"}), 400
-    if len(password) < 4:
-        return jsonify({"error": "Password must be at least 4 characters"}), 400
+    if len(username) > 64:
+        return jsonify({"error": "Username must be at most 64 characters"}), 400
+    if not re.match(r"^[a-zA-Z0-9._-]+$", username):
+        return jsonify({"error": "Username may only contain letters, digits, dots, hyphens, and underscores"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
     if role not in ("admin", "user"):
         return jsonify({"error": "Invalid role"}), 400
 
@@ -307,6 +356,8 @@ def admin_create_user():
 @auth_bp.route("/admin/api/users/<int:user_id>", methods=["DELETE"])
 @admin_required
 def admin_delete_user(user_id):
+    if user_id == session.get("user_id"):
+        return jsonify({"error": "Cannot delete your own account"}), 400
     ok, err = delete_user(user_id)
     if not ok:
         return jsonify({"error": err}), 400
