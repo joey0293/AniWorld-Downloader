@@ -3,115 +3,81 @@ import logging
 import os
 import sys
 
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
 from .anime4k import anime4k
 from .config import ACTION_METHODS, LANG_LABELS, SUPPORTED_PROVIDERS, VERSION
 from .logger import get_logger
 
 logger = get_logger(__name__)
+console = Console()
 
 EXAMPLES = r"""
+[bold underline cyan]Command-Line Arguments Example[/]
 
-Command-Line Arguments Example
+[dim]AniWorld Downloader provides command-line options for downloading and streaming anime without relying on the interactive menu or webui.[/]
 
-AniWorld Downloader provides command-line options for downloading and streaming anime without relying on the interactive menu.
+[bold yellow]Example 1: Download a Single Episode (default action)[/]
+[dim]To download episode 1 of "Demon Slayer: Kimetsu no Yaiba":[/]
+[green]aniworld[/] [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
 
+[bold yellow]Example 2: Download Multiple Episodes (default action)[/]
+[dim]To download multiple episodes of "Demon Slayer":[/]
+[green]aniworld[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2[/]
 
-Example 1: Download a Single Episode (default action)
+[bold yellow]Example 3: Watch Episodes with Aniskip[/]
+[dim]To watch an episode while skipping intros and outros:[/]
+[green]aniworld[/] [magenta]--action[/] [cyan]Watch[/] [magenta]--aniskip[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
 
-To download episode 1 of "Demon Slayer: Kimetsu no Yaiba":
+[bold yellow]Example 4: Syncplay with Friends (+ Keep Watching)[/]
+[dim]To Syncplay a specific episode with friends:[/]
+[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] \
+  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] \
+  [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] \
+  [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
 
-aniworld https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
+[dim]Language Options for Syncplay[/]
 
+[dim]For German Dub:[/]
+[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] [magenta]--language[/] [cyan]"German Dub"[/] [magenta]--aniskip[/] \
+  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
 
-Example 2: Download Multiple Episodes (default action)
+[dim]For English Sub:[/]
+[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] [magenta]--language[/] [cyan]"English Sub"[/] [magenta]--aniskip[/] \
+  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
 
-To download multiple episodes of "Demon Slayer":
+[dim]To restrict access, set a password for the room:[/]
+[green]aniworld[/] [magenta]--action[/] [cyan]Syncplay[/] [magenta]--keep-watching[/] [magenta]--language[/] [cyan]"English Sub"[/] [magenta]--aniskip[/] \
+  [magenta]--syncplay-host[/] [cyan]syncplay.pl:8998[/] [magenta]--syncplay-room[/] [cyan]"MyRoom"[/] [magenta]--syncplay-username[/] [cyan]"phoenixthrush"[/] \
+  [magenta]--syncplay-password[/] [cyan]beans[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
 
-aniworld \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1 \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-2
+[bold yellow]Example 5: Download with Specific Provider and Language (default action)[/]
+[dim]To download using the VOE provider with English subtitles:[/]
+[green]aniworld[/] [magenta]--provider[/] [cyan]VOE[/] [magenta]--language[/] [cyan]"English Sub"[/] \
+  [blue]https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1[/]
 
+[bold yellow]Example 6: Use an Episode File (default action)[/]
+[dim]To download URLs listed in a file:[/]
+[green]aniworld[/] [magenta]--episode-file[/] [cyan]test.txt[/] [magenta]--language[/] [cyan]"German Dub"[/]
 
-Example 3: Watch Episodes with Aniskip
+[bold yellow]Example 7: Use a custom provider URL[/]
+[dim]Download a provider page URL directly (resolved to a direct media URL and saved via ffmpeg).[/]
+[dim]Important: you must specify --provider so the right extractor (and headers) are used.[/]
+[green]aniworld[/] [magenta]--provider[/] [cyan]VOE[/] [magenta]--provider-url[/] [blue]https://voe.sx/e/ayginbzzb6bi[/]
 
-To watch an episode while skipping intros and outros:
-
-aniworld --action Watch --aniskip \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
-
-
-Example 4: Syncplay with Friends (+ Keep Watching)
-
-To Syncplay a specific episode with friends:
-
-aniworld --action Syncplay --keep-watching \
-  --syncplay-host syncplay.pl:8998 \
-  --syncplay-room "MyRoom" \
-  --syncplay-username "phoenixthrush" \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
-
-
-Language Options for Syncplay
-
-You can select different languages for yourself and your friends:
-
-For German Dub:
-aniworld --action Syncplay --keep-watching --language "German Dub" --aniskip \
-  --syncplay-host syncplay.pl:8998 --syncplay-room "MyRoom" --syncplay-username "phoenixthrush" \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
-
-For English Sub:
-aniworld --action Syncplay --keep-watching --language "English Sub" --aniskip \
-  --syncplay-host syncplay.pl:8998 --syncplay-room "MyRoom" --syncplay-username "phoenixthrush" \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
-
-To restrict access, set a password for the room:
-
-aniworld --action Syncplay --keep-watching --language "English Sub" --aniskip \
-  --syncplay-host syncplay.pl:8998 --syncplay-room "MyRoom" --syncplay-username "phoenixthrush" \
-  --syncplay-password beans \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
-
-
-Example 5: Download with Specific Provider and Language (default action)
-
-To download using the VOE provider with English subtitles:
-
-aniworld --provider VOE --language "English Sub" \
-  https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-1/episode-1
-
-
-Example 6: Use an Episode File (default action)
-
-You can download episodes listed in a text file. Below is an example of a text file (test.txt):
-
-# The whole anime
-https://aniworld.to/anime/stream/alya-sometimes-hides-her-feelings-in-russian
-
-# The whole Season 2
-https://aniworld.to/anime/stream/demon-slayer-kimetsu-no-yaiba/staffel-2
-
-# Only Season 3 Episode 13
-https://aniworld.to/anime/stream/kaguya-sama-love-is-war/staffel-3/episode-13
-
-To download the URLs specified in the file, use:
-
-aniworld --episode-file test.txt --language "German Dub"
-
-
-Example 7: Use a custom provider URL
-
-Download a provider page URL directly (resolved to a direct media URL and saved via ffmpeg).
-Important: you must specify --provider so the right extractor (and headers) are used.
-
-aniworld --provider VOE --provider-url https://voe.sx/e/ayginbzzb6bi
-
-
-Notes
-
-- --aniskip and --keep-watching can be combined with Watch and Syncplay.
+[bold]Notes[/]
+- [magenta]--aniskip[/] and [magenta]--keep-watching[/] can be combined with Watch and Syncplay.
 - URLs are positional arguments, so you can paste one or many at the end of the command.
-"""
+""".strip()
 
 
 def parse_args():
@@ -123,7 +89,7 @@ def parse_args():
             "from s.to. It runs on Windows, macOS, and Linux, providing a "
             "seamless experience for offline viewing or instant playback."
         ),
-        epilog=EXAMPLES,
+        epilog='Run "aniworld --examples" to see more usage examples.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
@@ -131,16 +97,26 @@ def parse_args():
     # General / Core options
     # =========================
     general = parser.add_argument_group("General Options")
-    general.add_argument("--debug", action="store_true", help="Enable debug logging")
     general.add_argument(
+        "-d", "--debug", action="store_true", help="Enable debug logging"
+    )
+    general.add_argument(
+        "-V",
         "--version",
         action="store_true",
         help="Show version information and exit",
     )
     general.add_argument(
+        "-nm",
         "--no-menu",
         action="store_true",
         help="Disable interactive menu",
+    )
+    general.add_argument(
+        "-x",
+        "--examples",
+        action="store_true",
+        help="Show extended command-line examples and exit",
     )
 
     # =========================
@@ -148,27 +124,32 @@ def parse_args():
     # =========================
     playback = parser.add_argument_group("Playback & Download Options")
     playback.add_argument(
+        "-a",
         "--action",
         choices=sorted(ACTION_METHODS.keys()),
         help="Choose action method",
     )
     playback.add_argument(
+        "-l",
         "--language",
         choices=sorted(LANG_LABELS.values()),
         help="Choose language",
     )
     playback.add_argument(
+        "-p",
         "--provider",
         choices=sorted(SUPPORTED_PROVIDERS),
         help="Choose provider",
     )
 
     playback.add_argument(
+        "-sk",
         "--aniskip",
         action="store_true",
         help="Skip intros/outros when watching (AniSkip integration)",
     )
     playback.add_argument(
+        "-kw",
         "--keep-watching",
         action="store_true",
         help="Automatically continue with the next episode",
@@ -179,6 +160,7 @@ def parse_args():
     # =========================
     discovery = parser.add_argument_group("Discovery Options")
     discovery.add_argument(
+        "-r",
         "--random-anime",
         action="store_true",
         help="Fetch a random anime series",
@@ -189,6 +171,7 @@ def parse_args():
     # =========================
     a4k = parser.add_argument_group("Anime4K Options")
     a4k.add_argument(
+        "-A",
         "--anime4k",
         choices=["High", "Low", "Remove"],
         help="Enable Anime4K upscaling with specified mode",
@@ -199,6 +182,7 @@ def parse_args():
     # =========================
     inputs = parser.add_argument_group("Input Options")
     inputs.add_argument(
+        "-f",
         "--episode-file",
         help="Path to a text file containing episode URLs (one URL per line)",
     )
@@ -213,6 +197,7 @@ def parse_args():
     # =========================
     provider = parser.add_argument_group("Provider URL Options")
     provider.add_argument(
+        "-pu",
         "--provider-url",
         help="Custom provider URL",
     )
@@ -224,23 +209,37 @@ def parse_args():
         "Syncplay Options (requires --action Syncplay)"
     )
     syncplay.add_argument(
+        "-sH",
         "--syncplay-host",
         help="Specify the Syncplay server host",
     )
     syncplay.add_argument(
+        "-sR",
         "--syncplay-room",
         help="Specify the Syncplay room name",
     )
     syncplay.add_argument(
+        "-sU",
         "--syncplay-username",
         help="Specify the Syncplay username",
     )
     syncplay.add_argument(
+        "-sP",
         "--syncplay-password",
         help="Specify the Syncplay password (if required)",
     )
 
     args = parser.parse_args()
+
+    if args.examples:
+        console.print(
+            Panel.fit(
+                Text.from_markup(EXAMPLES),
+                title="[bold]aniworld --examples[/bold]",
+                border_style="cyan",
+            )
+        )
+        raise SystemExit(0)
 
     if args.language:
         os.environ["ANIWORLD_LANGUAGE"] = args.language

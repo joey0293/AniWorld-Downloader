@@ -162,14 +162,16 @@ The documentation is continuously updated with new features, detailed tutorials,
 ## Dependencies
 
 - **niquests** – For making HTTP requests
-- **npyscreen** – For building text-based user interfaces
-- **ffmpeg-python** – For handling multimedia processing
-- **python-dotenv** – For managing environment variables
-- **fake-useragent** – For generating random user agents
+- **npyscreen** – For building the interactive text UI (TUI)
+- **ffmpeg-python** – Python bindings for FFmpeg (requires FFmpeg installed/available on your system)
+- **python-dotenv** – For managing environment variables via `.env`
+- **rich** – For colored terminal output (used by `aniworld --examples`)
+- **fake-useragent** – For generating random user agents (may be replaced in the future)
 
-Windows only dependencies:
+Windows-only dependency:
 
-- **windows-curses** – For enabling curses support on Windows
+- **windows-curses** – Enables curses support required by `npyscreen` on Windows  
+  *(installed automatically on Windows; version is pinned for Python < 3.14)*
 
 All required dependencies are installed automatically when AniWorld Downloader is installed via `pip`.
 
