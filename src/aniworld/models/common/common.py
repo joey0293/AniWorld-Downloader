@@ -1,22 +1,39 @@
+import getpass
+import hashlib
 import os
 import re
+import shlex
 import subprocess
 from typing import Tuple
 
 import ffmpeg
 
-from ...autodeps import get_player_path, get_syncplay_path
-from ...config import (
-    INVERSE_LANG_LABELS,
-    LANG_CODE_MAP,
-    LANG_KEY_MAP,
-    PROVIDER_HEADERS_D,
-    PROVIDER_HEADERS_W,
-    Audio,
-    Subtitles,
-    get_video_codec,
-    logger,
-)
+try:
+    from ...autodeps import get_player_path, get_syncplay_path
+    from ...config import (
+        INVERSE_LANG_LABELS,
+        LANG_CODE_MAP,
+        LANG_KEY_MAP,
+        PROVIDER_HEADERS_D,
+        PROVIDER_HEADERS_W,
+        Audio,
+        Subtitles,
+        get_video_codec,
+        logger,
+    )
+except ImportError:
+    from aniworld.autodeps import get_player_path, get_syncplay_path
+    from aniworld.config import (
+        INVERSE_LANG_LABELS,
+        LANG_CODE_MAP,
+        LANG_KEY_MAP,
+        PROVIDER_HEADERS_D,
+        PROVIDER_HEADERS_W,
+        Audio,
+        Subtitles,
+        get_video_codec,
+        logger,
+    )
 
 # Precompile regex for forbidden filename characters
 FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
@@ -276,32 +293,64 @@ def watch(self):
 
 
 def syncplay(self):
-    """Syncplay the current episode (AniWorld) or fall back to watch (s.to)."""
-
-    # s.to currently has no dedicated syncplay implementation
-    if not hasattr(self, "skip_times"):
-        return self.watch()
+    """Syncplay an episode (AniWorld + s.to)."""
 
     print(f"[Syncplaying] {self._file_name}")
 
-    headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
+    # TODO: implement IINA support for syncplay (Syncplay may not detect IINA binary reliably)
+    # Force mpv for now (get_player_path() reads this env var)
+    os.environ["ANIWORLD_USE_IINA"] = "0"
+
+    syncplay_host = os.getenv("ANIWORLD_SYNCPLAY_HOST") or "syncplay.pl:8998"
+    syncplay_password = os.getenv("ANIWORLD_SYNCPLAY_PASSWORD")
+
+    # getpass.getuser() is usually fine, but can fail in some environments
+    syncplay_username = os.getenv("ANIWORLD_SYNCPLAY_USERNAME")
+
+    if not syncplay_username:
+        try:
+            syncplay_username = getpass.getuser()
+        except Exception:
+            syncplay_username = "AniWorld-Downloader"
+
+    room = "AniWorld"
+    file_name = self._file_name.replace(" ", "_")
+
+    if syncplay_password:
+        # Log what we're using to derive the room (helps debugging)
+        logger.debug(f"{room}-{file_name}-{syncplay_password}")
+        room += (
+            "-"
+            + hashlib.sha256(
+                f"-{file_name}-{syncplay_password}".encode("utf-8")
+            ).hexdigest()
+        )
+    else:
+        logger.debug(f"{room}-{file_name}")
+        room += f"-{file_name}"
+
+    syncplay_room = os.getenv("ANIWORLD_SYNCPLAY_ROOM") or room
+
+    logger.debug(room)
 
     cmd = [
         str(get_syncplay_path()),
         "--no-gui",
         "--no-store",
         "--host",
-        os.getenv("SYNCPLAY_HOST", "syncplay.pl:8997"),
+        syncplay_host,
         "--room",
-        os.getenv("SYNCPLAY_ROOM", "AniWorld-Downloader-Room"),
+        syncplay_room,
         "--name",
-        os.getenv("SYNCPLAY_USERNAME", "AniWorld-Downloader"),
+        syncplay_username,
         "--player-path",
-        "IINA" if os.getenv("ANIWORLD_USE_IINA") else "mpv",
+        str(get_player_path()),
+        self.stream_url,
+        # "/Users/phoenixthrush/Downloads/Caramelldansen.webm",
     ]
 
+    # MPV flags come after this
     cmd.append("--")
-    cmd.append(self.stream_url)
 
     aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
     skip_times = self.skip_times if aniskip_enabled else None
@@ -318,9 +367,21 @@ def syncplay(self):
         ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
     )
 
+    headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
+
     if headers:
         header_args = [f"{k}: {v}" for k, v in headers.items()]
         cmd.append("--http-header-fields=" + ",".join(header_args))
 
-    print(" ".join(cmd))
+    logger.debug("\n" + shlex.join(cmd))
     subprocess.run(cmd)
+
+
+if __name__ == "__main__":
+    from aniworld.models import AniworldEpisode
+
+    ep = AniworldEpisode(
+        "https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1"
+    )
+
+    ep.syncplay()
