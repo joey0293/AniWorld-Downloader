@@ -37,7 +37,6 @@ aniworld
 - [ ] README -> add sections from v3
 - [ ] Nuitka -> fix build crash
 - [ ] Remove empty lines below action when running on docker run -it
-- [ ] Detect docker environment to omit adding env variables when running in docker run -it
 - [ ] WebUI -> coming soon
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -88,8 +87,6 @@ docker build -t aniworld .
   ```bash
   docker run -it --rm \
     -v "${PWD}/Downloads:/app/Downloads" \
-    -e ANIWORLD_DOCKER=1 \
-    -e ANIWORLD_DOWNLOAD_PATH="/app/Downloads" \
     aniworld python -m aniworld
   ```
 
@@ -98,8 +95,6 @@ docker build -t aniworld .
   ```powershell
   docker run -it --rm `
     -v "${PWD}\Downloads:/app/Downloads" `
-    -e ANIWORLD_DOCKER=1 `
-    -e ANIWORLD_DOWNLOAD_PATH="/app/Downloads" `
     aniworld python -m aniworld
   ```
 
@@ -108,14 +103,11 @@ docker build -t aniworld .
   ```cmd
   docker run -it --rm ^
     -v "%cd%\Downloads:/app/Downloads" ^
-    -e ANIWORLD_DOCKER=1 ^
-    -e ANIWORLD_DOWNLOAD_PATH="/app/Downloads" ^
     aniworld python -m aniworld
   ```
 
 > **Note:**
-> Set `ANIWORLD_DOCKER=1` and `ANIWORLD_DOWNLOAD_PATH="/app/Downloads"` when running in Docker to ensure downloads are placed in the mounted folder. If you do not mount the Downloads directory, files created in the container will not persist on your host system.
-> Environment variables will be replaced by a config file internally in the future.
+> Mount the Downloads folder to `/app/Downloads` in the container to save downloaded episodes to your local machine. You can change the host path as needed.
 
 ### Docker Compose
 

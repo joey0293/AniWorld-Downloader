@@ -14,6 +14,8 @@ RUN adduser -D -h /home/aniworld aniworld \
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+ENV ANIWORLD_DOWNLOAD_PATH=/app/Downloads
+
 # Copy the packaging bits first so Docker can cache the install layer
 COPY pyproject.toml /app/
 COPY README.md LICENSE MANIFEST.in /app/

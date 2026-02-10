@@ -152,11 +152,16 @@ class MenuApp(npyscreen.NPSApp):
         y = 2  # leave space for form title
 
         # --- Action ---
+        is_docker = False
+
+        if os.getenv("ANIWORLD_DOWNLOAD_PATH") == "/app/Downloads":
+            is_docker = True
+
         action = F.add(
             npyscreen.TitleSelectOne,
             name="Action",
             values=[Action.DOWNLOAD.value]
-            if os.getenv("ANIWORLD_DOCKER") == "1"
+            if is_docker
             else [Action.DOWNLOAD.value, Action.WATCH.value, Action.SYNCPLAY.value],
             value=[0],
             max_height=3,
@@ -168,7 +173,7 @@ class MenuApp(npyscreen.NPSApp):
         path = F.add(
             npyscreen.TitleFilenameCombo,
             name="Path",
-            value=Path.home() / "Downloads",
+            value=Path("/app/Downloads") if is_docker else Path.home() / "Downloads",
             rely=y + 4,
             max_height=2,
         )
