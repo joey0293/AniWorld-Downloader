@@ -134,7 +134,7 @@ def aniworld():
         selected_language = result.get("language")
         selected_provider = result.get("provider")
 
-        os.environ["ANIWORLD_USE_ANISKIP"] = "1" if result.get("aniskip") else "0"
+        os.environ["ANIWORLD_ANISKIP"] = "1" if result.get("aniskip") else "0"
 
         if action in ACTION_METHODS:
             method_name = ACTION_METHODS[action]
