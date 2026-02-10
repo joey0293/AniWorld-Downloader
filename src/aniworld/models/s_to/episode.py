@@ -224,12 +224,11 @@ class SerienstreamEpisode:
                 "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
             )
 
-            if os.getenv("ANIWORLD_DOWNLOAD_PATH") == "/app/Downloads":
-                raw_path = os.getenv("ANIWORLD_DOWNLOAD_PATH", "/app/Downloads")
-
             path = Path(raw_path).expanduser()
+
             if not path.is_absolute():
                 path = Path.home() / path
+
             self.__selected_path = str(path)
         return self.__selected_path
 

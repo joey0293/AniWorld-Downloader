@@ -6,8 +6,6 @@ services:
     volumes:
       # Keep downloads on the host so they don’t disappear when the container is recreated
       - ./Downloads:/app/Downloads
-    environment:
-      ANIWORLD_DOWNLOAD_PATH: /app/Downloads
     # If you hit permission issues on Linux, uncomment and run with UID/GID set
     # user: "${UID:-1000}:${GID:-1000}"
     # For now, just serve the Downloads folder over HTTP (until the real web UI exists)
