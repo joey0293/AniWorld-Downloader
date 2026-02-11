@@ -230,10 +230,18 @@ class SerienstreamSeries:
         return []
 
     def __extract_release_year(self):
-        """<a class="small text-muted" href="https://serienstream.to/jahr/2011">2011</a>"""
+        """
+        <p class="small text-muted mb-2">
+            <a class="small text-muted" href="/jahr/2011">2011</a> -
+            <span class="small text-muted">NA</span> • FSK 16 •
+            <a href="https://www.imdb.com/title/tt1844624/" target="_blank" rel="noopener noreferrer" class="small text-muted text-decoration-none">
+                IMDb
+            </a>
+        </p>
+        """
 
         pattern = re.compile(
-            r'<a class="small text-muted" href="https://(?:serienstream|s)\.to/jahr/(\d{4})">(\d{4})</a>'
+            r'<a class="small text-muted" href="(?:https://(?:serienstream|s)\.to)?/jahr/(\d{4})">(\d{4})</a>'
         )
 
         match = pattern.search(self._html)
@@ -246,17 +254,45 @@ class SerienstreamSeries:
 
     def __extract_poster_url(self):
         """
-        <img data-src="https://serienstream.to/media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg" data-srcset="
-        https://serienstream.to/media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg      1x,
-        https://serienstream.to/media/images/channel/2x-desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg   2x
-        " src="https://serienstream.to/media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg" alt="American Horror Story" class="img-fluid w-100 loaded" srcset="
-        https://serienstream.to/media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg      1x,
-        https://serienstream.to/media/images/channel/2x-desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg   2x
-        " data-was-processed="true">
+        <div class="col-3 col-md-3 col-lg-2 d-none d-md-block">
+            <picture>
+                <source type="image/avif" data-srcset="
+                    /media/images/channel/mobile/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=avif         375w,
+                    /media/images/channel/tablet/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=avif         768w,
+                    /media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=avif       1024w
+                    " sizes="(max-width: 600px) 375px,
+                        (max-width: 992px) 768px,
+                        1024px" srcset="
+                    /media/images/channel/mobile/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=avif         375w,
+                    /media/images/channel/tablet/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=avif         768w,
+                    /media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=avif       1024w
+                    ">
+
+                <source type="image/webp" data-srcset="
+                    /media/images/channel/mobile/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=webp         375w,
+                    /media/images/channel/tablet/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=webp         768w,
+                    /media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=webp       1024w
+                    " sizes="(max-width: 600px) 375px,
+                        (max-width: 992px) 768px,
+                        1024px" srcset="
+                    /media/images/channel/mobile/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=webp         375w,
+                    /media/images/channel/tablet/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=webp         768w,
+                    /media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=webp       1024w
+                    ">
+
+                <img data-src="/media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg" data-srcset="
+                    /media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg      1x,
+                    /media/images/channel/2x-desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg   2x
+                    " src="/media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg" alt="American Horror Story" class="img-fluid w-100 loaded" srcset="
+                    /media/images/channel/desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg      1x,
+                    /media/images/channel/2x-desktop/american-horror-story-die-dunkle-seite-in-dir-lrd0j8zs?format=jpg   2x
+                    " data-was-processed="true">
+            </picture>
+        </div>
         """
 
         pattern = re.compile(
-            r'<img data-src="(https://(?:serienstream|s)\.to/media/images/[^"]+)"'
+            r'<img data-src="((?:https://(?:serienstream|s)\.to)?/media/images/[^"]+)"'
         )
 
         match = pattern.search(self._html)

@@ -9,95 +9,86 @@ from aniworld.models import (
     SerienstreamSeries,
 )
 
+# ANSI escape code for red text
+RED = "\033[31m"
+RESET = "\033[0m"
+
 
 def object_to_json(obj):
     cls = obj.__class__
     mangled_prefix = f"_{cls.__name__}__"
-
     data = {}
-
     for name in vars(obj):
-        # unmangle private names
         clean_name = (
             name[len(mangled_prefix) :] if name.startswith(mangled_prefix) else name
         )
-
-        # skip parent objects and _html
         if clean_name.startswith(("_series", "_season", "html")):
             continue
-
-        # access via clean name to trigger lazy-loading if needed
         value = getattr(obj, clean_name, None)
-
-        # ensure JSON serializable (fallback to string)
         try:
             json.dumps(value)
             data[clean_name] = value
         except TypeError:
             data[clean_name] = str(value)
-
-    return json.dumps(data, indent=4, ensure_ascii=False)
-
-
-def test_aniworld_models_aniworld_series():
-    series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
-    print(object_to_json(series))
+    return data  # NOTE: changed -- now returns dict, not a JSON string
 
 
-def test_aniworld_models_aniworld_season():
-    season = AniworldSeason("https://aniworld.to/anime/stream/highschool-dxd/staffel-1")
-    print(object_to_json(season))
+def print_colored_json(obj_data):
+    lines = []
+    for key, value in obj_data.items():
+        json_key = json.dumps(key, ensure_ascii=False)
+        if value is None:
+            json_value = f"{RED}null{RESET}"
+        else:
+            json_value = json.dumps(value, ensure_ascii=False)
+        lines.append(f"    {json_key}: {json_value}")
+    print("{\n" + ",\n".join(lines) + "\n}")
 
 
-def test_aniworld_models_aniworld_episode():
-    episode = AniworldEpisode(
-        "https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1"
-    )
-    print(object_to_json(episode))
+def check_model_serialization(cls, url):
+    obj = cls(url)
+    obj_data = object_to_json(obj)
+    print(f"Test: {cls.__name__}\nURL: {url}\nResult:")
+    print_colored_json(obj_data)
+    print("=" * 80)
+    output_str = json.dumps(obj_data, ensure_ascii=False)
+    assert output_str.strip().startswith("{"), "Output should be JSON"
+    assert url in output_str, f"URL should appear in JSON output for {cls.__name__}"
 
 
-def test_serienstream_episode():
-    episode = SerienstreamEpisode(
-        "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1"
-    )
-    print(object_to_json(episode))
-
-
-def test_serienstream_season():
-    season = SerienstreamSeason(
-        "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1"
-    )
-    print(object_to_json(season))
-
-
-def test_serienstream_series():
-    series = SerienstreamSeries(
-        "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir"
-    )
-    print(object_to_json(series))
+def run_all_tests():
+    tests = [
+        (AniworldSeries, "https://aniworld.to/anime/stream/highschool-dxd"),
+        (AniworldSeason, "https://aniworld.to/anime/stream/highschool-dxd/staffel-1"),
+        (
+            AniworldEpisode,
+            "https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1",
+        ),
+        (
+            SerienstreamSeries,
+            "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir",
+        ),
+        (
+            SerienstreamSeason,
+            "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1",
+        ),
+        (
+            SerienstreamEpisode,
+            "https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1",
+        ),
+    ]
+    all_passed = True
+    for cls, url in tests:
+        try:
+            check_model_serialization(cls, url)
+        except AssertionError as e:
+            print(f"Assertion failed for {cls.__name__}: {e}")
+            all_passed = False
+    if all_passed:
+        print("All tests passed successfully.")
+    else:
+        print("Some tests failed.")
 
 
 if __name__ == "__main__":
-    print("=" * 80)
-    test_aniworld_models_aniworld_series()
-    print("=" * 80)
-
-    print("=" * 80)
-    test_aniworld_models_aniworld_season()
-    print("=" * 80)
-
-    print("=" * 80)
-    test_aniworld_models_aniworld_episode()
-    print("=" * 80)
-
-    print("=" * 80)
-    test_serienstream_series()
-    print("=" * 80)
-
-    print("=" * 80)
-    test_serienstream_season()
-    print("=" * 80)
-
-    print("=" * 80)
-    test_serienstream_episode()
-    print("=" * 80)
+    run_all_tests()
