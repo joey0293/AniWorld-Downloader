@@ -1,81 +1,30 @@
-"""
-Example: AniWorld Series usage
-
-This example demonstrates:
-- Loading a series
-- Inspecting series metadata
-- Listing seasons and episode counts
-- Showing a sample episode
-- Download / Watch / Syncplay
-"""
-
 from aniworld.models import AniworldSeries
 
-# ----------------------------
-# 1. Load the series
-# ----------------------------
-series_url = "https://aniworld.to/anime/stream/highschool-dxd"
-series = AniworldSeries(series_url)
+url = "https://aniworld.to/anime/stream/highschool-dxd"
 
-print("\n" + "=" * 60)
-print(f"SERIES OVERVIEW — {series.title}")
-print("=" * 60 + "\n")
+series = AniworldSeries(url)
 
-# ----------------------------
-# 2. Series metadata
-# ----------------------------
-fields = {
-    "URL": series.url,
-    "Title": series.title,
-    "Description": series.description,
-    "Genres": ", ".join(series.genres),
-    "Release Years": series.release_year,
-    "Poster URL": series.poster_url,
-    "Directors": ", ".join(series.directors),
-    "Actors": ", ".join(series.actors),
-    "Producer": series.producer,
-    "Country": series.country,
-    "Age Rating": series.age_rating,
-    "Rating": series.rating,
-    "IMDb": getattr(series, "imdb", None),
-    "MAL ID": getattr(series, "mal_id", None),
-    "Has Movies": series.has_movies,
-    "Season Count": series.season_count,
-}
+print("=== SERIES INFO ===")
+print("URL:", series.url)
+print("Title:", series.title)
+print("Title Clean:", series.title_clean)
+print("Description:", series.description)
+print("Genres:", series.genres)
+print("Release year:", series.release_year)
+print("Poster URL:", series.poster_url)
+print("Directors:", series.directors)
+print("Actors:", series.actors)
+print("Producer:", series.producer)
+print("Country:", series.country)
+print("Age rating:", series.age_rating)
+print("Rating:", series.rating)
+print("IMDB ID:", series.imdb)
+print("MAL ID:", series.mal_id)
+print("Has movies:", series.has_movies)
+print("Seasons:", series.seasons)
+print("Season count:", series.season_count)
+print()
 
-max_key_len = max(len(k) for k in fields.keys())
-for key, value in fields.items():
-    print(f"{key:<{max_key_len}} : {value}")
-
-print("\n" + "-" * 60)
-print("SEASONS")
-print("-" * 60)
-
-# ----------------------------
-# 3. Season listing
-# ----------------------------
-for season in series.seasons:
-    if season.are_movies:
-        label = "Movies"
-    else:
-        label = f"Season {season.season_number}"
-
-    print(f"\n{label}")
-    print(f"  URL       : {season.url}")
-    print(f"  Episodes  : {season.episode_count}")
-
-    # show first episode as a sample
-    if season.episodes:
-        ep = season.episodes[0]
-        print("  First episode:")
-        print(f"    #{ep.episode_number} - {ep.title_en} / {ep.title_de}")
-
-print("\n" + "=" * 60)
-
-# ----------------------------
-# 4. Optional actions
-# ----------------------------
-# Uncomment to enable:
 # series.download()
 # series.watch()
 # series.syncplay()
