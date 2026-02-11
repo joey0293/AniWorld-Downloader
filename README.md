@@ -18,8 +18,11 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading anime
 
 ## TL;DR - Quick Start
 
-```text
-# Installation
+```bash
+# Installation - Stable Release (v.3.9.0)
+pip install -U aniworld
+
+# Installation - Latest Development Version (v.4.0.0)
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models#egg=aniworld
 
 # Usage
@@ -27,13 +30,12 @@ aniworld
 ```
 
 > **Note:**
-> The above command installs the latest development version instead of the stable release. If you want to install the latest stable version, simply run `pip install -U aniworld`.
+> The above command installs the latest development version. For the stable release, run `pip install -U aniworld` instead.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Still in Development from v3
 
-- [ ] Fix serienstream attributes
 - [ ] Implement argument: keep-watching
 - [ ] README -> add sections from v3
 - [ ] Nuitka -> fix build crash
@@ -44,35 +46,34 @@ aniworld
 
 ## Features
 
-- Downloading: Grab full series, seasons, or individual episodes for offline viewing.
-- Streaming: Watch episodes immediately with the built-in mpv or syncplay player.
-- Auto-Next Playback: Seamlessly move to the next episode without interruption.
-- Multiple Providers: Stream from a variety of sources on aniworld.to and s.to.
-- Language Preferences: Switch effortlessly between German Dub, English Sub, or German Sub.
-- Muxing: Automatically combine video and audio streams into a single file.
-- AniSkip Integration: Automatically skip intros and outros for a smoother experience.
-- Group Watching: Sync anime sessions with friends via Syncplay.
-- Web Interface: Browse, download, and manage your anime queue with a modern web UI.
-- Docker Ready: Easily deploy using Docker or Docker Compose.
+- **Downloading** – Grab full series, seasons, or individual episodes for offline viewing
+- **Streaming** – Watch episodes immediately using mpv, IINA, or Syncplay
+- **Auto-Next Playback** – Seamlessly move to the next episode without interruption
+- **Multiple Providers** – Stream from various sources on aniworld.to and s.to
+- **Language Preferences** – Switch between German Dub, English Sub, or German Sub
+- **Muxing** – Automatically combine video and audio streams into a single file
+- **AniSkip Integration** – Automatically skip intros and outros on aniworld for a smoother experience
+- **Group Watching** – Sync anime and series sessions with friends via Syncplay
+- **Web Interface** – Browse, download, and manage your anime and series queue with a modern web UI
+- **Docker Ready** – Easily deploy using Docker or Docker Compose
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Working Providers
+## Supported Providers
 
-> They are currently extremely unstable and will be worked on.
-> The focus currently lies on
-> aniworld: VOE, Filemoon, Vidmoly
-> serienstream: VOE, Vidoza
+| Provider | Status | Last Tested |
+| --- | --- | --- |
+| VOE | ✅ Working | 02/26 |
+| Filemoon | ✅ Working | 02/26 |
+| Vidmoly | ✅ Working | 02/26 |
+| Vidoza | ✅ Working | 02/26 |
+| Doodstream | ❌ Broken | 02/26 |
+| Hanime | ⏳ Not Implemented | — |
+| LoadX | ⏳ Not Implemented | — |
+| Luluvdo | ⏳ Not Implemented | — |
+| Streamtape | ⏳ Not Implemented | — |
 
-- [x] Doodstream
-- [ ] Filemoon
-- [ ] Hanime
-- [ ] LoadX
-- [ ] Luluvdo
-- [ ] Streamtape
-- [x] Vidoza
-- [x] Vidmoly
-- [x] VOE
+**Currently Prioritized**: VOE, Filemoon, Vidmoly (aniworld) and VOE, Vidoza (serienstream)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -119,6 +120,12 @@ docker-compose up -d --build
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Documentation
+
+For comprehensive user guides, tutorials, and additional documentation, visit the [official documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/). The docs are continuously updated with new features, detailed tutorials, and troubleshooting guides.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Contributing
 
 Contributions to AniWorld Downloader are highly appreciated! You can help enhance the project by:
@@ -139,15 +146,6 @@ Contributions to AniWorld Downloader are highly appreciated! You can help enhanc
 
 - **Tmaster055** (since Oct 21, 2024)  
   [![Wakatime Badge](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)](https://wakatime.com/badge/user/79a1926c-65a1-4f1c-baf3-368712ebbf97/project/5f191c34-1ee2-4850-95c3-8d85d516c449.svg)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-## Documentation
-
-For comprehensive user guides, tutorials, and additional documentation, visit the official documentation website:
-[AniWorld-Downloader-Docs](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/)
-
-The documentation is continuously updated with new features, detailed tutorials, and troubleshooting guides to help you get the most out of AniWorld Downloader.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
