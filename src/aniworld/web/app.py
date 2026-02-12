@@ -1,17 +1,36 @@
 import re
 import threading
-import time
 import uuid
 
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_wtf.csrf import CSRFProtect
 
-from ..config import LANG_LABELS, SUPPORTED_PROVIDERS
+from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
+from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
 from ..search import query as aniworld_query
 
 logger = get_logger(__name__)
+
+
+def _get_working_providers():
+    """Return only providers whose extractors are actually implemented."""
+    working = []
+    for p in SUPPORTED_PROVIDERS:
+        func_name = f"get_direct_link_from_{p.lower()}"
+        if func_name not in provider_functions:
+            continue
+        try:
+            provider_functions[func_name]("")
+        except NotImplementedError:
+            continue
+        except Exception:
+            working.append(p)
+    return tuple(working)
+
+
+WORKING_PROVIDERS = _get_working_providers()
 
 # In-memory download status tracking
 _downloads = {}
@@ -156,7 +175,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         return render_template(
             "index.html",
             lang_labels=LANG_LABELS,
-            supported_providers=SUPPORTED_PROVIDERS,
+            supported_providers=WORKING_PROVIDERS,
         )
 
     @app.route("/api/search", methods=["POST"])
@@ -270,10 +289,22 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             episode = prov.episode_cls(url=url)
             pd = episode.provider_data
 
+            # Build a reverse map: (Audio, Subtitles) -> lang_label
+            lang_tuple_to_label = {}
+            for key, (audio, subtitles) in LANG_KEY_MAP.items():
+                label = LANG_LABELS.get(key)
+                if label:
+                    lang_tuple_to_label[(audio.value, subtitles.value)] = label
+
             provider_info = {}
             for (audio, subtitles), providers in pd._data.items():
-                lang_key = f"{audio.value}/{subtitles.value}"
-                provider_info[lang_key] = list(providers.keys())
+                label = lang_tuple_to_label.get((audio.value, subtitles.value))
+                if not label:
+                    continue
+                # Only include providers that have working extractors
+                working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
+                if working:
+                    provider_info[label] = working
 
             return jsonify({"providers": provider_info})
         except Exception as e:
