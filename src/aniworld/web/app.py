@@ -9,7 +9,7 @@ from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
 from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
-from ..search import query as aniworld_query
+from ..search import fetch_new_animes, fetch_popular_animes, query as aniworld_query
 from ..search import random_anime
 
 logger = get_logger(__name__)
@@ -369,6 +369,20 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if url:
             return jsonify({"url": url})
         return jsonify({"error": "Failed to fetch random anime"}), 500
+
+    @app.route("/api/new-animes")
+    def api_new_animes():
+        results = fetch_new_animes()
+        if results is None:
+            return jsonify({"error": "Failed to fetch new animes"}), 500
+        return jsonify({"results": results})
+
+    @app.route("/api/popular-animes")
+    def api_popular_animes():
+        results = fetch_popular_animes()
+        if results is None:
+            return jsonify({"error": "Failed to fetch popular animes"}), 500
+        return jsonify({"results": results})
 
     @app.route("/api/settings", methods=["GET"])
     def api_settings():
