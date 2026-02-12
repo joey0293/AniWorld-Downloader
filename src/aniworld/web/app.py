@@ -10,6 +10,7 @@ from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
 from ..search import query as aniworld_query
+from ..search import random_anime
 
 logger = get_logger(__name__)
 
@@ -358,15 +359,58 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             }
         return jsonify({"downloads": all_downloads})
 
+    @app.route("/settings")
+    def settings_page():
+        return render_template("settings.html")
+
+    @app.route("/api/random")
+    def api_random():
+        url = random_anime()
+        if url:
+            return jsonify({"url": url})
+        return jsonify({"error": "Failed to fetch random anime"}), 500
+
+    @app.route("/api/settings", methods=["GET"])
+    def api_settings():
+        from pathlib import Path
+
+        raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+        if raw:
+            p = Path(raw).expanduser()
+            if not p.is_absolute():
+                p = Path.home() / p
+            resolved = str(p)
+        else:
+            resolved = str(Path.home() / "Downloads")
+        return jsonify({
+            "download_path": resolved,
+        })
+
+    @app.route("/api/settings", methods=["PUT"])
+    def api_settings_update():
+        data = request.get_json(silent=True) or {}
+        download_path = data.get("download_path", "").strip()
+        os.environ["ANIWORLD_DOWNLOAD_PATH"] = download_path
+        return jsonify({"ok": True})
+
     if auth_enabled:
+        from .auth import admin_required
+
+        # Endpoints that require admin instead of just login
+        _admin_only = {"settings_page", "api_settings", "api_settings_update"}
+
         # Wrap all non-auth, non-static view functions with login_required
+        # (admin_required for settings endpoints)
         _exempt = {
             "static", "auth.login", "auth.logout", "auth.setup",
             "auth.oidc_login", "auth.oidc_callback",
         }
         for endpoint, view_func in list(app.view_functions.items()):
             if endpoint not in _exempt:
-                app.view_functions[endpoint] = login_required(view_func)
+                if endpoint in _admin_only:
+                    app.view_functions[endpoint] = admin_required(view_func)
+                else:
+                    app.view_functions[endpoint] = login_required(view_func)
 
         # Exempt JSON API routes from CSRF (they use Content-Type: application/json
         # which provides implicit cross-origin protection via CORS preflight)

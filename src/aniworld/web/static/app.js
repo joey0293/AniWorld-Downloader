@@ -3,22 +3,23 @@ const searchBtn = document.getElementById('searchBtn');
 const searchSpinner = document.getElementById('searchSpinner');
 const resultsDiv = document.getElementById('results');
 const overlay = document.getElementById('overlay');
-const seasonSelect = document.getElementById('seasonSelect');
 const languageSelect = document.getElementById('languageSelect');
 const providerSelect = document.getElementById('providerSelect');
-const episodeList = document.getElementById('episodeList');
+const seasonAccordion = document.getElementById('seasonAccordion');
 const episodeSpinner = document.getElementById('episodeSpinner');
 const selectAllCb = document.getElementById('selectAll');
 const statusBar = document.getElementById('statusBar');
 const statusText = document.getElementById('statusText');
-const downloadBtn = document.getElementById('downloadBtn');
+const downloadAllBtn = document.getElementById('downloadAllBtn');
+const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
+const randomBtn = document.getElementById('randomBtn');
 
 let currentSeasons = [];
 let currentDownloadId = null;
 let pollTimer = null;
-// Provider data per language label, e.g. {"German Dub": ["VOE","Vidmoly"], ...}
+// Provider data per language label
 let availableProviders = null;
-// Static list of providers rendered into the template (working extractors only)
+// Static list of providers rendered into the template
 const staticProviders = Array.from(providerSelect.options).map(o => o.value);
 
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
@@ -43,6 +44,20 @@ async function doSearch() {
   } finally {
     searchBtn.disabled = false;
     searchSpinner.style.display = 'none';
+  }
+}
+
+async function doRandom() {
+  randomBtn.disabled = true;
+  try {
+    const resp = await fetch('/api/random');
+    const data = await resp.json();
+    if (data.error) { showToast(data.error); return; }
+    openSeries(data.url);
+  } catch (e) {
+    showToast('Failed to fetch random anime: ' + e.message);
+  } finally {
+    randomBtn.disabled = false;
   }
 }
 
@@ -77,8 +92,7 @@ async function openSeries(url) {
   document.getElementById('modalGenres').textContent = '';
   document.getElementById('modalYear').textContent = '';
   document.getElementById('modalDesc').textContent = '';
-  seasonSelect.innerHTML = '';
-  episodeList.innerHTML = '';
+  seasonAccordion.innerHTML = '';
   statusBar.classList.remove('active');
   availableProviders = null;
   resetProviderDropdown();
@@ -98,54 +112,110 @@ async function openSeries(url) {
     document.getElementById('modalDesc').textContent = seriesData.description || '';
 
     currentSeasons = seasonsData.seasons || [];
-    seasonSelect.innerHTML = '';
-    currentSeasons.forEach((s, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = s.are_movies ? 'Movies' : `Season ${s.season_number} (${s.episode_count} eps)`;
-      seasonSelect.appendChild(opt);
-    });
-
-    if (currentSeasons.length) loadEpisodes();
+    buildAccordion(currentSeasons);
   } catch (e) {
     showToast('Failed to load series: ' + e.message);
   }
 }
 
-async function loadEpisodes() {
-  const idx = parseInt(seasonSelect.value);
-  const season = currentSeasons[idx];
-  if (!season) return;
-
-  episodeList.innerHTML = '';
+function buildAccordion(seasons) {
+  seasonAccordion.innerHTML = '';
   episodeSpinner.style.display = 'block';
   selectAllCb.checked = false;
-  availableProviders = null;
-  resetProviderDropdown();
 
-  try {
-    const resp = await fetch('/api/episodes?url=' + encodeURIComponent(season.url));
-    const data = await resp.json();
-    const episodes = data.episodes || [];
+  // Fetch all seasons' episodes in parallel
+  const fetches = seasons.map((s, i) =>
+    fetch('/api/episodes?url=' + encodeURIComponent(s.url))
+      .then(r => r.json())
+      .then(data => ({index: i, episodes: data.episodes || []}))
+      .catch(() => ({index: i, episodes: []}))
+  );
 
-    episodeList.innerHTML = '';
-    episodes.forEach(ep => {
-      const div = document.createElement('div');
-      div.className = 'episode-item';
-      const title = ep.title_en || ep.title_de || '';
-      div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}"><span class="ep-num">E${ep.episode_number}</span><span class="ep-title">${esc(title)}</span>`;
-      episodeList.appendChild(div);
+  Promise.all(fetches).then(results => {
+    episodeSpinner.style.display = 'none';
+    let firstProviderUrl = null;
+
+    results.sort((a, b) => a.index - b.index);
+    results.forEach(({index, episodes}) => {
+      const season = seasons[index];
+      const section = document.createElement('div');
+      section.className = 'season-section';
+      section.dataset.seasonIndex = index;
+
+      const label = season.are_movies
+        ? `Movies (${episodes.length} episodes)`
+        : `Season ${season.season_number} (${episodes.length} episodes)`;
+
+      // Header
+      const header = document.createElement('div');
+      header.className = 'season-header' + (index === 0 ? ' expanded' : '');
+      header.innerHTML =
+        `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}</div>` +
+        `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
+      header.addEventListener('click', () => toggleSeason(index));
+
+      // Body
+      const body = document.createElement('div');
+      body.className = 'season-body' + (index === 0 ? ' expanded' : '');
+      body.id = 'seasonBody-' + index;
+
+      episodes.forEach(ep => {
+        const div = document.createElement('div');
+        div.className = 'episode-item';
+        const title = ep.title_en || ep.title_de || '';
+        div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span><span class="ep-title">${esc(title)}</span>`;
+        body.appendChild(div);
+      });
+
+      if (!firstProviderUrl && episodes.length) {
+        firstProviderUrl = episodes[0].url;
+      }
+
+      section.appendChild(header);
+      section.appendChild(body);
+      seasonAccordion.appendChild(section);
     });
 
-    // Fetch available providers using the first episode as a sample
-    if (episodes.length) {
-      fetchProviders(episodes[0].url);
+    // Fetch providers from first episode
+    if (firstProviderUrl) {
+      fetchProviders(firstProviderUrl);
     }
-  } catch (e) {
-    episodeList.innerHTML = '<div style="padding:12px;color:#888">Failed to load episodes.</div>';
-  } finally {
-    episodeSpinner.style.display = 'none';
-  }
+  });
+}
+
+function toggleSeason(index) {
+  const section = seasonAccordion.querySelector(`[data-season-index="${index}"]`);
+  if (!section) return;
+  const header = section.querySelector('.season-header');
+  const body = section.querySelector('.season-body');
+  header.classList.toggle('expanded');
+  body.classList.toggle('expanded');
+}
+
+function toggleSeasonAll(checkbox, seasonIndex) {
+  const body = document.getElementById('seasonBody-' + seasonIndex);
+  if (!body) return;
+  body.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = checkbox.checked);
+  syncSelectAll();
+}
+
+function toggleSelectAll() {
+  const checked = selectAllCb.checked;
+  seasonAccordion.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = checked);
+}
+
+function syncSelectAll() {
+  const all = seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]');
+  const checked = seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]:checked');
+  selectAllCb.checked = all.length > 0 && all.length === checked.length;
+}
+
+function getAllEpisodeUrls() {
+  return Array.from(seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]')).map(cb => cb.value);
+}
+
+function getSelectedEpisodeUrls() {
+  return Array.from(seasonAccordion.querySelectorAll('.episode-item input[type=checkbox]:checked')).map(cb => cb.value);
 }
 
 async function fetchProviders(episodeUrl) {
@@ -187,7 +257,6 @@ function updateProviderDropdown() {
       providerSelect.appendChild(opt);
     });
   } else {
-    // Fallback to the static working providers list
     staticProviders.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p;
@@ -199,7 +268,6 @@ function updateProviderDropdown() {
 }
 
 function selectDefaultProvider() {
-  // Prefer VOE as default since it's the most common working provider
   for (const opt of providerSelect.options) {
     if (opt.value === 'VOE') {
       providerSelect.value = 'VOE';
@@ -208,20 +276,15 @@ function selectDefaultProvider() {
   }
 }
 
-function toggleSelectAll() {
-  const checked = selectAllCb.checked;
-  episodeList.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = checked);
-}
-
-async function startDownload() {
-  const checkboxes = episodeList.querySelectorAll('input[type=checkbox]:checked');
-  const episodes = Array.from(checkboxes).map(cb => cb.value);
-  if (!episodes.length) { showToast('No episodes selected.'); return; }
+async function startDownload(all) {
+  const episodes = all ? getAllEpisodeUrls() : getSelectedEpisodeUrls();
+  if (!episodes.length) { showToast(all ? 'No episodes available.' : 'No episodes selected.'); return; }
 
   const language = languageSelect.value;
   const provider = providerSelect.value;
 
-  downloadBtn.disabled = true;
+  downloadAllBtn.disabled = true;
+  downloadSelectedBtn.disabled = true;
   try {
     const resp = await fetch('/api/download', {
       method: 'POST',
@@ -229,7 +292,12 @@ async function startDownload() {
       body: JSON.stringify({episodes, language, provider})
     });
     const data = await resp.json();
-    if (data.error) { showToast(data.error); downloadBtn.disabled = false; return; }
+    if (data.error) {
+      showToast(data.error);
+      downloadAllBtn.disabled = false;
+      downloadSelectedBtn.disabled = false;
+      return;
+    }
 
     currentDownloadId = data.download_id;
     statusBar.classList.add('active');
@@ -237,7 +305,8 @@ async function startDownload() {
     pollStatus();
   } catch (e) {
     showToast('Download request failed: ' + e.message);
-    downloadBtn.disabled = false;
+    downloadAllBtn.disabled = false;
+    downloadSelectedBtn.disabled = false;
   }
 }
 
@@ -264,7 +333,8 @@ function pollStatus() {
             showToast(`Download error: ${lastError.error}`);
           }
         }
-        downloadBtn.disabled = false;
+        downloadAllBtn.disabled = false;
+        downloadSelectedBtn.disabled = false;
         currentDownloadId = null;
       }
     } catch (e) { /* ignore poll errors */ }
