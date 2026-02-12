@@ -18,8 +18,8 @@ const newAnimesGrid = document.getElementById('newAnimesGrid');
 const popularAnimesGrid = document.getElementById('popularAnimesGrid');
 
 let currentSeasons = [];
-let currentDownloadId = null;
-let pollTimer = null;
+let currentSeriesTitle = '';
+let currentSeriesUrl = '';
 // Provider data per language label
 let availableProviders = null;
 // Static list of providers rendered into the template
@@ -134,6 +134,8 @@ async function openSeries(url) {
   seasonAccordion.innerHTML = '';
   statusBar.classList.remove('active');
   availableProviders = null;
+  currentSeriesUrl = url;
+  currentSeriesTitle = '';
   resetProviderDropdown();
 
   try {
@@ -144,7 +146,8 @@ async function openSeries(url) {
     const seriesData = await seriesResp.json();
     const seasonsData = await seasonsResp.json();
 
-    document.getElementById('modalTitle').textContent = seriesData.title || 'Unknown';
+    currentSeriesTitle = seriesData.title || 'Unknown';
+    document.getElementById('modalTitle').textContent = currentSeriesTitle;
     if (seriesData.poster_url) document.getElementById('modalPoster').src = seriesData.poster_url;
     document.getElementById('modalGenres').textContent = (seriesData.genres || []).join(', ');
     document.getElementById('modalYear').textContent = seriesData.release_year || '';
@@ -328,61 +331,32 @@ async function startDownload(all) {
     const resp = await fetch('/api/download', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({episodes, language, provider})
+      body: JSON.stringify({
+        episodes,
+        language,
+        provider,
+        title: currentSeriesTitle,
+        series_url: currentSeriesUrl
+      })
     });
     const data = await resp.json();
     if (data.error) {
       showToast(data.error);
-      downloadAllBtn.disabled = false;
-      downloadSelectedBtn.disabled = false;
       return;
     }
 
-    currentDownloadId = data.download_id;
-    statusBar.classList.add('active');
-    statusText.textContent = `Downloading 0/${episodes.length}...`;
-    pollStatus();
+    showToast('Added to download queue');
+    if (typeof loadQueue === 'function') loadQueue();
   } catch (e) {
     showToast('Download request failed: ' + e.message);
+  } finally {
     downloadAllBtn.disabled = false;
     downloadSelectedBtn.disabled = false;
   }
 }
 
-function pollStatus() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    if (!currentDownloadId) return;
-    try {
-      const resp = await fetch('/api/download/status?id=' + currentDownloadId);
-      const data = await resp.json();
-      statusText.textContent = `Downloading ${data.current}/${data.total}...`;
-
-      if (data.status === 'completed') {
-        clearInterval(pollTimer);
-        pollTimer = null;
-        const errorCount = data.errors ? data.errors.length : 0;
-        const successCount = data.total - errorCount;
-        if (errorCount === 0) {
-          statusText.textContent = `Done! ${data.total} episode(s) downloaded.`;
-        } else {
-          const lastError = data.errors[data.errors.length - 1];
-          statusText.textContent = `Done: ${successCount}/${data.total} downloaded, ${errorCount} failed.`;
-          if (lastError) {
-            showToast(`Download error: ${lastError.error}`);
-          }
-        }
-        downloadAllBtn.disabled = false;
-        downloadSelectedBtn.disabled = false;
-        currentDownloadId = null;
-      }
-    } catch (e) { /* ignore poll errors */ }
-  }, 2000);
-}
-
 function closeModal() {
   overlay.style.display = 'none';
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 function closeModalOutside(e) { if (e.target === overlay) closeModal(); }
 

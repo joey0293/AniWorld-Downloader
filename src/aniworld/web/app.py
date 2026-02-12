@@ -1,6 +1,7 @@
+import json
 import re
 import threading
-import uuid
+import time
 
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_wtf.csrf import CSRFProtect
@@ -11,6 +12,18 @@ from ..logger import get_logger
 from ..providers import resolve_provider
 from ..search import fetch_new_animes, fetch_popular_animes, query as aniworld_query
 from ..search import random_anime
+from .db import (
+    add_to_queue,
+    clear_completed,
+    get_next_queued,
+    get_queue,
+    get_running,
+    init_queue_db,
+    remove_from_queue,
+    set_queue_status,
+    update_queue_errors,
+    update_queue_progress,
+)
 
 logger = get_logger(__name__)
 
@@ -33,49 +46,88 @@ def _get_working_providers():
 
 WORKING_PROVIDERS = _get_working_providers()
 
-# In-memory download status tracking
-_downloads = {}
-_downloads_lock = threading.Lock()
-
 # Only match series-level links: /anime/stream/<slug> (no season/episode)
 _SERIES_LINK_PATTERN = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
 
+# Queue worker state
+_queue_worker_started = False
+_queue_lock = threading.Lock()
 
-def _run_download(download_id, episodes, language, provider):
-    """Background worker that downloads episodes sequentially."""
-    with _downloads_lock:
-        _downloads[download_id]["status"] = "running"
 
-    total = len(episodes)
-    for i, ep_url in enumerate(episodes):
-        with _downloads_lock:
-            _downloads[download_id]["current"] = i + 1
-            _downloads[download_id]["current_url"] = ep_url
-
+def _queue_worker():
+    """Single global worker that processes one download at a time."""
+    while True:
         try:
-            prov = resolve_provider(ep_url)
-            episode = prov.episode_cls(
-                url=ep_url,
-                selected_language=language,
-                selected_provider=provider,
-            )
-            episode.download()
-        except Exception as e:
-            logger.error(f"Download failed for {ep_url}: {e}")
-            with _downloads_lock:
-                _downloads[download_id].setdefault("errors", []).append(
-                    {"url": ep_url, "error": str(e)}
-                )
+            item = None
+            with _queue_lock:
+                if not get_running():
+                    item = get_next_queued()
+                    if item:
+                        set_queue_status(item["id"], "running")
 
-    with _downloads_lock:
-        _downloads[download_id]["status"] = "completed"
-        _downloads[download_id]["current"] = total
+            if not item:
+                time.sleep(3)
+                continue
+
+            episodes = json.loads(item["episodes"])
+            errors = []
+
+            for i, ep_url in enumerate(episodes):
+                update_queue_progress(item["id"], i, ep_url)
+                try:
+                    prov = resolve_provider(ep_url)
+                    episode = prov.episode_cls(
+                        url=ep_url,
+                        selected_language=item["language"],
+                        selected_provider=item["provider"],
+                    )
+                    episode.download()
+                except Exception as e:
+                    logger.error(f"Download failed for {ep_url}: {e}")
+                    errors.append({"url": ep_url, "error": str(e)})
+                    update_queue_errors(item["id"], json.dumps(errors))
+
+            update_queue_progress(item["id"], len(episodes), "")
+            status = "failed" if errors and len(errors) == len(episodes) else "completed"
+            set_queue_status(item["id"], status)
+        except Exception as e:
+            logger.error(f"Queue worker error: {e}", exc_info=True)
+            time.sleep(3)
+
+
+def _ensure_queue_worker():
+    """Start the queue worker thread once."""
+    global _queue_worker_started
+    if _queue_worker_started:
+        return
+    _queue_worker_started = True
+
+    # Crash recovery: reset any 'running' items back to 'queued'
+    from .db import get_db
+    conn = get_db()
+    try:
+        conn.execute("UPDATE download_queue SET status = 'queued' WHERE status = 'running'")
+        conn.commit()
+    finally:
+        conn.close()
+
+    thread = threading.Thread(target=_queue_worker, daemon=True)
+    thread.start()
+
+
+def _get_version():
+    try:
+        from importlib.metadata import version
+        return version("aniworld")
+    except Exception:
+        return ""
 
 
 def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     import os
 
     app = Flask(__name__)
+    app_version = _get_version()
 
     base_url = os.environ.get("ANIWORLD_WEB_BASE_URL", "").strip().rstrip("/")
     if base_url:
@@ -151,6 +203,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "oidc_enabled": app.config.get("OIDC_ENABLED", False),
                 "oidc_display_name": app.config.get("OIDC_DISPLAY_NAME", "SSO"),
                 "force_sso": app.config.get("FORCE_SSO", False),
+                "app_version": app_version,
             }
     else:
 
@@ -162,7 +215,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "oidc_enabled": False,
                 "oidc_display_name": "SSO",
                 "force_sso": False,
+                "app_version": app_version,
             }
+
+    # Initialize download queue (works with or without auth)
+    init_queue_db()
+    _ensure_queue_worker()
 
     @app.after_request
     def _set_security_headers(response):
@@ -318,46 +376,37 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         episodes = data.get("episodes", [])
         language = data.get("language", "German Dub")
         provider = data.get("provider", "VOE")
+        title = data.get("title", "Unknown")
+        series_url = data.get("series_url", "")
 
         if not episodes:
             return jsonify({"error": "episodes list is required"}), 400
 
-        download_id = str(uuid.uuid4())
-        with _downloads_lock:
-            _downloads[download_id] = {
-                "status": "queued",
-                "total": len(episodes),
-                "current": 0,
-                "current_url": None,
-                "errors": [],
-            }
+        username = None
+        if auth_enabled:
+            user = get_current_user()
+            if user:
+                username = user.get("username") if isinstance(user, dict) else getattr(user, "username", None)
 
-        thread = threading.Thread(
-            target=_run_download,
-            args=(download_id, episodes, language, provider),
-            daemon=True,
-        )
-        thread.start()
+        queue_id = add_to_queue(title, series_url, episodes, language, provider, username)
+        return jsonify({"queue_id": queue_id})
 
-        return jsonify({"download_id": download_id})
+    @app.route("/api/queue")
+    def api_queue():
+        items = get_queue()
+        return jsonify({"items": items})
 
-    @app.route("/api/download/status")
-    def api_download_status():
-        download_id = request.args.get("id", "").strip()
+    @app.route("/api/queue/<int:queue_id>", methods=["DELETE"])
+    def api_queue_remove(queue_id):
+        ok, err = remove_from_queue(queue_id)
+        if not ok:
+            return jsonify({"error": err}), 400
+        return jsonify({"ok": True})
 
-        if download_id:
-            with _downloads_lock:
-                info = _downloads.get(download_id)
-            if info is None:
-                return jsonify({"error": "unknown download_id"}), 404
-            return jsonify({"id": download_id, **info})
-
-        # Return all downloads
-        with _downloads_lock:
-            all_downloads = {
-                did: dict(info) for did, info in _downloads.items()
-            }
-        return jsonify({"downloads": all_downloads})
+    @app.route("/api/queue/completed", methods=["DELETE"])
+    def api_queue_clear():
+        clear_completed()
+        return jsonify({"ok": True})
 
     @app.route("/settings")
     def settings_page():

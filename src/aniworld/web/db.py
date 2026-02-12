@@ -214,3 +214,155 @@ def update_user_role(user_id, new_role):
         return True, None
     finally:
         conn.close()
+
+
+# ===== Download Queue =====
+
+_CREATE_QUEUE_TABLE = """\
+CREATE TABLE IF NOT EXISTS download_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    series_url TEXT NOT NULL,
+    episodes TEXT NOT NULL,
+    total_episodes INTEGER NOT NULL,
+    language TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    username TEXT,
+    status TEXT NOT NULL DEFAULT 'queued'
+        CHECK(status IN ('queued','running','completed','failed')),
+    current_episode INTEGER NOT NULL DEFAULT 0,
+    current_url TEXT,
+    errors TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    completed_at TEXT
+);
+"""
+
+
+def init_queue_db():
+    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    conn = get_db()
+    try:
+        conn.execute(_CREATE_QUEUE_TABLE)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def add_to_queue(title, series_url, episodes, language, provider, username=None):
+    import json
+
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (title, series_url, json.dumps(episodes), len(episodes), language, provider, username),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def get_queue():
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM download_queue ORDER BY id ASC"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_next_queued():
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM download_queue WHERE status = 'queued' ORDER BY id ASC LIMIT 1"
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_running():
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM download_queue WHERE status = 'running' LIMIT 1"
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def update_queue_progress(queue_id, current_episode, current_url):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE download_queue SET current_episode = ?, current_url = ? WHERE id = ?",
+            (current_episode, current_url, queue_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def set_queue_status(queue_id, status):
+    conn = get_db()
+    try:
+        if status in ("completed", "failed"):
+            conn.execute(
+                "UPDATE download_queue SET status = ?, completed_at = datetime('now') WHERE id = ?",
+                (status, queue_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE download_queue SET status = ? WHERE id = ?",
+                (status, queue_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_queue_errors(queue_id, errors_json):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE download_queue SET errors = ? WHERE id = ?",
+            (errors_json, queue_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def remove_from_queue(queue_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM download_queue WHERE id = ?", (queue_id,)
+        ).fetchone()
+        if not row:
+            return False, "Item not found"
+        if row["status"] != "queued":
+            return False, "Can only remove queued items"
+        conn.execute("DELETE FROM download_queue WHERE id = ?", (queue_id,))
+        conn.commit()
+        return True, None
+    finally:
+        conn.close()
+
+
+def clear_completed():
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM download_queue WHERE status IN ('completed', 'failed')"
+        )
+        conn.commit()
+    finally:
+        conn.close()
