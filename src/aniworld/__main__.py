@@ -4,7 +4,6 @@
 
 # Basic flags
 # nuitka-project: --static-libpython=no
-# nuitka-project: --follow-imports
 # nuitka-project: --assume-yes-for-downloads
 # nuitka-project: --python-flag=-m
 

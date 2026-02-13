@@ -36,10 +36,12 @@ aniworld
 
 ## Still in Development from v3
 
+- [ ] Embed webui in Nuitka build
+- [ ] Split webui sso dependencies into separate extra section
 - [ ] Implement argument: keep-watching
 - [ ] Look at dependency manager
 - [ ] README -> add sections from v3
-- [ ] Nuitka -> fix build crash
+- [ ] Nuitka -> fix build crash: use 3.12 instead...  non-MSVC is not currently supported on newer
 - [ ] Remove empty lines below action when running on docker run -it
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
