@@ -45,6 +45,7 @@ def aniworld():
 
         if args.web_ui:
             from .web import start_web_ui
+
             host = "0.0.0.0" if args.web_expose else "127.0.0.1"
             port = args.web_port
             open_browser = not args.no_browser

@@ -65,15 +65,13 @@ def fetch_new_episodes():
         return None
 
     # Try to narrow scope to the newEpisodeList block
-    block_match = re.search(
-        r'class="newEpisodeList">(.*)', html, re.DOTALL
-    )
+    block_match = re.search(r'class="newEpisodeList">(.*)', html, re.DOTALL)
     search_html = block_match.group(1) if block_match else html
 
     # Find all episode links with their surrounding context
     episode_pattern = re.compile(
         r'<a\s+href="(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>'
-        r'(.*?)</a>'
+        r"(.*?)</a>"
         r'(.*?(?=<a\s+href="/anime/stream/|$))',
         re.DOTALL,
     )
@@ -88,7 +86,7 @@ def fetch_new_episodes():
         episode = int(episode_str)
 
         # Extract title from <strong>
-        title_match = re.search(r'<strong>(.*?)</strong>', inner)
+        title_match = re.search(r"<strong>(.*?)</strong>", inner)
         title = title_match.group(1).strip() if title_match else ""
 
         # Extract date from elementFloatRight span or last span
@@ -143,9 +141,7 @@ def _extract_cover_list(html, heading):
     coverListItem entries until the next section.
     """
     # Find the heading position
-    heading_pattern = re.compile(
-        rf'<h2>\s*{re.escape(heading)}\s*</h2>', re.IGNORECASE
-    )
+    heading_pattern = re.compile(rf"<h2>\s*{re.escape(heading)}\s*</h2>", re.IGNORECASE)
     heading_match = heading_pattern.search(html)
     if not heading_match:
         logger.warning(f"Homepage section '{heading}' not found")
@@ -153,13 +149,13 @@ def _extract_cover_list(html, heading):
 
     # Slice from heading to the next <h2> or end
     start = heading_match.end()
-    next_h2 = re.search(r'<h2>', html[start:])
-    section_html = html[start:start + next_h2.start()] if next_h2 else html[start:]
+    next_h2 = re.search(r"<h2>", html[start:])
+    section_html = html[start : start + next_h2.start()] if next_h2 else html[start:]
 
     # Extract items — anchor on /anime/stream/ links with cover structure
     item_pattern = re.compile(
         r'<a\s+href="(/anime/stream/[^"]+)"[^>]*title="([^"]*)"[^>]*>'
-        r'(.*?)</a>',
+        r"(.*?)</a>",
         re.DOTALL,
     )
 
@@ -175,12 +171,18 @@ def _extract_cover_list(html, heading):
         seen_urls.add(url)
 
         # Title from <h3> (strip inner tags)
-        h3_match = re.search(r'<h3>(.*?)</h3>', inner, re.DOTALL)
-        title = re.sub(r'<[^>]+>', '', h3_match.group(1)).strip() if h3_match else link_title
+        h3_match = re.search(r"<h3>(.*?)</h3>", inner, re.DOTALL)
+        title = (
+            re.sub(r"<[^>]+>", "", h3_match.group(1)).strip()
+            if h3_match
+            else link_title
+        )
 
         # Genre from <small>
-        small_match = re.search(r'<small>(.*?)</small>', inner, re.DOTALL)
-        genre = re.sub(r'<[^>]+>', '', small_match.group(1)).strip() if small_match else ""
+        small_match = re.search(r"<small>(.*?)</small>", inner, re.DOTALL)
+        genre = (
+            re.sub(r"<[^>]+>", "", small_match.group(1)).strip() if small_match else ""
+        )
 
         # Poster from data-src on img
         img_match = re.search(r'data-src="([^"]+)"', inner)
@@ -188,16 +190,19 @@ def _extract_cover_list(html, heading):
         if img_match:
             poster_path = img_match.group(1)
             poster_url = (
-                poster_path if poster_path.startswith("http")
+                poster_path
+                if poster_path.startswith("http")
                 else f"https://aniworld.to{poster_path}"
             )
 
-        results.append({
-            "title": title,
-            "url": url,
-            "genre": genre,
-            "poster_url": poster_url,
-        })
+        results.append(
+            {
+                "title": title,
+                "url": url,
+                "genre": genre,
+                "poster_url": poster_url,
+            }
+        )
 
     return results
 

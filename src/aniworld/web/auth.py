@@ -46,9 +46,11 @@ def get_oidc_config():
         "issuer_url": issuer,
         "client_id": client_id,
         "client_secret": client_secret,
-        "display_name": os.environ.get("ANIWORLD_OIDC_DISPLAY_NAME", "SSO").strip() or "SSO",
+        "display_name": os.environ.get("ANIWORLD_OIDC_DISPLAY_NAME", "SSO").strip()
+        or "SSO",
         "admin_user": os.environ.get("ANIWORLD_OIDC_ADMIN_USER", "").strip() or None,
-        "admin_subject": os.environ.get("ANIWORLD_OIDC_ADMIN_SUBJECT", "").strip() or None,
+        "admin_subject": os.environ.get("ANIWORLD_OIDC_ADMIN_SUBJECT", "").strip()
+        or None,
     }
 
 
@@ -67,7 +69,8 @@ def init_oidc(app, force_sso=False):
         name="oidc",
         client_id=cfg["client_id"],
         client_secret=cfg["client_secret"],
-        server_metadata_url=cfg["issuer_url"].rstrip("/") + "/.well-known/openid-configuration",
+        server_metadata_url=cfg["issuer_url"].rstrip("/")
+        + "/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
 
@@ -131,6 +134,7 @@ def login_required(f):
                 return jsonify({"error": "authentication required"}), 401
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -146,6 +150,7 @@ def admin_required(f):
                 return jsonify({"error": "admin access required"}), 403
             return redirect(url_for("index"))
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -232,6 +237,7 @@ def setup():
 # OIDC routes
 # ---------------------------------------------------------------------------
 
+
 @auth_bp.route("/oidc/login")
 def oidc_login():
     if not current_app.config.get("OIDC_ENABLED", False):
@@ -265,7 +271,9 @@ def oidc_callback():
             userinfo = oauth.oidc.parse_id_token(token, nonce=nonce)
 
         subject = userinfo.get("sub", "")
-        username = userinfo.get("preferred_username") or userinfo.get("email") or subject
+        username = (
+            userinfo.get("preferred_username") or userinfo.get("email") or subject
+        )
         username = re.sub(r"[^a-zA-Z0-9._-]", "_", username)
 
         issuer = userinfo.get("iss", "")
@@ -284,7 +292,9 @@ def oidc_callback():
             admin_subject=admin_subject,
         )
 
-        logger.info("SSO login: user=%s subject=%s issuer=%s", username, subject, issuer)
+        logger.info(
+            "SSO login: user=%s subject=%s issuer=%s", username, subject, issuer
+        )
 
         session.permanent = True
         session["user_id"] = user["id"]
@@ -315,6 +325,7 @@ def oidc_callback():
 # Admin dashboard + API
 # ---------------------------------------------------------------------------
 
+
 @auth_bp.route("/admin")
 @admin_required
 def admin_dashboard():
@@ -340,7 +351,11 @@ def admin_create_user():
     if len(username) > 64:
         return jsonify({"error": "Username must be at most 64 characters"}), 400
     if not re.match(r"^[a-zA-Z0-9._-]+$", username):
-        return jsonify({"error": "Username may only contain letters, digits, dots, hyphens, and underscores"}), 400
+        return jsonify(
+            {
+                "error": "Username may only contain letters, digits, dots, hyphens, and underscores"
+            }
+        ), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
     if role not in ("admin", "user"):

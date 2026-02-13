@@ -108,13 +108,19 @@ def verify_user(username, password):
         if row["auth_method"] != "local":
             return None, "This account uses SSO. Please use the SSO login button."
         if check_password_hash(row["password_hash"], password):
-            return {"id": row["id"], "username": row["username"], "role": row["role"]}, None
+            return {
+                "id": row["id"],
+                "username": row["username"],
+                "role": row["role"],
+            }, None
         return None, "Invalid username or password."
     finally:
         conn.close()
 
 
-def find_or_create_sso_user(issuer, subject, username, admin_username=None, admin_subject=None):
+def find_or_create_sso_user(
+    issuer, subject, username, admin_username=None, admin_subject=None
+):
     def _should_be_admin():
         if admin_subject and subject == admin_subject:
             return True
@@ -132,7 +138,9 @@ def find_or_create_sso_user(issuer, subject, username, admin_username=None, admi
         if row:
             user = {"id": row["id"], "username": row["username"], "role": row["role"]}
             if _should_be_admin() and row["role"] != "admin":
-                conn.execute("UPDATE users SET role = 'admin' WHERE id = ?", (row["id"],))
+                conn.execute(
+                    "UPDATE users SET role = 'admin' WHERE id = ?", (row["id"],)
+                )
                 conn.commit()
                 user["role"] = "admin"
             return user
@@ -173,9 +181,7 @@ def list_users():
 def delete_user(user_id):
     conn = get_db()
     try:
-        row = conn.execute(
-            "SELECT role FROM users WHERE id = ?", (user_id,)
-        ).fetchone()
+        row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row:
             return False, "User not found"
         if row["role"] == "admin":
@@ -196,9 +202,7 @@ def update_user_role(user_id, new_role):
         return False, "Invalid role"
     conn = get_db()
     try:
-        row = conn.execute(
-            "SELECT role FROM users WHERE id = ?", (user_id,)
-        ).fetchone()
+        row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row:
             return False, "User not found"
         if row["role"] == "admin" and new_role != "admin":
@@ -207,9 +211,7 @@ def update_user_role(user_id, new_role):
             ).fetchone()["cnt"]
             if cnt <= 1:
                 return False, "Cannot demote the last admin"
-        conn.execute(
-            "UPDATE users SET role = ? WHERE id = ?", (new_role, user_id)
-        )
+        conn.execute("UPDATE users SET role = ? WHERE id = ?", (new_role, user_id))
         conn.commit()
         return True, None
     finally:
@@ -257,7 +259,15 @@ def add_to_queue(title, series_url, episodes, language, provider, username=None)
         cur = conn.execute(
             "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (title, series_url, json.dumps(episodes), len(episodes), language, provider, username),
+            (
+                title,
+                series_url,
+                json.dumps(episodes),
+                len(episodes),
+                language,
+                provider,
+                username,
+            ),
         )
         conn.commit()
         return cur.lastrowid
@@ -268,9 +278,7 @@ def add_to_queue(title, series_url, episodes, language, provider, username=None)
 def get_queue():
     conn = get_db()
     try:
-        rows = conn.execute(
-            "SELECT * FROM download_queue ORDER BY id ASC"
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM download_queue ORDER BY id ASC").fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()

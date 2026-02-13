@@ -205,7 +205,9 @@ def download(self):
                 ffmpeg.input(str(temp_full)),
             ]
             output_path = self._episode_path.with_suffix(".new.mkv")
-            ffmpeg.output(*inputs, str(output_path), c="copy").run(overwrite_output=True)
+            ffmpeg.output(*inputs, str(output_path), c="copy").run(
+                overwrite_output=True
+            )
             os.replace(output_path, self._episode_path)
         else:
             os.replace(temp_full, self._episode_path)

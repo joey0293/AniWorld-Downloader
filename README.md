@@ -30,17 +30,17 @@ aniworld
 ```
 
 > **Note:**
-> The above command installs the latest development version. For the stable release, run `pip install -U aniworld` instead.
+> The above command installs the latest development version. For the old release, run `pip install -U aniworld` instead.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Still in Development from v3
 
 - [ ] Implement argument: keep-watching
+- [ ] Look at dependency manager
 - [ ] README -> add sections from v3
 - [ ] Nuitka -> fix build crash
 - [ ] Remove empty lines below action when running on docker run -it
-- [ ] WebUI -> coming soon
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -64,9 +64,9 @@ aniworld
 | Provider | Status | Last Tested |
 | --- | --- | --- |
 | VOE | ✅ Working | 02/26 |
-| Filemoon | ✅ Working | 02/26 |
-| Vidmoly | ✅ Working | 02/26 |
 | Vidoza | ✅ Working | 02/26 |
+| Filemoon | ❌ Broken | 02/26 |
+| Vidmoly | ❌ Broken | 02/26 |
 | Doodstream | ❌ Broken | 02/26 |
 | Hanime | ⏳ Not Implemented | — |
 | LoadX | ⏳ Not Implemented | — |
@@ -110,13 +110,11 @@ docker build -t aniworld .
 > **Note:**
 > Mount the Downloads folder to `/app/Downloads` in the container to save downloaded episodes to your local machine. You can change the host path as needed.
 
-### Docker Compose
+### Docker Compose (with Web UI)
 
 ```bash
 docker-compose up -d --build
 ```
-
-> This currently just serves the Downloads folder over HTTP on port 8080 until the real web UI is implemented. You can access it at <http://localhost:8080>.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
