@@ -226,6 +226,7 @@ class AniworldEpisode:
             file_template = file_template.replace("%imdbid%", "{imdbid}")
             file_template = file_template.replace("%season%", "{season}")
             file_template = file_template.replace("%episode%", "{episode}")
+            file_template = file_template.replace("%language%", "{language}")
 
             self.__file_name = file_template.format(
                 title=self.series.title_cleaned,
@@ -233,6 +234,7 @@ class AniworldEpisode:
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
+                language=self.selected_language,
             )
         return self.__file_name
 
