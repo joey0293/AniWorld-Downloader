@@ -518,14 +518,16 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         else:
             dl_path = Path.home() / "Downloads"
 
-        folders = []
+        folders = set()
         if dl_path.is_dir():
-            folders = [
-                entry.name
-                for entry in dl_path.iterdir()
-                if entry.is_dir()
-            ]
-        return jsonify({"folders": folders})
+            for entry in dl_path.iterdir():
+                if entry.is_dir():
+                    folders.add(entry.name)
+                    # Also check one level deeper (for language separation subfolders)
+                    for child in entry.iterdir():
+                        if child.is_dir():
+                            folders.add(child.name)
+        return jsonify({"folders": sorted(folders)})
 
     @app.route("/api/settings", methods=["GET"])
     def api_settings():
@@ -619,7 +621,8 @@ def start_web_ui(
     app = create_app(
         auth_enabled=auth_enabled, sso_enabled=sso_enabled, force_sso=force_sso
     )
-    url = f"http://{'localhost' if host in ('0.0.0.0', '127.0.0.1') else host}:{port}"
+    display_host = "localhost" if host == "127.0.0.1" else host
+    url = f"http://{display_host}:{port}"
     print(f"Starting AniWorld Web UI on {url}")
 
     if open_browser:
