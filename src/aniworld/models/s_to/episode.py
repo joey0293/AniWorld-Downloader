@@ -251,9 +251,7 @@ class SerienstreamEpisode:
     @property
     def redirect_url(self):
         if self.__redirect_url is None:
-            link = self.provider_link(
-                self.selected_language, self.selected_provider
-            )
+            link = self.provider_link(self.selected_language, self.selected_provider)
             if link is None:
                 raise ValueError(
                     f"Language '{self.selected_language}' with provider "
