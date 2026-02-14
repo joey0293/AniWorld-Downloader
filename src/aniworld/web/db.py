@@ -231,7 +231,7 @@ CREATE TABLE IF NOT EXISTS download_queue (
     provider TEXT NOT NULL,
     username TEXT,
     status TEXT NOT NULL DEFAULT 'queued'
-        CHECK(status IN ('queued','running','completed','failed')),
+        CHECK(status IN ('queued','running','completed','failed','cancelled')),
     current_episode INTEGER NOT NULL DEFAULT 0,
     current_url TEXT,
     errors TEXT NOT NULL DEFAULT '[]',
@@ -348,6 +348,37 @@ def update_queue_errors(queue_id, errors_json):
         conn.close()
 
 
+def cancel_queue_item(queue_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM download_queue WHERE id = ?", (queue_id,)
+        ).fetchone()
+        if not row:
+            return False, "Item not found"
+        if row["status"] != "running":
+            return False, "Can only cancel running items"
+        conn.execute(
+            "UPDATE download_queue SET status = 'cancelled' WHERE id = ?",
+            (queue_id,),
+        )
+        conn.commit()
+        return True, None
+    finally:
+        conn.close()
+
+
+def is_queue_cancelled(queue_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM download_queue WHERE id = ?", (queue_id,)
+        ).fetchone()
+        return row and row["status"] == "cancelled"
+    finally:
+        conn.close()
+
+
 def remove_from_queue(queue_id):
     conn = get_db()
     try:
@@ -369,7 +400,7 @@ def clear_completed():
     conn = get_db()
     try:
         conn.execute(
-            "DELETE FROM download_queue WHERE status IN ('completed', 'failed')"
+            "DELETE FROM download_queue WHERE status IN ('completed', 'failed', 'cancelled')"
         )
         conn.commit()
     finally:

@@ -147,9 +147,16 @@ class AniworldEpisode:
     @property
     def redirect_url(self):
         if self.__redirect_url is None:
-            self.__redirect_url = self.provider_link(
+            link = self.provider_link(
                 self.__get_language(), self.selected_provider
             )
+            if link is None:
+                raise ValueError(
+                    f"Language '{self.selected_language}' with provider "
+                    f"'{self.selected_provider}' is not available for "
+                    f"episode: {self.url}"
+                )
+            self.__redirect_url = link
         return self.__redirect_url
 
     @property

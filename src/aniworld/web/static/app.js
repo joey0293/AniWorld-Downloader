@@ -25,6 +25,32 @@ let availableProviders = null;
 // Static list of providers rendered into the template
 const staticProviders = Array.from(providerSelect.options).map(o => o.value);
 
+// Downloaded folders cache
+let downloadedFolders = [];
+
+async function loadDownloadedFolders() {
+  try {
+    const resp = await fetch('/api/downloaded-folders');
+    const data = await resp.json();
+    downloadedFolders = data.folders || [];
+  } catch (e) { /* best-effort */ }
+}
+
+function isDownloaded(title) {
+  if (!downloadedFolders.length || !title) return false;
+  const clean = title.replace(/\s*\(.*$/, '').trim().toLowerCase();
+  return downloadedFolders.some(f => f.toLowerCase().startsWith(clean));
+}
+
+function addDownloadedBadge(card, title) {
+  if (isDownloaded(title)) {
+    const badge = document.createElement('div');
+    badge.className = 'downloaded-badge';
+    card.style.position = 'relative';
+    card.appendChild(badge);
+  }
+}
+
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 searchInput.addEventListener('input', () => {
   if (!searchInput.value.trim()) {
@@ -46,6 +72,7 @@ function renderBrowseCards(grid, items) {
         `<div class="browse-title">${esc(item.title)}</div>` +
         `<div class="browse-genre">${esc(item.genre)}</div>` +
       `</div>`;
+    addDownloadedBadge(card, item.title);
     grid.appendChild(card);
   });
 }
@@ -54,7 +81,8 @@ function renderBrowseCards(grid, items) {
   try {
     const [newResp, popResp] = await Promise.all([
       fetch('/api/new-animes'),
-      fetch('/api/popular-animes')
+      fetch('/api/popular-animes'),
+      loadDownloadedFolders()
     ]);
     const newData = await newResp.json();
     const popData = await popResp.json();
@@ -111,6 +139,7 @@ function renderResults(results) {
     card.className = 'card';
     card.onclick = () => openSeries(r.url);
     card.innerHTML = `<img src="" alt="" data-url="${esc(r.url)}"><div class="info"><div class="title">${esc(r.title)}</div></div>`;
+    addDownloadedBadge(card, r.title);
     resultsDiv.appendChild(card);
     loadPoster(r.url, card.querySelector('img'));
   });
@@ -137,6 +166,7 @@ async function openSeries(url) {
   currentSeriesUrl = url;
   currentSeriesTitle = '';
   resetProviderDropdown();
+  checkLangSeparation();
 
   try {
     const [seriesResp, seasonsResp] = await Promise.all([
@@ -377,4 +407,57 @@ function esc(s) {
   const d = document.createElement('div');
   d.textContent = unesc(s);
   return d.innerHTML;
+}
+
+let langSeparationEnabled = false;
+const downloadAllLangsBtn = document.getElementById('downloadAllLangsBtn');
+
+async function checkLangSeparation() {
+  try {
+    const resp = await fetch('/api/settings');
+    const data = await resp.json();
+    langSeparationEnabled = data.lang_separation === '1';
+    if (downloadAllLangsBtn) {
+      downloadAllLangsBtn.style.display = langSeparationEnabled ? '' : 'none';
+    }
+  } catch (e) { /* ignore */ }
+}
+
+async function startDownloadAllLangs() {
+  const episodes = getAllEpisodeUrls();
+  if (!episodes.length) { showToast('No episodes available.'); return; }
+  if (!availableProviders) { showToast('Provider data not loaded yet.'); return; }
+
+  downloadAllLangsBtn.disabled = true;
+  downloadAllBtn.disabled = true;
+  downloadSelectedBtn.disabled = true;
+
+  let queued = 0;
+  try {
+    for (const [lang, providers] of Object.entries(availableProviders)) {
+      if (!providers.length) continue;
+      const provider = providers.includes('VOE') ? 'VOE' : providers[0];
+      const resp = await fetch('/api/download', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          episodes,
+          language: lang,
+          provider,
+          title: currentSeriesTitle,
+          series_url: currentSeriesUrl
+        })
+      });
+      const data = await resp.json();
+      if (!data.error) queued++;
+    }
+    showToast('Queued downloads for ' + queued + ' language(s)');
+    if (typeof loadQueue === 'function') loadQueue();
+  } catch (e) {
+    showToast('Failed to queue downloads: ' + e.message);
+  } finally {
+    downloadAllLangsBtn.disabled = false;
+    downloadAllBtn.disabled = false;
+    downloadSelectedBtn.disabled = false;
+  }
 }
