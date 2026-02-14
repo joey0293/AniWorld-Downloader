@@ -217,8 +217,8 @@ def parse_args():
         "-wP",
         "--web-port",
         type=int,
-        default=5000,
-        help="Port for the web UI (default: 5000)",
+        default=8080,
+        help="Port for the web UI (default: 8080)",
     )
 
     webui.add_argument(

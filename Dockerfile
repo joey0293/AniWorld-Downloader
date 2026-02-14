@@ -40,7 +40,7 @@ RUN chown -R aniworld:aniworld /app/Downloads /home/aniworld/.aniworld
 USER aniworld
 
 # Expose the web UI port
-EXPOSE 5000
+EXPOSE 8080
 
 # Run the web UI, exposed on all interfaces with no browser
-CMD ["aniworld", "--web-ui", "--web-expose", "--no-browser", "--web-port", "5000"]
+CMD ["aniworld", "--web-ui", "--web-expose", "--no-browser", "--web-port", "8080"]
