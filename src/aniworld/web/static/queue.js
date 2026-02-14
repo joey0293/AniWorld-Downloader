@@ -97,7 +97,7 @@ function renderQueue(items) {
           details += '<div class="queue-error-detail">' + escQ(err.error || '') + '</div>';
         });
         errorsHtml =
-          '<div class="queue-errors queue-errors-expandable" onclick="document.getElementById(\'' + errId + '\').classList.toggle(\'expanded\')">' +
+          '<div class="queue-errors queue-errors-expandable" onclick="this.classList.toggle(\'expanded\');document.getElementById(\'' + errId + '\').classList.toggle(\'expanded\')">' +
             errors.length + ' error(s) <span class="queue-errors-toggle">&#9654;</span>' +
           '</div>' +
           '<div class="queue-error-details" id="' + errId + '">' + details + '</div>';
@@ -132,10 +132,14 @@ function renderQueue(items) {
 
   list.innerHTML = html;
 
-  // Restore expanded state
+  // Restore expanded state (both the details panel and its sibling header)
   expandedErrors.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.classList.add('expanded');
+    if (el) {
+      el.classList.add('expanded');
+      const header = el.previousElementSibling;
+      if (header) header.classList.add('expanded');
+    }
   });
 }
 

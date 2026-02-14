@@ -596,7 +596,7 @@ h1{text-align:center;margin-bottom:32px;font-size:1.75rem;color:#fff;font-weight
   border:1px solid rgba(239,68,68,.12);
 }
 .queue-error-details.expanded{display:block}
-.queue-error-details .expanded .queue-errors-toggle{transform:rotate(90deg)}
+.queue-errors-expandable.expanded .queue-errors-toggle{transform:rotate(90deg)}
 .queue-error-detail{
   font-size:.75rem;color:#fca5a5;
   padding:4px 0;border-bottom:1px solid rgba(239,68,68,.08);

@@ -82,8 +82,8 @@ function renderBrowseCards(grid, items) {
     const [newResp, popResp] = await Promise.all([
       fetch('/api/new-animes'),
       fetch('/api/popular-animes'),
-      loadDownloadedFolders()
     ]);
+    await loadDownloadedFolders();
     const newData = await newResp.json();
     const popData = await popResp.json();
     if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
