@@ -9,25 +9,20 @@ description = "AniWorld-Downloader is a command-line tool for downloading and st
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    'niquests',
-    'npyscreen',
-    'ffmpeg-python',
-    'python-dotenv',
-    'rich',
-    'fake-useragent',
-    'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"', # npyscreen
-    'niquests',
-    'npyscreen',
-    'ffmpeg-python',
-    'python-dotenv',
-    'fake-useragent',  # maybe replaced in future
-    'flask',
-    'flask-wtf',
-    'authlib',
-    'requests',
-    'waitress',
-    'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"',  # needed for npyscreen on windows
+  "niquests",
+  "npyscreen",
+  "ffmpeg-python",
+  "python-dotenv",
+  "rich",
+  "fake-useragent",
+  "flask",
+  "flask-wtf",
+  "authlib",
+  "requests",
+  "waitress",
+  'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"', # npyscreen on Windows
 ]
+
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
@@ -49,11 +44,7 @@ donate = "https://github.com/sponsors/phoenixthrush"
 discord = "https://discord.com/invite/BfDvrKd8V5"
 
 [tool.setuptools.package-data]
-aniworld = [
-    "web/templates/*.html",
-    "web/static/*.css",
-    "web/static/*.js",
-]
+aniworld = ["web/templates/*.html", "web/static/*.css", "web/static/*.js"]
 
 [project.scripts]
 aniworld = "aniworld.__main__:main"
