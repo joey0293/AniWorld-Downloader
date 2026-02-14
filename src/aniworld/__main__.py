@@ -7,7 +7,13 @@
 # nuitka-project: --assume-yes-for-downloads
 # nuitka-project: --python-flag=-m
 
-# Include data files
+# Include hidden imports (dynamically loaded modules that Nuitka can't detect)
+# nuitka-project: --include-package=urllib3.contrib
+# nuitka-project: --include-package=aniworld.extractors
+
+# Include data files/directories
+# nuitka-project: --include-data-dir=src/aniworld/web/templates=aniworld/web/templates
+# nuitka-project: --include-data-dir=src/aniworld/web/static=aniworld/web/static
 # nuitka-project: --include-data-file=src/aniworld/.env.example=aniworld/.env.example
 # nuitka-project: --include-data-file=src/aniworld/ascii/ASCII.txt=aniworld/ascii/ASCII.txt
 # nuitka-project: --include-data-file=src/aniworld/aniskip/scripts/aniskip.lua=aniworld/aniskip/scripts/aniskip.lua
