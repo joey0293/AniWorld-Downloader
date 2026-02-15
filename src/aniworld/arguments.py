@@ -165,6 +165,11 @@ def parse_args():
         action="store_true",
         help="Fetch a random anime series",
     )
+    discovery.add_argument(
+        "--use-sto-search",
+        action="store_true",
+        help="Prefer s.to for interactive searches.",
+    )
 
     # =========================
     # Anime4K
@@ -312,6 +317,9 @@ def parse_args():
 
     if args.keep_watching:
         os.environ["ANIWORLD_KEEP_WATCHING"] = "1"
+
+    if args.use_sto_search:
+        os.environ["ANIWORLD_USE_STO_SEARCH"] = "1"
 
     if args.anime4k:
         mode = args.anime4k.lower()

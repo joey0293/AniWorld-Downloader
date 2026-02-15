@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Optional, Pattern, Type
+from urllib.parse import urlparse, urlunparse
 
 from .config import (
     ANIWORLD_EPISODE_PATTERN,
@@ -62,7 +63,31 @@ PROVIDERS = [
 ]
 
 
+def normalize_url(url: str) -> str:
+    if not url:
+        return url
+
+    url = url.strip()
+
+    parsed = urlparse(url)
+    path = parsed.path
+
+    # --- SerienStream alias handling ---
+    # Some endpoints use /serie/stream/<slug>; normalize to /serie/<slug>.
+    if path.startswith("/serie/stream/"):
+        slug = path[len("/serie/stream/") :].strip("/")
+        if slug:
+            path = f"/serie/{slug}"
+
+    # remove trailing slash
+    path = path.rstrip("/")
+
+    return urlunparse(parsed._replace(path=path))
+
+
 def resolve_provider(url: str) -> Provider:
+    url = normalize_url(url)
+
     for provider in PROVIDERS:
         if provider.series_pattern and provider.series_pattern.fullmatch(url):
             return provider

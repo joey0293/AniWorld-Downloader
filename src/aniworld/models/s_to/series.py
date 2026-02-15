@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urljoin
 
 from ...config import GLOBAL_SESSION, SERIENSTREAM_SERIES_PATTERN, logger
 from ..common import clean_title
@@ -541,15 +542,25 @@ class SerienstreamSeries:
         """
         from .season import SerienstreamSeason
 
+        # s.to currently serves both absolute and relative hrefs.
+        # Support both and normalize them to absolute URLs.
         pattern = re.compile(
-            r'href="(https://(?:serienstream|s)\.to/serie/[^/]+/staffel-\d+)"'
+            r'href="(?P<href>(?:https?://(?:serienstream|s)\.to)?/serie/[^\"\s]+/staffel-\d+)/?"'
         )
 
-        matches = pattern.findall(self._html)
+        matches = pattern.finditer(self._html)
+        seen = set()
         seasons_list = []
 
-        for match in matches:
-            seasons_list.append(SerienstreamSeason(match))
+        for m in matches:
+            href = (m.group("href") or "").strip()
+            if not href:
+                continue
+            full_url = urljoin(self.url, href)
+            if full_url in seen:
+                continue
+            seen.add(full_url)
+            seasons_list.append(SerienstreamSeason(full_url, series=self))
 
         return seasons_list
 
@@ -563,7 +574,7 @@ class SerienstreamSeries:
         """
 
         pattern = re.compile(
-            r'href="https://(?:serienstream|s)\.to/serie/[^/]+/staffel-(\d+)"'
+            r'href="(?:https?://(?:serienstream|s)\.to)?/serie/[^\"\s]+/staffel-(\d+)'
         )
 
         matches = pattern.findall(self._html)

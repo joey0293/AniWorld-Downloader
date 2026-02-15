@@ -3,8 +3,12 @@ import os
 import random
 import re
 
-from .ascii import display_ascii_art
-from .config import GLOBAL_SESSION, logger
+try:
+    from .ascii import display_ascii_art
+    from .config import GLOBAL_SESSION, logger
+except ImportError:
+    from aniworld.ascii import display_ascii_art
+    from aniworld.config import GLOBAL_SESSION, logger
 
 SEARCH_URL = "https://aniworld.to/ajax/search"
 RANDOM_URL = "https://aniworld.to/ajax/randomGeneratorSeries"
@@ -278,14 +282,65 @@ def _curses_menu(stdscr, options):
             return options[selected]
 
 
-def search():
+def _normalize_s_to_link(link: str) -> str:
+    """
+    Normalize s.to links to the canonical form used by our provider patterns:
+    - /serie/<slug>
+    Also accepts /serie/stream/<slug> and converts it back.
+    """
+    if not link:
+        return link
+
+    link = link.strip()
+
+    # Convert /serie/stream/<slug> -> /serie/<slug>
+    if link.startswith("/serie/stream/"):
+        slug = link[len("/serie/stream/") :].strip("/")
+        return f"/serie/{slug}" if slug else link
+
+    # Keep canonical /serie/<slug>
+    if link.startswith("/serie/"):
+        # ensure it doesn't include extra path segments
+        slug = link[len("/serie/") :].strip("/").split("/", 1)[0]
+        return f"/serie/{slug}" if slug else link
+
+    return link
+
+
+def query_s_to(keyword):
+    """Search s.to for the given keyword and return a list of matching series with their URLs."""
+    # Use query params to ensure proper URL encoding (spaces, umlauts, etc.)
+    url = "https://s.to/api/search/suggest"
+    response = GLOBAL_SESSION.get(url, params={"term": keyword})
+
+    data = response.json()
+    shows = data.get("shows", []) or []
+
+    results = []
+    for show in shows:
+        title = show.get("name", "Unknown Title")
+        link = _normalize_s_to_link(show.get("url", "") or "")
+        if link:
+            results.append({"title": title, "link": link})
+
+    return results
+
+
+def search(is_aniworld=None):
     """Prompt user for a search keyword and return a single series URL using a curses menu."""
     display_ascii_art()
 
     use_random = os.getenv("ANIWORLD_RANDOM_ANIME", "0") == "1"
 
+    if is_aniworld is None:
+        is_aniworld = os.getenv("ANIWORLD_USE_STO_SEARCH", "0") != "1"
+
+    # print(f"Using {'Aniworld' if is_aniworld else 's.to'} for search results.\n")
+
+    base_url = "https://aniworld.to" if is_aniworld else "https://s.to"
+    query_fn = query if is_aniworld else query_s_to
+
     if use_random:
-        # Get random anime directly
         result = random_anime()
         if result:
             logger.debug(f"Random anime selected: {result}")
@@ -300,25 +355,28 @@ def search():
             logger.error("No keyword entered, aborting search.")
             return None
 
-        results = query(keyword)
+        results = query_fn(keyword)
 
         if not results:
             logger.error("No results found. Please try again.")
             continue
 
-        # Ensure results is always a list
         if isinstance(results, dict):
             results = [results]
         elif isinstance(results, str):
-            # random_anime() could return a single URL string
             return results
 
         logger.debug(results)
 
-        # Precompile regex to match only streaming links
-        stream_pattern = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
+        if is_aniworld:
+            stream_pattern = re.compile(
+                r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+            )
+        else:
+            stream_pattern = re.compile(
+                r"^/serie/(stream/)?[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+            )
 
-        # Filter results
         stream_results = [
             item for item in results if stream_pattern.match(item.get("link") or "")
         ]
@@ -327,20 +385,23 @@ def search():
             logger.error("No streamable series found. Please try again.")
             continue
 
-        # Auto-select if only one result
         if len(stream_results) == 1:
             selected_item = stream_results[0]
             title = selected_item.get("title") or selected_item.get(
                 "name", "Unknown Title"
             )
             logger.debug(f"Auto-selected: {title}")
-            return f"https://aniworld.to{selected_item['link']}"
+            return f"{base_url}{selected_item['link']}"
 
-        # Show curses menu if multiple results
         def menu_wrapper(stdscr):
             curses.start_color()
             curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
             selected_item = _curses_menu(stdscr, stream_results)
-            return f"https://aniworld.to{selected_item['link']}"
+            return f"{base_url}{selected_item['link']}"
 
         return curses.wrapper(menu_wrapper)
+
+
+if __name__ == "__main__":
+    os.environ["ANIWORLD_USE_STO_SEARCH"] = "0"
+    print(search())
