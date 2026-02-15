@@ -19,46 +19,44 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading anime
 ## TL;DR - Quick Start
 
 ```bash
-# Installation - Stable Release (v.3.9.0)
-pip install aniworld==3.9.0
+# Install stable release
+pip install -U aniworld
 
-# Installation - Latest Development Version (v.4.0.0)
-# Menu will only work on Python 3.9-3.13 due to windows-curses dependency
+# Or install latest GitHub commit
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models#egg=aniworld
 
-# Usage
+# Launch AniWorld Downloader
 aniworld
 ```
 
-> **Note:**
-> The above command installs the latest development version. For the old release, run `pip install -U aniworld` instead.
+> **Tip**: Use the stable release for general use. The GitHub version includes the latest features and fixes but may be less stable.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Still in Development from v3
+## Still in Development
 
-- [ ] Embed webui in Nuitka build
-- [ ] Split webui sso dependencies into separate extra section
-- [ ] Implement argument: keep-watching
-- [ ] Look at dependency manager
-- [ ] README -> add sections from v3
-- [ ] Nuitka -> fix build crash: use 3.12 instead...  non-MSVC is not currently supported on newer
-- [ ] Remove empty lines below action when running on docker run -it
+This project is actively being improved. Current work in progress includes:
+
+- [ ] Split Web UI SSO dependencies into separate `extras` section
+- [ ] Implement `keep-watching` argument for continuous playback
+- [ ] Review and optimize dependency manager on Windows
+- [ ] Fix Nuitka build crash: use Python 3.12 (non-MSVC builds unsupported on newer versions)
+- [ ] Remove empty lines below actions when running `docker run -it`
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Features
 
-- **Downloading** – Grab full series, seasons, or individual episodes for offline viewing
-- **Streaming** – Watch episodes immediately using mpv, IINA, or Syncplay
+- **Downloading** – Grab full series, individual seasons, or single episodes for offline viewing
+- **Streaming** – Watch episodes instantly using **mpv**, **IINA**, or **Syncplay**
 - **Auto-Next Playback** – Seamlessly move to the next episode without interruption
-- **Multiple Providers** – Stream from various sources on aniworld.to and s.to
-- **Language Preferences** – Switch between German Dub, English Sub, or German Sub
+- **Multiple Providers** – Stream from various sources on **aniworld.to** and **s.to**
+- **Language Preferences** – Switch between **German Dub**, **English Sub**, or **German Sub**
 - **Muxing** – Automatically combine video and audio streams into a single file
-- **AniSkip Integration** – Automatically skip intros and outros on aniworld for a smoother experience
-- **Group Watching** – Sync anime and series sessions with friends via Syncplay
-- **Web Interface** – Browse, download, and manage your anime and series queue with a modern web UI
-- **Docker Ready** – Easily deploy using Docker or Docker Compose
+- **AniSkip Integration** – Skip intros and outros on AniWorld for a smoother experience
+- **Group Watching** – Sync anime and series sessions with friends via **Syncplay**
+- **Web Interface** – Browse, download, and manage your queue with a modern web UI
+- **Docker Ready** – Deploy easily using **Docker** or **Docker Compose**
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -76,65 +74,91 @@ aniworld
 | Luluvdo | ⏳ Not Implemented | — |
 | Streamtape | ⏳ Not Implemented | — |
 
-**Currently Prioritized**: VOE, Filemoon, Vidmoly (aniworld) and VOE, Vidoza (serienstream)
+### Currently Prioritized Providers
+
+- **AniWorld** – VOE, Filemoon, Vidmoly
+- **SerienStream** – VOE, Vidoza
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Docker
 
+Build the AniWorld Downloader Docker image:
+
 ```bash
 docker build -t aniworld .
 ```
 
-- **macOS/Linux (bash/zsh):**
+### Running the Container
 
-  ```bash
-  docker run -it --rm \
-    -v "${PWD}/Downloads:/app/Downloads" \
-    aniworld python -m aniworld
-  ```
+- **macOS / Linux (bash/zsh):**
+
+```bash
+docker run -it --rm \
+  -v "${PWD}/Downloads:/app/Downloads" \
+  aniworld python -m aniworld
+```
 
 - **Windows (PowerShell):**
 
-  ```powershell
-  docker run -it --rm `
-    -v "${PWD}\Downloads:/app/Downloads" `
-    aniworld python -m aniworld
-  ```
+```powershell
+docker run -it --rm `
+  -v "${PWD}\Downloads:/app/Downloads" `
+  aniworld python -m aniworld
+```
 
 - **Windows (CMD):**
 
-  ```cmd
-  docker run -it --rm ^
-    -v "%cd%\Downloads:/app/Downloads" ^
-    aniworld python -m aniworld
-  ```
+```cmd
+docker run -it --rm ^
+  -v "%cd%\Downloads:/app/Downloads" ^
+  aniworld python -m aniworld
+```
 
 > **Note:**
-> Mount the Downloads folder to `/app/Downloads` in the container to save downloaded episodes to your local machine. You can change the host path as needed.
+> Mount your local `Downloads` folder to `/app/Downloads` in the container to save downloaded episodes. You can adjust the host path as needed.
 
 ### Docker Compose (with Web UI)
+
+Start AniWorld Downloader using Docker Compose:
 
 ```bash
 docker-compose up -d --build
 ```
 
+This command will:
+
+- **Build the Docker image** if it hasn’t been built yet
+- **Start the container** in detached mode (`-d`)
+- Enable the **Web UI** for easier interaction
+- Automatically **restart the container unless stopped manually** (`restart: unless-stopped`)
+
+To stop the container:
+
+```bash
+docker-compose down
+```
+
+> **Tip:** Ensure your `docker-compose.yml` correctly configures volumes and ports if you want to persist downloads or access the Web UI externally.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Documentation
 
-For comprehensive user guides, tutorials, and additional documentation, visit the [official documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/). The docs are continuously updated with new features, detailed tutorials, and troubleshooting guides.
+For full user guides, tutorials, and troubleshooting, visit the [official documentation](https://www.phoenixthrush.com/AniWorld-Downloader-Docs/).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Contributing
 
-Contributions to AniWorld Downloader are highly appreciated! You can help enhance the project by:
+Contributions to AniWorld Downloader are **highly appreciated**! You can help improve the project in several ways:
 
-- **Reporting Bugs**: Identify and report issues to improve functionality
-- **Suggesting Features**: Share ideas to expand the tool's capabilities
-- **Submitting Pull Requests**: Contribute code to fix bugs or add new features
-- **Improving Documentation**: Help enhance user guides and technical documentation
+- **Report Bugs** – Identify and report issues to improve functionality
+- **Suggest Features** – Share ideas to expand the tool's capabilities
+- **Submit Pull Requests** – Contribute code to fix bugs or add new features
+- **Improve Documentation** – Help enhance user guides, tutorials, and technical documentation
+
+Before submitting contributions, please check the repository for existing issues or feature requests to avoid duplicates.
 
 ### Contributors
 
@@ -152,43 +176,55 @@ Contributions to AniWorld Downloader are highly appreciated! You can help enhanc
 
 ## Dependencies
 
-- **niquests** – For making HTTP requests
-- **npyscreen** – For building the interactive text UI (TUI)
-- **ffmpeg-python** – Python bindings for FFmpeg (requires FFmpeg installed/available on your system)
-- **python-dotenv** – For managing environment variables via `.env`
-- **rich** – For colored terminal output (used by `aniworld --examples`)
-- **fake-useragent** – For generating random user agents (may be replaced in the future)
+AniWorld Downloader requires several Python packages for HTTP requests, UI, media processing, web features, and environment management.
 
-Windows-only dependency:
+### Core dependencies
 
-- **windows-curses** – Enables curses support required by `npyscreen` on Windows  
-  *(installed automatically on Windows; version is pinned for Python < 3.14)*
+- **niquests** – Simplified HTTP requests
+- **npyscreen** – For building interactive text-based UIs (TUI)
+- **ffmpeg-python** – Python bindings for FFmpeg (requires FFmpeg installed on your system)
+- **python-dotenv** – Loads environment variables from a .env file
+- **rich** – Colored and formatted terminal output (used by `aniworld --examples`)
+- **fake-useragent** – Generates random user agents (optional, may be replaced in the future)
 
-All required dependencies are installed automatically when AniWorld Downloader is installed via `pip`.
+### Web / server dependencies
+
+- **requests** – Standard HTTP library for Python
+- **flask** – Lightweight web framework
+- **flask-wtf** – Form handling and CSRF protection for Flask
+- **authlib** – OAuth and authentication utilities
+- **waitress** – Production-ready WSGI server
+
+### Platform-specific dependencies
+
+- **windows-curses** – Enables curses support required by npyscreen on Windows (installed automatically on Windows; version pinned for Python < 3.14)
+
+All dependencies are installed automatically when AniWorld Downloader is installed via `pip`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Credits
 
-AniWorld Downloader is built upon the work of several amazing open-source projects:
+AniWorld Downloader builds upon the work of several outstanding open-source projects:
 
-- **[mpv](https://github.com/mpv-player/mpv.git)**: A versatile media player used for seamless streaming
-- **[Syncplay](https://github.com/Syncplay/syncplay.git)**: Enables synchronized playback sessions with friends
-- **[Anime4K](https://github.com/bloc97/Anime4K)**: A cutting-edge real-time upscaler for enhancing anime video quality
-- **[Aniskip](https://api.aniskip.com/api-docs)**: Provides the opening and ending skip times for the Aniskip extension
+- **[mpv](https://github.com/mpv-player/mpv.git)** – A versatile media player used for seamless video streaming
+- **[IINA](https://github.com/iina/iina.git)** – Modern macOS media player built on mpv, offering a sleek interface and advanced playback features
+- **[Syncplay](https://github.com/Syncplay/syncplay.git)** – Enables synchronized playback sessions with friends
+- **[Anime4K](https://github.com/bloc97/Anime4K)** – Real-time upscaler for enhancing anime video quality
+- **[Aniskip](https://api.aniskip.com/api-docs)** – Provides opening and ending skip times for the Aniskip extension
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Support
 
-If you need help with AniWorld Downloader, you can:
+If you need help with AniWorld Downloader, you have several options:
 
-- **Submit an issue** on the [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page
-- **Reach out directly** via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com) or on Discord at `phoenixthrush` or `tmaster067`
+- **Submit an issue** on the [GitHub Issues](https://github.com/phoenixthrush/AniWorld-Downloader/issues) page – preferred for installation problems, bug reports, or feature requests, as it helps others benefit from shared solutions
+- **Contact directly** via email at [contact@phoenixthrush.com](mailto:contact@phoenixthrush.com) **or on our Discord server**. [Join here](https://discord.gg/BfDvrKd8V5)
 
-While email support is available, opening a GitHub issue is preferred, even for installation-related questions, as it helps others benefit from shared solutions. However, feel free to email if that's your preference.
+While email support is available, opening a GitHub issue is encouraged whenever possible.
 
-If you find AniWorld Downloader useful, consider starring the repository on GitHub. Your support is greatly appreciated and inspires continued development.
+If you find AniWorld Downloader useful, please star the repository on GitHub. Your support is greatly appreciated and motivates continued development.
 
 Thank you for using AniWorld Downloader!
 
@@ -196,13 +232,17 @@ Thank you for using AniWorld Downloader!
 
 ## Legal Disclaimer
 
-AniWorld Downloader is a client-side tool that helps you access content hosted by third-party websites. It does not host, upload, store, or distribute any media itself.
+AniWorld Downloader is a **client-side** tool that enables access to content hosted on third-party websites. It **does not host, upload, store, or distribute any media itself**.
 
-AniWorld Downloader is not intended to promote piracy or copyright infringement. You are solely responsible for how you use the software and for ensuring that your use complies with applicable laws and the terms of the websites you access.
+This software is **not intended to promote piracy or copyright infringement**. You are solely responsible for how you use AniWorld Downloader and for ensuring that your use **complies with applicable laws** and the **terms of service of the websites you access**.
 
-The developer provides this project “as is” and is not responsible for third-party content, external links, or the availability, accuracy, legality, or reliability of any third-party service.
+The developer provides this project **"as is"** and is **not responsible for**:
 
-If you have concerns about specific content, please contact the relevant website owner, administrator, or hosting provider.
+- Third-party content
+- External links
+- The availability, accuracy, legality, or reliability of any third-party service
+
+If you have concerns about specific content, **contact the relevant website owner, administrator, or hosting provider**.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -215,4 +255,4 @@ If you have concerns about specific content, please contact the relevant website
 ## License
 
 This project is licensed under the **[MIT License](LICENSE)**.
-For more details, see the LICENSE file.
+For full terms and conditions, please see the LICENSE file included with this project.
