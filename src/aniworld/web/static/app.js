@@ -25,6 +25,9 @@ let availableProviders = null;
 // Static list of providers rendered into the template
 const staticProviders = Array.from(providerSelect.options).map(o => o.value);
 
+// Site toggle state
+let currentSite = 'aniworld';
+
 // Downloaded folders cache
 let downloadedFolders = [];
 
@@ -51,11 +54,73 @@ function addDownloadedBadge(card, title) {
   }
 }
 
+function toggleSite() {
+  const toggle = document.getElementById('siteToggle');
+  currentSite = toggle.checked ? 'sto' : 'aniworld';
+  localStorage.setItem('selectedSite', currentSite);
+
+  // Update labels
+  document.getElementById('labelAniworld').classList.toggle('active', !toggle.checked);
+  document.getElementById('labelSto').classList.toggle('active', toggle.checked);
+
+  // Update heading
+  const heading = document.getElementById('pageHeading');
+  if (heading) heading.textContent = toggle.checked ? 's.to Downloader' : 'AniWorld Downloader';
+
+  // Update search placeholder
+  searchInput.placeholder = toggle.checked ? 'Search for series...' : 'Search for anime...';
+
+  // Clear search results
+  resultsDiv.innerHTML = '';
+  searchInput.value = '';
+
+  // Toggle browse sections (only available for AniWorld)
+  browseDiv.style.display = toggle.checked ? 'none' : '';
+
+  // Toggle Random button
+  randomBtn.style.display = toggle.checked ? 'none' : '';
+
+  // Update language dropdown
+  rebuildLanguageSelect();
+
+  // Reset providers
+  availableProviders = null;
+}
+
+function rebuildLanguageSelect() {
+  const langs = currentSite === 'sto' ? (window.STO_LANGS || {}) : (window.ANIWORLD_LANGS || {});
+  languageSelect.innerHTML = '';
+  for (const [key, label] of Object.entries(langs)) {
+    const opt = document.createElement('option');
+    opt.value = label;
+    opt.textContent = label;
+    languageSelect.appendChild(opt);
+  }
+}
+
+// Restore site toggle state from localStorage
+(function syncSiteToggle() {
+  const toggle = document.getElementById('siteToggle');
+  const saved = localStorage.getItem('selectedSite');
+  if (saved === 'sto') toggle.checked = true;
+  if (toggle && toggle.checked) {
+    currentSite = 'sto';
+    document.getElementById('labelAniworld').classList.remove('active');
+    document.getElementById('labelSto').classList.add('active');
+    const heading = document.getElementById('pageHeading');
+    if (heading) heading.textContent = 's.to Downloader';
+    searchInput.placeholder = 'Search for series...';
+    browseDiv.style.display = 'none';
+    randomBtn.style.display = 'none';
+    rebuildLanguageSelect();
+  }
+})();
+
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
 searchInput.addEventListener('input', () => {
   if (!searchInput.value.trim()) {
     resultsDiv.innerHTML = '';
-    browseDiv.style.display = '';
+    browseDiv.style.display = currentSite === 'sto' ? 'none' : '';
   }
 });
 languageSelect.addEventListener('change', updateProviderDropdown);
@@ -102,7 +167,7 @@ async function doSearch() {
     const resp = await fetch('/api/search', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({keyword})
+      body: JSON.stringify({keyword, site: currentSite})
     });
     const data = await resp.json();
     renderResults(data.results || []);
@@ -115,6 +180,10 @@ async function doSearch() {
 }
 
 async function doRandom() {
+  if (currentSite === 'sto') {
+    showToast('Random is not available for S.TO');
+    return;
+  }
   randomBtn.disabled = true;
   try {
     const resp = await fetch('/api/random');
@@ -165,6 +234,7 @@ async function openSeries(url) {
   availableProviders = null;
   currentSeriesUrl = url;
   currentSeriesTitle = '';
+  rebuildLanguageSelect();
   resetProviderDropdown();
   checkLangSeparation();
 

@@ -10,7 +10,7 @@ from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
 from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
-from ..search import fetch_new_animes, fetch_popular_animes, random_anime
+from ..search import fetch_new_animes, fetch_popular_animes, query_s_to, random_anime
 from ..search import query as aniworld_query
 from .db import (
     add_to_queue,
@@ -50,6 +50,11 @@ WORKING_PROVIDERS = _get_working_providers()
 
 # Only match series-level links: /anime/stream/<slug> (no season/episode)
 _SERIES_LINK_PATTERN = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
+
+# Only match s.to series-level links: /serie/<slug> (no season/episode)
+_STO_SERIES_LINK_PATTERN = re.compile(
+    r"^/serie/(stream/)?[a-zA-Z0-9\-]+/?$", re.IGNORECASE
+)
 
 # Queue worker state
 _queue_worker_started = False
@@ -278,9 +283,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.route("/")
     def index():
+        sto_lang_labels = {"1": "German Dub", "2": "English Dub"}
         return render_template(
             "index.html",
             lang_labels=LANG_LABELS,
+            sto_lang_labels=sto_lang_labels,
             supported_providers=WORKING_PROVIDERS,
         )
 
@@ -288,29 +295,50 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     def api_search():
         data = request.get_json(silent=True) or {}
         keyword = (data.get("keyword") or "").strip()
+        site = (data.get("site") or "aniworld").strip()
         if not keyword:
             return jsonify({"error": "keyword is required"}), 400
 
         results = []
 
-        # AniWorld search
-        aw_results = aniworld_query(keyword) or []
-        if isinstance(aw_results, dict):
-            aw_results = [aw_results]
-        for item in aw_results:
-            link = item.get("link", "")
-            if _SERIES_LINK_PATTERN.match(link):
-                title = (
-                    item.get("title", "Unknown")
-                    .replace("<em>", "")
-                    .replace("</em>", "")
-                )
-                results.append(
-                    {
-                        "title": title,
-                        "url": f"https://aniworld.to{link}",
-                    }
-                )
+        if site == "sto":
+            # s.to search
+            sto_results = query_s_to(keyword) or []
+            if isinstance(sto_results, dict):
+                sto_results = [sto_results]
+            for item in sto_results:
+                link = item.get("link", "")
+                if _STO_SERIES_LINK_PATTERN.match(link):
+                    title = (
+                        item.get("title", "Unknown")
+                        .replace("<em>", "")
+                        .replace("</em>", "")
+                    )
+                    results.append(
+                        {
+                            "title": title,
+                            "url": f"https://s.to{link}",
+                        }
+                    )
+        else:
+            # AniWorld search
+            aw_results = aniworld_query(keyword) or []
+            if isinstance(aw_results, dict):
+                aw_results = [aw_results]
+            for item in aw_results:
+                link = item.get("link", "")
+                if _SERIES_LINK_PATTERN.match(link):
+                    title = (
+                        item.get("title", "Unknown")
+                        .replace("<em>", "")
+                        .replace("</em>", "")
+                    )
+                    results.append(
+                        {
+                            "title": title,
+                            "url": f"https://aniworld.to{link}",
+                        }
+                    )
 
         return jsonify({"results": results})
 
@@ -323,10 +351,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         try:
             prov = resolve_provider(url)
             series = prov.series_cls(url=url)
+            poster = getattr(series, "poster_url", None)
+            # s.to returns relative poster paths - make them absolute
+            if poster and poster.startswith("/"):
+                from urllib.parse import urlparse
+
+                parsed = urlparse(url)
+                poster = f"{parsed.scheme}://{parsed.netloc}{poster}"
             return jsonify(
                 {
                     "title": series.title,
-                    "poster_url": getattr(series, "poster_url", None),
+                    "poster_url": poster,
                     "description": getattr(series, "description", ""),
                     "genres": getattr(series, "genres", []),
                     "release_year": getattr(series, "release_year", ""),
@@ -368,7 +403,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         try:
             prov = resolve_provider(url)
-            season = prov.season_cls(url=url)
+            # Pass series to avoid broken series URL reconstruction in s.to
+            # season model (its fallback splits on "-" which fails)
+            series_url = re.sub(r"/staffel-\d+/?$", "", url)
+            series_url = re.sub(r"/filme/?$", "", series_url)
+            try:
+                series = prov.series_cls(url=series_url)
+            except Exception:
+                series = None
+            season = prov.season_cls(url=url, series=series)
             episodes_data = []
             for ep in season.episodes:
                 episodes_data.append(
@@ -395,26 +438,39 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             episode = prov.episode_cls(url=url)
             pd = episode.provider_data
 
-            # Build a reverse map: (Audio, Subtitles) -> lang_label
-            lang_tuple_to_label = {}
-            for key, (audio, subtitles) in LANG_KEY_MAP.items():
-                label = LANG_LABELS.get(key)
-                if label:
-                    lang_tuple_to_label[(audio.value, subtitles.value)] = label
-
             disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
-
             provider_info = {}
-            for (audio, subtitles), providers in pd._data.items():
-                label = lang_tuple_to_label.get((audio.value, subtitles.value))
-                if not label:
-                    continue
-                if disable_eng_sub and label == "English Sub":
-                    continue
-                # Only include providers that have working extractors
-                working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
-                if working:
-                    provider_info[label] = working
+
+            if hasattr(pd, "_data"):
+                # AniWorld: ProviderData object
+                lang_tuple_to_label = {}
+                for key, (audio, subtitles) in LANG_KEY_MAP.items():
+                    label = LANG_LABELS.get(key)
+                    if label:
+                        lang_tuple_to_label[(audio.value, subtitles.value)] = label
+
+                for (audio, subtitles), providers in pd._data.items():
+                    label = lang_tuple_to_label.get((audio.value, subtitles.value))
+                    if not label:
+                        continue
+                    if disable_eng_sub and label == "English Sub":
+                        continue
+                    working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
+                    if working:
+                        provider_info[label] = working
+            else:
+                # s.to: plain dict with (Audio, Subtitles) enum tuple keys
+                sto_label_map = {
+                    ("German", "None"): "German Dub",
+                    ("English", "None"): "English Dub",
+                }
+                for (audio, subtitles), providers in pd.items():
+                    label = sto_label_map.get((audio.value, subtitles.value))
+                    if not label:
+                        continue
+                    working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
+                    if working:
+                        provider_info[label] = working
 
             return jsonify({"providers": provider_info})
         except Exception as e:
@@ -484,6 +540,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.route("/api/random")
     def api_random():
+        site = request.args.get("site", "aniworld").strip()
+        if site == "sto":
+            return jsonify({"error": "Random is not available for S.TO"}), 400
         url = random_anime()
         if url:
             return jsonify({"url": url})
