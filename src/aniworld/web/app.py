@@ -21,6 +21,7 @@ from .db import (
     get_running,
     init_queue_db,
     is_queue_cancelled,
+    move_queue_item,
     remove_from_queue,
     set_queue_status,
     update_queue_errors,
@@ -525,6 +526,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/queue/<int:queue_id>/cancel", methods=["POST"])
     def api_queue_cancel(queue_id):
         ok, err = cancel_queue_item(queue_id)
+        if not ok:
+            return jsonify({"error": err}), 400
+        return jsonify({"ok": True})
+
+    @app.route("/api/queue/<int:queue_id>/move", methods=["POST"])
+    def api_queue_move(queue_id):
+        data = request.get_json(silent=True) or {}
+        direction = data.get("direction", "").strip()
+        if direction not in ("up", "down"):
+            return jsonify({"error": "direction must be 'up' or 'down'"}), 400
+        ok, err = move_queue_item(queue_id, direction)
         if not ok:
             return jsonify({"error": err}), 400
         return jsonify({"ok": True})
