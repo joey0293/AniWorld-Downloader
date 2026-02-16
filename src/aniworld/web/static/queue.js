@@ -40,11 +40,11 @@ function updateBadge(items) {
 function renderQueue(items) {
   const list = document.getElementById('queueList');
 
-  // Show all active items + last 3 completed/failed/cancelled
-  const active = items.filter(i => i.status === 'queued' || i.status === 'running');
-  const done = items.filter(i => i.status === 'completed' || i.status === 'failed' || i.status === 'cancelled').slice(-3);
-  const visible = active.concat(done);
-  visible.sort((a, b) => a.id - b.id);
+  // Show active items on top, then last 3 finished (newest first)
+  const running = items.filter(i => i.status === 'running').sort((a, b) => a.id - b.id);
+  const queued = items.filter(i => i.status === 'queued').sort((a, b) => a.id - b.id);
+  const done = items.filter(i => i.status === 'completed' || i.status === 'failed' || i.status === 'cancelled').slice(-3).reverse();
+  const visible = running.concat(queued, done);
 
   if (!visible.length) {
     list.innerHTML = '<div class="queue-empty">Queue is empty</div>';
@@ -60,22 +60,31 @@ function renderQueue(items) {
   let html = '';
   visible.forEach(item => {
     const isRunning = item.status === 'running';
-    const cls = isRunning ? 'queue-item queue-item-active' : 'queue-item';
+    const isActive = isRunning || (item.status === 'cancelled' && item.current_url);
+    const cls = isActive ? 'queue-item queue-item-active' : 'queue-item';
+
+    const isCancelling = item.status === 'cancelled' && item.current_url;
 
     let statusBadge = '';
     if (item.status === 'running') statusBadge = '<span class="queue-status queue-status-running">In Progress</span>';
     else if (item.status === 'queued') statusBadge = '<span class="queue-status queue-status-queued">Queued</span>';
     else if (item.status === 'completed') statusBadge = '<span class="queue-status queue-status-completed">Completed</span>';
     else if (item.status === 'failed') statusBadge = '<span class="queue-status queue-status-failed">Failed</span>';
+    else if (isCancelling) statusBadge = '<span class="queue-status queue-status-cancelling">Cancelling...</span>';
     else if (item.status === 'cancelled') statusBadge = '<span class="queue-status queue-status-cancelled">Cancelled</span>';
 
     let progressHtml = '';
-    if (isRunning || item.status === 'cancelled') {
+    if (isRunning || isCancelling || item.status === 'cancelled') {
       const pct = item.total_episodes > 0 ? Math.round((item.current_episode / item.total_episodes) * 100) : 0;
       const seInfo = item.current_url ? parseSeasonEpisode(item.current_url) : '';
-      const label = item.status === 'cancelled'
-        ? item.current_episode + '/' + item.total_episodes + ' episodes (stopped)'
-        : item.current_episode + '/' + item.total_episodes + ' episodes' + (seInfo ? ' - ' + seInfo : '');
+      let label;
+      if (isCancelling) {
+        label = item.current_episode + '/' + item.total_episodes + ' episodes - finishing current episode...';
+      } else if (item.status === 'cancelled') {
+        label = item.current_episode + '/' + item.total_episodes + ' episodes (stopped)';
+      } else {
+        label = item.current_episode + '/' + item.total_episodes + ' episodes' + (seInfo ? ' - ' + seInfo : '');
+      }
       progressHtml =
         '<div class="queue-progress">' +
           '<div class="queue-progress-info">' +
