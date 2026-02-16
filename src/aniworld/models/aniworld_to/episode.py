@@ -248,8 +248,12 @@ class AniworldEpisode:
     def _file_extension(self):
         if self.__file_extension is None:
             try:
-                ext = NAMING_TEMPLATE.split("/")[-1].split(".")[-1]
-                self.__file_extension = ext if ext else "mkv"
+                file_part = NAMING_TEMPLATE.split("/")[-1]
+                if "." in file_part:
+                    ext = file_part.rsplit(".", 1)[-1]
+                    self.__file_extension = ext if ext else "mkv"
+                else:
+                    self.__file_extension = "mkv"
             except IndexError:
                 self.__file_extension = "mkv"
         return self.__file_extension
