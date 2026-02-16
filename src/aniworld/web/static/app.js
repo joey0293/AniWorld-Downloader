@@ -69,7 +69,7 @@ function toggleSite() {
 
   // Update heading
   const heading = document.getElementById('pageHeading');
-  if (heading) heading.textContent = toggle.checked ? 's.to Downloader' : 'AniWorld Downloader';
+  if (heading) heading.textContent = toggle.checked ? 'SerienStream Downloader' : 'AniWorld Downloader';
 
   // Update search placeholder
   searchInput.placeholder = toggle.checked ? 'Search for series...' : 'Search for anime...';
@@ -112,7 +112,7 @@ function rebuildLanguageSelect() {
     document.getElementById('labelAniworld').classList.remove('active');
     document.getElementById('labelSto').classList.add('active');
     const heading = document.getElementById('pageHeading');
-    if (heading) heading.textContent = 's.to Downloader';
+    if (heading) heading.textContent = 'SerienStream Downloader';
     searchInput.placeholder = 'Search for series...';
     browseDiv.style.display = 'none';
     randomBtn.style.display = 'none';
@@ -138,8 +138,8 @@ function renderBrowseCards(grid, items) {
     card.innerHTML =
       `<img src="${esc(item.poster_url)}" alt="">` +
       `<div class="browse-info">` +
-        `<div class="browse-title">${esc(item.title)}</div>` +
-        `<div class="browse-genre">${esc(item.genre)}</div>` +
+      `<div class="browse-title">${esc(item.title)}</div>` +
+      `<div class="browse-genre">${esc(item.genre)}</div>` +
       `</div>`;
     addDownloadedBadge(card, item.title);
     grid.appendChild(card);
@@ -170,8 +170,8 @@ async function doSearch() {
   try {
     const resp = await fetch('/api/search', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({keyword, site: currentSite})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword, site: currentSite })
     });
     const data = await resp.json();
     renderResults(data.results || []);
@@ -223,7 +223,7 @@ async function loadPoster(url, imgEl) {
     const resp = await fetch('/api/series?url=' + encodeURIComponent(url));
     const data = await resp.json();
     if (data.poster_url) imgEl.src = data.poster_url;
-  } catch(e) { /* ignore poster load failure */ }
+  } catch (e) { /* ignore poster load failure */ }
 }
 
 async function openSeries(url) {
@@ -273,8 +273,8 @@ function buildAccordion(seasons) {
   const fetches = seasons.map((s, i) =>
     fetch('/api/episodes?url=' + encodeURIComponent(s.url))
       .then(r => r.json())
-      .then(data => ({index: i, episodes: data.episodes || []}))
-      .catch(() => ({index: i, episodes: []}))
+      .then(data => ({ index: i, episodes: data.episodes || [] }))
+      .catch(() => ({ index: i, episodes: [] }))
   );
 
   Promise.all(fetches).then(results => {
@@ -282,7 +282,7 @@ function buildAccordion(seasons) {
     let firstProviderUrl = null;
 
     results.sort((a, b) => a.index - b.index);
-    results.forEach(({index, episodes}) => {
+    results.forEach(({ index, episodes }) => {
       const season = seasons[index];
       const section = document.createElement('div');
       section.className = 'season-section';
@@ -434,7 +434,7 @@ async function startDownload(all) {
   try {
     const resp = await fetch('/api/download', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         episodes,
         language,
@@ -513,7 +513,7 @@ async function startDownloadAllLangs() {
       const provider = providers.includes('VOE') ? 'VOE' : providers[0];
       const resp = await fetch('/api/download', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           episodes,
           language: lang,

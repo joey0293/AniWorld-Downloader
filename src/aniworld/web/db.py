@@ -252,9 +252,7 @@ def init_queue_db():
                 "ALTER TABLE download_queue ADD COLUMN position INTEGER NOT NULL DEFAULT 0"
             )
             # Backfill: set position = id for existing rows
-            conn.execute(
-                "UPDATE download_queue SET position = id WHERE position = 0"
-            )
+            conn.execute("UPDATE download_queue SET position = id WHERE position = 0")
         except Exception:
             pass  # column already exists
         conn.commit()
