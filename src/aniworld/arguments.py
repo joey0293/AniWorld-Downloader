@@ -327,9 +327,9 @@ def parse_args():
     if args.use_sto_search:
         os.environ["ANIWORLD_USE_STO_SEARCH"] = "1"
 
-    if args.paths:
+    if args.output:
         os.environ["ANIWORLD_DOWNLOAD_PATH"] = (
-            os.path.abspath(args.paths) if not os.path.isabs(args.paths) else args.paths
+            os.path.abspath(args.output) if not os.path.isabs(args.output) else args.output
         )
 
     if args.anime4k:
