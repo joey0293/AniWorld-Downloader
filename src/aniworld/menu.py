@@ -227,7 +227,8 @@ class MenuApp(npyscreen.NPSApp):
         path = F.add(
             npyscreen.TitleFilenameCombo,
             name="Path",
-            value=Path("/app/Downloads") if is_docker else Path.home() / "Downloads",
+            value=os.getenv("ANIWORLD_DOWNLOAD_PATH")
+            or (Path("/app/Downloads") if is_docker else Path.home() / "Downloads"),
             rely=y + 4,
             max_height=2,
         )
