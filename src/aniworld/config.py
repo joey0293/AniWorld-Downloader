@@ -1,15 +1,38 @@
 import os
 import re
 from enum import Enum
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 import fake_useragent
-from niquests import Session
+from niquests import RequestException, Session
+from packaging.version import parse as parse_version
 
 from .env import merge_env
 from .logger import get_logger
 
-VERSION = "4.0.0"
+VERSION = None
+
+try:
+    VERSION = version("aniworld")
+except PackageNotFoundError:
+    VERSION = None
+
+
+def is_newest_version() -> bool:
+    """Checks if the installed version is the newest available on PyPI."""
+    if not VERSION:
+        return False
+
+    try:
+        response = GLOBAL_SESSION.get("https://pypi.org/pypi/aniworld/json")
+        response.raise_for_status()
+        latest_version = response.json()["info"]["version"]
+        return parse_version(VERSION) >= parse_version(latest_version)
+    except RequestException:
+        # Could not fetch PyPI info, assume not newest
+        return False
+
 
 # AniWorld configuration directory
 ANIWORLD_CONFIG_DIR = Path.home() / ".aniworld"

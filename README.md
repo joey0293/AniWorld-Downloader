@@ -186,6 +186,7 @@ AniWorld Downloader requires several Python packages for HTTP requests, UI, medi
 - **python-dotenv** – Loads environment variables from a .env file
 - **rich** – Colored and formatted terminal output (used by `aniworld --examples`)
 - **fake-useragent** – Generates random user agents (optional, may be replaced in the future)
+- **packaging** – For version parsing and comparison
 
 ### Web / server dependencies
 
