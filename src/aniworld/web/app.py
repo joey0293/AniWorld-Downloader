@@ -10,7 +10,14 @@ from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
 from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
-from ..search import fetch_new_animes, fetch_popular_animes, query_s_to, random_anime
+from ..search import (
+    fetch_new_animes,
+    fetch_new_series,
+    fetch_popular_animes,
+    fetch_popular_series,
+    query_s_to,
+    random_anime,
+)
 from ..search import query as aniworld_query
 from .db import (
     add_to_queue,
@@ -560,18 +567,48 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return jsonify({"url": url})
         return jsonify({"error": "Failed to fetch random anime"}), 500
 
+    # TTL cache for browse endpoints so long-running instances stay fresh
+    import time as _time
+
+    _browse_cache = {}
+    _BROWSE_TTL = 3600  # 1 hour
+
+    def _cached_browse(key, fetch_fn):
+        now = _time.time()
+        entry = _browse_cache.get(key)
+        if entry and now - entry[0] < _BROWSE_TTL:
+            return entry[1]
+        results = fetch_fn()
+        if results is not None:
+            _browse_cache[key] = (now, results)
+        return results
+
     @app.route("/api/new-animes")
     def api_new_animes():
-        results = fetch_new_animes()
+        results = _cached_browse("new_animes", fetch_new_animes)
         if results is None:
             return jsonify({"error": "Failed to fetch new animes"}), 500
         return jsonify({"results": results})
 
     @app.route("/api/popular-animes")
     def api_popular_animes():
-        results = fetch_popular_animes()
+        results = _cached_browse("popular_animes", fetch_popular_animes)
         if results is None:
             return jsonify({"error": "Failed to fetch popular animes"}), 500
+        return jsonify({"results": results})
+
+    @app.route("/api/new-series")
+    def api_new_series():
+        results = _cached_browse("new_series", fetch_new_series)
+        if results is None:
+            return jsonify({"error": "Failed to fetch new series"}), 500
+        return jsonify({"results": results})
+
+    @app.route("/api/popular-series")
+    def api_popular_series():
+        results = _cached_browse("popular_series", fetch_popular_series)
+        if results is None:
+            return jsonify({"error": "Failed to fetch popular series"}), 500
         return jsonify({"results": results})
 
     @app.route("/api/downloaded-folders")

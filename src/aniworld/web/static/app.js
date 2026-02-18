@@ -16,6 +16,12 @@ const randomBtn = document.getElementById('randomBtn');
 const browseDiv = document.getElementById('browse');
 const newAnimesGrid = document.getElementById('newAnimesGrid');
 const popularAnimesGrid = document.getElementById('popularAnimesGrid');
+const newAnimesSection = document.getElementById('newAnimesSection');
+const popularAnimesSection = document.getElementById('popularAnimesSection');
+const newSeriesGrid = document.getElementById('newSeriesGrid');
+const popularSeriesGrid = document.getElementById('popularSeriesGrid');
+const newSeriesSection = document.getElementById('newSeriesSection');
+const popularSeriesSection = document.getElementById('popularSeriesSection');
 
 let currentSeasons = [];
 let currentSeriesTitle = '';
@@ -37,6 +43,34 @@ async function loadDownloadedFolders() {
     const data = await resp.json();
     downloadedFolders = data.folders || [];
   } catch (e) { /* best-effort */ }
+}
+
+let stoLoadedAt = 0;
+async function loadStoBrowse() {
+  if (stoLoadedAt && Date.now() - stoLoadedAt < 3600000) return;
+  stoLoadedAt = Date.now();
+  try {
+    const [newResp, popResp] = await Promise.all([
+      fetch('/api/new-series'),
+      fetch('/api/popular-series'),
+    ]);
+    await loadDownloadedFolders();
+    const newData = await newResp.json();
+    const popData = await popResp.json();
+    if (newData.results) renderBrowseCards(newSeriesGrid, newData.results);
+    if (popData.results) renderBrowseCards(popularSeriesGrid, popData.results);
+  } catch (e) { stoLoadedAt = 0; }
+}
+
+function showBrowseSections() {
+  const isAniworld = currentSite === 'aniworld';
+  browseDiv.style.display = '';
+  newAnimesSection.style.display = isAniworld ? '' : 'none';
+  popularAnimesSection.style.display = isAniworld ? '' : 'none';
+  newSeriesSection.style.display = isAniworld ? 'none' : '';
+  popularSeriesSection.style.display = isAniworld ? 'none' : '';
+  if (isAniworld) loadAniworldBrowse();
+  else loadStoBrowse();
 }
 
 function normalizeQuotes(s) {
@@ -78,8 +112,8 @@ function toggleSite() {
   resultsDiv.innerHTML = '';
   searchInput.value = '';
 
-  // Toggle browse sections (only available for AniWorld)
-  browseDiv.style.display = toggle.checked ? 'none' : '';
+  // Toggle browse sections per site
+  showBrowseSections();
 
   // Toggle Random button
   randomBtn.style.display = toggle.checked ? 'none' : '';
@@ -114,7 +148,7 @@ function rebuildLanguageSelect() {
     const heading = document.getElementById('pageHeading');
     if (heading) heading.textContent = 'SerienStream Downloader';
     searchInput.placeholder = 'Search for series...';
-    browseDiv.style.display = 'none';
+    showBrowseSections();
     randomBtn.style.display = 'none';
     rebuildLanguageSelect();
   }
@@ -124,7 +158,7 @@ searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch()
 searchInput.addEventListener('input', () => {
   if (!searchInput.value.trim()) {
     resultsDiv.innerHTML = '';
-    browseDiv.style.display = currentSite === 'sto' ? 'none' : '';
+    showBrowseSections();
   }
 });
 languageSelect.addEventListener('change', updateProviderDropdown);
@@ -146,7 +180,10 @@ function renderBrowseCards(grid, items) {
   });
 }
 
-(async function loadBrowse() {
+let aniLoadedAt = 0;
+async function loadAniworldBrowse() {
+  if (aniLoadedAt && Date.now() - aniLoadedAt < 3600000) return;
+  aniLoadedAt = Date.now();
   try {
     const [newResp, popResp] = await Promise.all([
       fetch('/api/new-animes'),
@@ -157,8 +194,9 @@ function renderBrowseCards(grid, items) {
     const popData = await popResp.json();
     if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
     if (popData.results) renderBrowseCards(popularAnimesGrid, popData.results);
-  } catch (e) { /* browse load is best-effort */ }
-})();
+  } catch (e) { aniLoadedAt = 0; }
+}
+loadAniworldBrowse();
 
 async function doSearch() {
   const keyword = searchInput.value.trim();
