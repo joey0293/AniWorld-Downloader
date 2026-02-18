@@ -8,7 +8,7 @@ except ImportError:
 # -----------------------------
 # Constants
 # -----------------------------
-FILE_LINK_PATTERN = re.compile(r'file\s*:\s*[\'"]([^\'"]+\.m3u8)[\'"]')
+FILE_LINK_PATTERN = re.compile(r'file\s*:\s*[\'"]([^\'"]+?\.m3u8[^\'"]*)[\'"]')
 PREVIEW_IMAGE_PATTERN = re.compile(
     r'image\s*:\s*[\'"]([^\'"]+\.(?:jpg|jpeg|png|webp))[\'"]'
 )
@@ -74,7 +74,7 @@ def get_preview_image_link_from_vidmoly(embed_url):
 
 
 if __name__ == "__main__":
-    # Tested on 2026/01/27 -> WORKING
+    # Tested on 2026/02/18 -> WORKING
     # Example: https://vidmoly.net/embed-zquo82b8dm1k.html
 
     link = input("Enter Vidmoly Link: ").strip()

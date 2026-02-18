@@ -66,8 +66,8 @@ This project is actively being improved. Current work in progress includes:
 | --- | --- | --- |
 | VOE | ✅ Working | 02/26 |
 | Vidoza | ✅ Working | 02/26 |
+| Vidmoly | ✅ Working | 02/26 |
 | Filemoon | ❌ Broken | 02/26 |
-| Vidmoly | ❌ Broken | 02/26 |
 | Doodstream | ❌ Broken | 02/26 |
 | Hanime | ⏳ Not Implemented | — |
 | LoadX | ⏳ Not Implemented | — |
