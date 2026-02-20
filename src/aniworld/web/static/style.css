@@ -664,6 +664,92 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
 }
 .queue-cancel:hover{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.5)}
 
+/* ===== Library Page ===== */
+.library-container{
+  max-width:800px;margin:0 auto;padding:32px 20px;
+}
+.library-container h1{
+  font-size:1.5rem;color:#fff;margin-bottom:28px;
+  font-weight:700;letter-spacing:-.02em;text-align:left;
+}
+.library-list{
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;
+  background:rgba(255,255,255,.02);
+  overflow:hidden;
+}
+.library-empty{
+  text-align:center;color:#6b7280;padding:40px 20px;font-size:.9rem;
+}
+
+/* Title accordion */
+.library-title-section{border-bottom:1px solid rgba(255,255,255,.04)}
+.library-title-section:last-child{border-bottom:none}
+.library-title-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 16px;cursor:pointer;user-select:none;
+  background:rgba(255,255,255,.03);
+  transition:background .2s;
+}
+.library-title-header:hover{background:rgba(255,255,255,.06)}
+.library-title-left{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.library-title-name{
+  font-size:.88rem;color:#e2e4e9;font-weight:500;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.library-title-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.library-arrow{
+  font-size:.65rem;color:#6b7280;
+  transition:transform .25s cubic-bezier(.4,0,.2,1);
+  display:inline-block;flex-shrink:0;
+}
+.library-arrow.expanded{transform:rotate(90deg)}
+.library-title-body{display:none;background:rgba(0,0,0,.15)}
+.library-title-body.expanded{display:block}
+
+/* Season rows */
+.library-season-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 16px 10px 32px;cursor:pointer;user-select:none;
+  transition:background .2s;font-size:.85rem;color:#c8cad0;
+}
+.library-season-header:hover{background:rgba(255,255,255,.03)}
+.library-season-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.library-season-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.library-season-body{display:none;background:rgba(0,0,0,.1)}
+.library-season-body.expanded{display:block}
+
+/* Episode rows */
+.library-episode{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px 8px 48px;font-size:.82rem;
+  border-bottom:1px solid rgba(255,255,255,.03);
+  transition:background .15s;
+}
+.library-episode:last-child{border-bottom:none}
+.library-episode:hover{background:rgba(255,255,255,.02)}
+.library-ep-num{color:#6ea8fe;width:44px;flex-shrink:0;font-weight:600}
+.library-ep-file{
+  color:#9ca3af;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.library-ep-size{color:#6b7280;flex-shrink:0;font-size:.78rem}
+
+/* Meta badges */
+.library-meta{
+  font-size:.75rem;color:#6b7280;
+  white-space:nowrap;text-align:center;
+}
+.library-meta-size{width:76px;flex-shrink:0}
+
+/* Delete button */
+.library-delete{
+  background:none;border:none;color:#6b7280;
+  font-size:1.1rem;cursor:pointer;padding:0 4px;
+  transition:color .2s;line-height:1;flex-shrink:0;
+}
+.library-delete:hover{color:#f87171}
+
 /* ===== Responsive ===== */
 @media(max-width:600px){
   .container{padding:20px 14px}
@@ -678,4 +764,5 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
   .settings-row input{width:100%;min-width:0}
   .settings-row button{width:100%}
   .queue-modal{margin:20px 12px;padding:20px}
+  .library-container{padding:20px 14px}
 }

@@ -611,6 +611,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         clear_completed()
         return jsonify({"ok": True})
 
+    @app.route("/library")
+    def library_page():
+        return render_template("library.html")
+
     @app.route("/settings")
     def settings_page():
         return render_template("settings.html")
@@ -730,11 +734,164 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             )
         return jsonify({"ok": True})
 
+    @app.route("/api/library")
+    def api_library():
+        from pathlib import Path
+
+        raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+        if raw:
+            dl_base = Path(raw).expanduser()
+            if not dl_base.is_absolute():
+                dl_base = Path.home() / dl_base
+        else:
+            dl_base = Path.home() / "Downloads"
+
+        lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+        lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
+
+        bases = [dl_base / lf for lf in lang_folders] if lang_sep else [dl_base]
+
+        ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
+        titles = {}  # folder_name -> {seasons: {num: [eps]}, total_size: int}
+
+        for base in bases:
+            if not base.is_dir():
+                continue
+            for folder in base.iterdir():
+                if not folder.is_dir():
+                    continue
+                name = folder.name
+                if name not in titles:
+                    titles[name] = {"folder": name, "seasons": {}, "total_size": 0}
+                entry = titles[name]
+                for f in folder.rglob("*"):
+                    if not f.is_file() or f.name.startswith(".temp_"):
+                        continue
+                    m = ep_re.search(f.name)
+                    if not m:
+                        continue
+                    snum = int(m.group(1))
+                    enum = int(m.group(2))
+                    try:
+                        fsize = f.stat().st_size
+                    except OSError:
+                        fsize = 0
+                    skey = str(snum)
+                    if skey not in entry["seasons"]:
+                        entry["seasons"][skey] = []
+                    # Avoid duplicates across lang folders
+                    if not any(
+                        e["episode"] == enum and e["file"] == f.name
+                        for e in entry["seasons"][skey]
+                    ):
+                        entry["seasons"][skey].append(
+                            {"episode": enum, "file": f.name, "size": fsize}
+                        )
+                        entry["total_size"] += fsize
+
+        result = []
+        for entry in sorted(titles.values(), key=lambda x: x["folder"].lower()):
+            if not any(entry["seasons"].values()):
+                continue
+            total_eps = sum(len(eps) for eps in entry["seasons"].values())
+            # Sort episodes within each season
+            for skey in entry["seasons"]:
+                entry["seasons"][skey].sort(key=lambda e: e["episode"])
+            result.append(
+                {
+                    "folder": entry["folder"],
+                    "seasons": entry["seasons"],
+                    "total_episodes": total_eps,
+                    "total_size": entry["total_size"],
+                }
+            )
+
+        return jsonify({"titles": result})
+
+    @app.route("/api/library/delete", methods=["POST"])
+    def api_library_delete():
+        import shutil
+        from pathlib import Path
+
+        data = request.get_json(silent=True) or {}
+        folder = data.get("folder", "")
+        season = data.get("season")  # int or null
+        episode = data.get("episode")  # int or null
+
+        # Security: reject dangerous folder names
+        if not folder or ".." in folder or "/" in folder or "\\" in folder or "\x00" in folder:
+            return jsonify({"error": "Invalid folder name"}), 400
+
+        raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+        if raw:
+            dl_base = Path(raw).expanduser()
+            if not dl_base.is_absolute():
+                dl_base = Path.home() / dl_base
+        else:
+            dl_base = Path.home() / "Downloads"
+
+        lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+        lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
+        bases = [dl_base / lf for lf in lang_folders] if lang_sep else [dl_base]
+
+        deleted = 0
+        for base in bases:
+            title_path = base / folder
+            # Verify resolved path is a child of the base
+            try:
+                title_path.resolve().relative_to(base.resolve())
+            except ValueError:
+                continue
+            if not title_path.is_dir():
+                continue
+
+            if season is None and episode is None:
+                # Delete entire title
+                shutil.rmtree(title_path, ignore_errors=True)
+                deleted += 1
+            else:
+                # Build regex pattern
+                if episode is not None:
+                    pat = re.compile(
+                        rf"S{int(season):02d}E{int(episode):03d}(?!\d)", re.IGNORECASE
+                    )
+                else:
+                    pat = re.compile(
+                        rf"S{int(season):02d}E\d{{2,3}}", re.IGNORECASE
+                    )
+
+                for f in list(title_path.rglob("*")):
+                    if f.is_file() and pat.search(f.name):
+                        try:
+                            f.unlink()
+                            deleted += 1
+                        except OSError:
+                            pass
+
+                # Cleanup empty directories bottom-up
+                for dirpath in sorted(
+                    title_path.rglob("*"), key=lambda p: len(p.parts), reverse=True
+                ):
+                    if dirpath.is_dir():
+                        try:
+                            dirpath.rmdir()  # only succeeds if empty
+                        except OSError:
+                            pass
+                # Remove title folder itself if empty
+                try:
+                    title_path.rmdir()
+                except OSError:
+                    pass
+
+        if deleted == 0:
+            return jsonify({"error": "Nothing found to delete"}), 404
+        return jsonify({"ok": True, "deleted": deleted})
+
     if auth_enabled:
         from .auth import admin_required
 
         # Endpoints that require admin instead of just login
-        _admin_only = {"settings_page", "api_settings", "api_settings_update"}
+        _admin_only = {"settings_page", "api_settings", "api_settings_update", "api_library_delete"}
 
         # Wrap all non-auth, non-static view functions with login_required
         # (admin_required for settings endpoints)
