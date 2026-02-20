@@ -69,6 +69,77 @@ async function saveDownloadPath() {
 
 loadSettings();
 
+// Custom paths management
+const customPathsBody = document.getElementById('customPathsBody');
+const customPathsTable = document.getElementById('customPathsTable');
+
+if (customPathsBody) {
+  loadCustomPaths();
+}
+
+async function loadCustomPaths() {
+  if (!customPathsBody) return;
+  try {
+    const resp = await fetch('/api/custom-paths');
+    const data = await resp.json();
+    renderCustomPaths(data.paths || []);
+  } catch (e) {
+    showToast('Failed to load custom paths: ' + e.message);
+  }
+}
+
+function renderCustomPaths(paths) {
+  customPathsBody.innerHTML = '';
+  if (!paths.length) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="3" style="color:#6b7280;text-align:center">No custom paths</td>';
+    customPathsBody.appendChild(tr);
+    return;
+  }
+  paths.forEach(function(p) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + esc(p.name) + '</td>' +
+      '<td style="font-family:\'SF Mono\',\'Fira Code\',monospace;font-size:.82rem">' + esc(p.path) + '</td>' +
+      '<td><button class="btn-del" onclick="deleteCustomPath(' + p.id + ')">Delete</button></td>';
+    customPathsBody.appendChild(tr);
+  });
+}
+
+async function addCustomPath() {
+  const name = document.getElementById('newPathName').value.trim();
+  const path = document.getElementById('newPathValue').value.trim();
+  if (!name || !path) { showToast('Name and path are required'); return; }
+  try {
+    const resp = await fetch('/api/custom-paths', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name: name, path: path})
+    });
+    const data = await resp.json();
+    if (data.error) { showToast(data.error); return; }
+    document.getElementById('newPathName').value = '';
+    document.getElementById('newPathValue').value = '';
+    showToast('Custom path added');
+    loadCustomPaths();
+  } catch (e) {
+    showToast('Failed to add custom path: ' + e.message);
+  }
+}
+
+async function deleteCustomPath(id) {
+  if (!confirm('Delete this custom path?')) return;
+  try {
+    const resp = await fetch('/api/custom-paths/' + id, {method: 'DELETE'});
+    const data = await resp.json();
+    if (data.error) { showToast(data.error); return; }
+    showToast('Custom path deleted');
+    loadCustomPaths();
+  } catch (e) {
+    showToast('Failed to delete custom path: ' + e.message);
+  }
+}
+
 // User management (only runs if the user table exists)
 const userTableBody = document.getElementById('userTableBody');
 

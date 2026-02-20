@@ -37,6 +37,31 @@ let currentSite = 'aniworld';
 // Downloaded folders cache
 let downloadedFolders = [];
 
+// Custom paths select
+const customPathSelect = document.getElementById('customPathSelect');
+
+async function loadCustomPaths() {
+  if (!customPathSelect) return;
+  try {
+    const resp = await fetch('/api/custom-paths');
+    const data = await resp.json();
+    const paths = data.paths || [];
+    // Remove old custom options (keep "Default")
+    while (customPathSelect.options.length > 1) customPathSelect.remove(1);
+    if (paths.length) {
+      paths.forEach(function(p) {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name;
+        customPathSelect.appendChild(opt);
+      });
+      customPathSelect.style.display = '';
+    } else {
+      customPathSelect.style.display = 'none';
+    }
+  } catch (e) { /* best-effort */ }
+}
+
 async function loadDownloadedFolders() {
   try {
     const resp = await fetch('/api/downloaded-folders');
@@ -279,6 +304,7 @@ async function openSeries(url) {
   rebuildLanguageSelect();
   resetProviderDropdown();
   checkLangSeparation();
+  loadCustomPaths();
 
   try {
     const [seriesResp, seasonsResp] = await Promise.all([
@@ -473,16 +499,20 @@ async function startDownload(all) {
   downloadAllBtn.disabled = true;
   downloadSelectedBtn.disabled = true;
   try {
+    const dlBody = {
+      episodes,
+      language,
+      provider,
+      title: currentSeriesTitle,
+      series_url: currentSeriesUrl
+    };
+    if (customPathSelect && customPathSelect.value) {
+      dlBody.custom_path_id = parseInt(customPathSelect.value);
+    }
     const resp = await fetch('/api/download', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        episodes,
-        language,
-        provider,
-        title: currentSeriesTitle,
-        series_url: currentSeriesUrl
-      })
+      body: JSON.stringify(dlBody)
     });
     const data = await resp.json();
     if (data.error) {
@@ -552,16 +582,20 @@ async function startDownloadAllLangs() {
     for (const [lang, providers] of Object.entries(availableProviders)) {
       if (!providers.length) continue;
       const provider = providers.includes('VOE') ? 'VOE' : providers[0];
+      const dlBody = {
+        episodes,
+        language: lang,
+        provider,
+        title: currentSeriesTitle,
+        series_url: currentSeriesUrl
+      };
+      if (customPathSelect && customPathSelect.value) {
+        dlBody.custom_path_id = parseInt(customPathSelect.value);
+      }
       const resp = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          episodes,
-          language: lang,
-          provider,
-          title: currentSeriesTitle,
-          series_url: currentSeriesUrl
-        })
+        body: JSON.stringify(dlBody)
       });
       const data = await resp.json();
       if (!data.error) queued++;

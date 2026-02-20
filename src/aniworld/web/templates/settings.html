@@ -37,6 +37,22 @@
   </div>
   {% endif %}
 
+  <div class="settings-section">
+    <h2>Custom Paths</h2>
+    <h3 class="settings-subtitle">Add Path</h3>
+    <div class="add-user-row" style="margin-bottom:16px">
+      <input type="text" id="newPathName" placeholder="Name (e.g. NAS)">
+      <input type="text" id="newPathValue" placeholder="/mnt/nas/anime">
+      <button onclick="addCustomPath()">Add</button>
+    </div>
+    <table class="user-table" id="customPathsTable">
+      <thead>
+        <tr><th>Name</th><th>Path</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="customPathsBody"></tbody>
+    </table>
+  </div>
+
   <div class="settings-notice">
     Changes made below are temporary and will be reset when AniWorld Downloader is restarted. To make settings persist, set them in your .env file at <code>{{ env_path }}</code>.
   </div>

@@ -696,6 +696,16 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
   text-align:center;color:#6b7280;padding:40px 20px;font-size:.9rem;
 }
 
+/* Location header */
+.library-location-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 16px;cursor:pointer;user-select:none;
+  background:rgba(37,99,235,.06);
+  border-bottom:1px solid rgba(37,99,235,.1);
+  transition:background .2s;
+}
+.library-location-header:hover{background:rgba(37,99,235,.1)}
+
 /* Title accordion */
 .library-title-section{border-bottom:1px solid rgba(255,255,255,.04)}
 .library-title-section:last-child{border-bottom:none}
