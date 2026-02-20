@@ -482,9 +482,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
                     all_bases = []
                     for root in scan_roots:
-                        # Always scan both base and language subfolders
-                        all_bases.append(root)
-                        all_bases.extend([root / lf for lf in lang_folders])
+                        if lang_sep:
+                            all_bases.extend([root / lf for lf in lang_folders])
+                        else:
+                            all_bases.append(root)
                     for base in all_bases:
                         if not base.is_dir():
                             continue
@@ -729,24 +730,29 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         else:
             dl_path = Path.home() / "Downloads"
 
+        lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+        lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
+
         # Collect all paths to scan (default + custom)
-        scan_paths = [dl_path]
+        scan_roots = [dl_path]
         for cp in get_custom_paths():
             cp_path = Path(cp["path"]).expanduser()
             if not cp_path.is_absolute():
                 cp_path = Path.home() / cp_path
-            scan_paths.append(cp_path)
+            scan_roots.append(cp_path)
 
         folders = set()
-        for dl in scan_paths:
-            if dl.is_dir():
-                for entry in dl.iterdir():
+        for root in scan_roots:
+            if lang_sep:
+                bases = [root / lf for lf in lang_folders]
+            else:
+                bases = [root]
+            for base in bases:
+                if not base.is_dir():
+                    continue
+                for entry in base.iterdir():
                     if entry.is_dir():
                         folders.add(entry.name)
-                        # Also check one level deeper (for language separation subfolders)
-                        for child in entry.iterdir():
-                            if child.is_dir():
-                                folders.add(child.name)
         return jsonify({"folders": sorted(folders)})
 
     @app.route("/api/settings", methods=["GET"])
@@ -830,55 +836,53 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 cp_base = Path.home() / cp_base
             scan_targets.append((cp["name"], cp["id"], cp_base))
 
-        locations = []
-        for label, cp_id, base_path in scan_targets:
-            # Always scan both base and language subfolders so files are found
-            # regardless of when lang_sep was toggled
-            bases = [base_path] + [base_path / lf for lf in lang_folders]
-
+        def _scan_base(base):
+            """Scan a single base directory and return list of title dicts."""
+            lang_folder_set = set(lang_folders)
             titles = {}
-            for base in bases:
-                if not base.is_dir():
+            if not base.is_dir():
+                return []
+            for folder in base.iterdir():
+                if not folder.is_dir():
                     continue
-                for folder in base.iterdir():
-                    if not folder.is_dir():
+                name = folder.name
+                if name in lang_folder_set:
+                    continue
+                if name not in titles:
+                    titles[name] = {"folder": name, "seasons": {}, "total_size": 0}
+                entry = titles[name]
+                for f in folder.rglob("*"):
+                    if not f.is_file() or f.name.startswith(".temp_"):
                         continue
-                    name = folder.name
-                    if name not in titles:
-                        titles[name] = {"folder": name, "seasons": {}, "total_size": 0}
-                    entry = titles[name]
-                    for f in folder.rglob("*"):
-                        if not f.is_file() or f.name.startswith(".temp_"):
-                            continue
-                        m = ep_re.search(f.name)
-                        if not m:
-                            continue
-                        snum = int(m.group(1))
-                        enum = int(m.group(2))
-                        try:
-                            fsize = f.stat().st_size
-                        except OSError:
-                            fsize = 0
-                        skey = str(snum)
-                        if skey not in entry["seasons"]:
-                            entry["seasons"][skey] = []
-                        if not any(
-                            e["episode"] == enum and e["file"] == f.name
-                            for e in entry["seasons"][skey]
-                        ):
-                            entry["seasons"][skey].append(
-                                {"episode": enum, "file": f.name, "size": fsize}
-                            )
-                            entry["total_size"] += fsize
+                    m = ep_re.search(f.name)
+                    if not m:
+                        continue
+                    snum = int(m.group(1))
+                    enum = int(m.group(2))
+                    try:
+                        fsize = f.stat().st_size
+                    except OSError:
+                        fsize = 0
+                    skey = str(snum)
+                    if skey not in entry["seasons"]:
+                        entry["seasons"][skey] = []
+                    if not any(
+                        e["episode"] == enum and e["file"] == f.name
+                        for e in entry["seasons"][skey]
+                    ):
+                        entry["seasons"][skey].append(
+                            {"episode": enum, "file": f.name, "size": fsize}
+                        )
+                        entry["total_size"] += fsize
 
-            loc_titles = []
+            result = []
             for entry in sorted(titles.values(), key=lambda x: x["folder"].lower()):
                 if not any(entry["seasons"].values()):
                     continue
                 total_eps = sum(len(eps) for eps in entry["seasons"].values())
                 for skey in entry["seasons"]:
                     entry["seasons"][skey].sort(key=lambda e: e["episode"])
-                loc_titles.append(
+                result.append(
                     {
                         "folder": entry["folder"],
                         "seasons": entry["seasons"],
@@ -886,15 +890,37 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         "total_size": entry["total_size"],
                     }
                 )
+            return result
 
-            if loc_titles:
-                locations.append({
-                    "label": label,
-                    "custom_path_id": cp_id,
-                    "titles": loc_titles,
-                })
+        locations = []
+        for label, cp_id, base_path in scan_targets:
+            if lang_sep:
+                loc_lang_folders = []
+                for lf in lang_folders:
+                    lf_titles = _scan_base(base_path / lf)
+                    if lf_titles:
+                        loc_lang_folders.append({
+                            "name": lf,
+                            "titles": lf_titles,
+                        })
+                if loc_lang_folders:
+                    locations.append({
+                        "label": label,
+                        "custom_path_id": cp_id,
+                        "lang_folders": loc_lang_folders,
+                        "titles": None,
+                    })
+            else:
+                loc_titles = _scan_base(base_path)
+                if loc_titles:
+                    locations.append({
+                        "label": label,
+                        "custom_path_id": cp_id,
+                        "lang_folders": None,
+                        "titles": loc_titles,
+                    })
 
-        return jsonify({"locations": locations})
+        return jsonify({"lang_sep": lang_sep, "locations": locations})
 
     @app.route("/api/library/delete", methods=["POST"])
     def api_library_delete():
@@ -930,9 +956,16 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
         lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
-        # Always scan both base and language subfolders so deletes work
-        # regardless of when lang_sep was toggled
-        bases = [dl_base] + [dl_base / lf for lf in lang_folders]
+        lang_folder = data.get("lang_folder")  # str or null
+
+        if lang_sep and lang_folder:
+            if lang_folder not in lang_folders:
+                return jsonify({"error": "Invalid language folder"}), 400
+            bases = [dl_base / lang_folder]
+        elif lang_sep:
+            bases = [dl_base / lf for lf in lang_folders]
+        else:
+            bases = [dl_base]
 
         deleted = 0
         for base in bases:
