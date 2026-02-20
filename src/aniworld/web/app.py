@@ -482,10 +482,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                     ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
                     all_bases = []
                     for root in scan_roots:
-                        if lang_sep:
-                            all_bases.extend([root / lf for lf in lang_folders])
-                        else:
-                            all_bases.append(root)
+                        # Always scan both base and language subfolders
+                        all_bases.append(root)
+                        all_bases.extend([root / lf for lf in lang_folders])
                     for base in all_bases:
                         if not base.is_dir():
                             continue
@@ -833,7 +832,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         locations = []
         for label, cp_id, base_path in scan_targets:
-            bases = [base_path / lf for lf in lang_folders] if lang_sep else [base_path]
+            # Always scan both base and language subfolders so files are found
+            # regardless of when lang_sep was toggled
+            bases = [base_path] + [base_path / lf for lf in lang_folders]
 
             titles = {}
             for base in bases:
@@ -929,7 +930,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
         lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
-        bases = [dl_base / lf for lf in lang_folders] if lang_sep else [dl_base]
+        # Always scan both base and language subfolders so deletes work
+        # regardless of when lang_sep was toggled
+        bases = [dl_base] + [dl_base / lf for lf in lang_folders]
 
         deleted = 0
         for base in bases:
