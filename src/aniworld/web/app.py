@@ -420,14 +420,72 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             except Exception:
                 series = None
             season = prov.season_cls(url=url, series=series)
+
+            # Scan download directory for downloaded episodes.
+            # Uses S##E### filename matching so it works regardless of
+            # which NAMING_TEMPLATE was active when files were downloaded.
+            from pathlib import Path
+
+            lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+            lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
+
+            raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+            if raw:
+                dl_base = Path(raw).expanduser()
+                if not dl_base.is_absolute():
+                    dl_base = Path.home() / dl_base
+            else:
+                dl_base = Path.home() / "Downloads"
+
+            # Build set of (season_num, episode_num) found on disk
+            downloaded_eps = set()
+            try:
+                title_clean = ""
+                if series:
+                    title_clean = (
+                        getattr(series, "title_cleaned", None)
+                        or getattr(series, "title", "")
+                    ).lower()
+                if title_clean:
+                    ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
+                    bases = (
+                        [dl_base / lf for lf in lang_folders]
+                        if lang_sep
+                        else [dl_base]
+                    )
+                    for base in bases:
+                        if not base.is_dir():
+                            continue
+                        for folder in base.iterdir():
+                            if (
+                                not folder.is_dir()
+                                or not folder.name.lower().startswith(title_clean)
+                            ):
+                                continue
+                            for f in folder.rglob("*"):
+                                if f.is_file():
+                                    m = ep_re.search(f.name)
+                                    if m:
+                                        downloaded_eps.add(
+                                            (int(m.group(1)), int(m.group(2)))
+                                        )
+            except Exception:
+                pass
+
             episodes_data = []
             for ep in season.episodes:
+                downloaded = (
+                    ep.season.season_number,
+                    ep.episode_number,
+                ) in downloaded_eps
+
                 episodes_data.append(
                     {
                         "url": ep.url,
                         "episode_number": ep.episode_number,
                         "title_de": getattr(ep, "title_de", ""),
                         "title_en": getattr(ep, "title_en", ""),
+                        "downloaded": downloaded,
                     }
                 )
             return jsonify({"episodes": episodes_data})
