@@ -44,7 +44,7 @@ FORBIDDEN_CHARS = re.compile(r'[<>:"/\\|?*]')
 
 def clean_title(title: str) -> str:
     """Clean a string to make it safe for use as a filename."""
-    return FORBIDDEN_CHARS.sub("_", title).strip()
+    return FORBIDDEN_CHARS.sub("", title).strip()
 
 
 def check_downloaded(episode_path):
