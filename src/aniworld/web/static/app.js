@@ -8,6 +8,7 @@ const providerSelect = document.getElementById('providerSelect');
 const seasonAccordion = document.getElementById('seasonAccordion');
 const episodeSpinner = document.getElementById('episodeSpinner');
 const selectAllCb = document.getElementById('selectAll');
+const autoSyncCheck = document.getElementById('autoSyncCheck');
 const statusBar = document.getElementById('statusBar');
 const statusText = document.getElementById('statusText');
 const downloadAllBtn = document.getElementById('downloadAllBtn');
@@ -49,7 +50,7 @@ async function loadCustomPaths() {
     // Remove old custom options (keep "Default")
     while (customPathSelect.options.length > 1) customPathSelect.remove(1);
     if (paths.length) {
-      paths.forEach(function(p) {
+      paths.forEach(function (p) {
         const opt = document.createElement('option');
         opt.value = p.id;
         opt.textContent = p.name;
@@ -323,6 +324,16 @@ async function openSeries(url) {
 
     currentSeasons = seasonsData.seasons || [];
     buildAccordion(currentSeasons);
+
+    // Check if auto-sync exists for this series
+    if (autoSyncCheck) {
+      autoSyncCheck.checked = false;
+      try {
+        const syncResp = await fetch('/api/autosync/check?url=' + encodeURIComponent(url));
+        const syncData = await syncResp.json();
+        autoSyncCheck.checked = !!syncData.exists;
+      } catch (e) { /* ignore */ }
+    }
   } catch (e) {
     showToast('Failed to load series: ' + e.message);
   }
@@ -532,8 +543,65 @@ async function startDownload(all) {
 
 function closeModal() {
   overlay.style.display = 'none';
+  if (autoSyncCheck) autoSyncCheck.checked = false;
 }
 function closeModalOutside(e) { if (e.target === overlay) closeModal(); }
+
+// Auto-Sync toggle from modal checkbox
+async function toggleAutoSync() {
+  if (!autoSyncCheck) return;
+  if (autoSyncCheck.checked) {
+    // Select all episodes
+    selectAllCb.checked = true;
+    toggleSelectAll();
+    // Create sync job
+    try {
+      const body = {
+        title: currentSeriesTitle,
+        series_url: currentSeriesUrl,
+        language: languageSelect.value,
+        provider: providerSelect.value,
+      };
+      if (customPathSelect && customPathSelect.value) {
+        body.custom_path_id = parseInt(customPathSelect.value);
+      }
+      const resp = await fetch('/api/autosync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        showToast('Auto-Sync enabled for "' + currentSeriesTitle + '"');
+      } else if (data.error) {
+        showToast(data.error);
+        // If job already exists, keep checked
+      }
+    } catch (e) {
+      showToast('Failed to create sync job');
+      autoSyncCheck.checked = false;
+    }
+  } else {
+    // Remove sync job
+    try {
+      const resp = await fetch('/api/autosync/check?url=' + encodeURIComponent(currentSeriesUrl));
+      const data = await resp.json();
+      if (data.exists && data.job) {
+        const delResp = await fetch('/api/autosync/' + data.job.id, { method: 'DELETE' });
+        const delData = await delResp.json();
+        if (delData.ok) {
+          showToast('Auto-Sync disabled for "' + currentSeriesTitle + '"');
+        } else {
+          showToast(delData.error || 'Failed to remove sync job');
+          autoSyncCheck.checked = true;
+        }
+      }
+    } catch (e) {
+      showToast('Failed to remove sync job');
+      autoSyncCheck.checked = true;
+    }
+  }
+}
 
 function showToast(msg) {
   const t = document.getElementById('toast');

@@ -65,12 +65,17 @@
       </select>
     </div>
     <script>
-      window.ANIWORLD_LANGS = {{ lang_labels|tojson }};
-      window.STO_LANGS = {{ sto_lang_labels|tojson }};
+      window.ANIWORLD_LANGS = {{ lang_labels | tojson }};
+      window.STO_LANGS = {{ sto_lang_labels | tojson }};
     </script>
     <div class="episodes-header">
       <h3>Episodes</h3>
-      <label class="select-all-label"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> Select All</label>
+      <div style="display:flex;align-items:center;gap:16px">
+        <label class="autosync-label"><input type="checkbox" id="autoSyncCheck" onchange="toggleAutoSync()"> Keep
+          Updated (Auto-Sync)</label>
+        <label class="select-all-label"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> Select
+          All</label>
+      </div>
     </div>
     <div class="season-accordion" id="seasonAccordion"></div>
     <div class="spinner" id="episodeSpinner">Loading episodes...</div>
@@ -78,9 +83,11 @@
       <span id="statusText"></span>
     </div>
     <div class="modal-actions">
-      <button class="btn-download-selected" id="downloadSelectedBtn" onclick="startDownload(false)">Download Selected</button>
+      <button class="btn-download-selected" id="downloadSelectedBtn" onclick="startDownload(false)">Download
+        Selected</button>
       <button class="btn-download-all" id="downloadAllBtn" onclick="startDownload(true)">Download All</button>
-      <button class="btn-download-all-langs" id="downloadAllLangsBtn" onclick="startDownloadAllLangs()" style="display:none">Download All Languages</button>
+      <button class="btn-download-all-langs" id="downloadAllLangsBtn" onclick="startDownloadAllLangs()"
+        style="display:none">Download All Languages</button>
     </div>
   </div>
 </div>
