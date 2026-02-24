@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Settings — AniWorld Downloader{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='autosync.css') }}">{% endblock %}
 {% block content %}
 <div class="settings-container">
   <h1>Settings</h1>
@@ -55,7 +57,15 @@
       </thead>
       <tbody id="customPathsBody"></tbody>
     </table>
-    <h3 class="settings-subtitle" style="margin-top:20px">Auto-Sync</h3>
+  </div>
+
+  <div class="settings-notice">
+    Changes made below are temporary and will be reset when AniWorld Downloader is restarted. To make settings persist,
+    set them in your .env file at <code>{{ env_path }}</code>.
+  </div>
+
+  <div class="settings-section">
+    <h2>Auto-Sync Defaults</h2>
     <div class="settings-row" style="gap:10px;flex-wrap:wrap">
       <div style="flex:1;min-width:140px">
         <label style="font-size:.78rem;color:#6b7280;margin-bottom:4px;display:block">Schedule</label>
@@ -92,12 +102,6 @@
     <div class="settings-hint">How often Auto-Sync checks for new episodes. Language and provider are defaults used when
       creating new sync jobs.</div>
   </div>
-
-  <div class="settings-notice">
-    Changes made below are temporary and will be reset when AniWorld Downloader is restarted. To make settings persist,
-    set them in your .env file at <code>{{ env_path }}</code>.
-  </div>
-
   <div class="settings-section">
     <h2>Settings</h2>
     <h3 class="settings-subtitle">Download Path</h3>
@@ -121,21 +125,6 @@
       Disable English Sub downloads
     </label>
     <div class="settings-hint">When enabled, English Sub is hidden from the language selector and cannot be downloaded
-    </div>
-
-    <h3 class="settings-subtitle" style="margin-top:20px">Naming Template</h3>
-    <div class="settings-row">
-      <input type="text" id="namingTemplate"
-        placeholder="{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv">
-      <button onclick="saveNamingTemplate()">Save</button>
-    </div>
-    <div class="settings-hint">
-      Placeholders: {title} {year} {imdbid} {season} {episode} {language}<br>
-      Example: {title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv
-    </div>
-    <div class="settings-notice">
-      Changes to the path do not affect already started downloads, syncs, etc. Only completely new ones will use the new
-      path.
     </div>
   </div>
 </div>

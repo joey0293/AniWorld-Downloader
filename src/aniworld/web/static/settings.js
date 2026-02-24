@@ -2,7 +2,6 @@
 const downloadPathInput = document.getElementById('downloadPath');
 const langSeparationCb = document.getElementById('langSeparation');
 const disableEnglishSubCb = document.getElementById('disableEnglishSub');
-const namingTemplateInput = document.getElementById('namingTemplate');
 const syncScheduleSelect = document.getElementById('syncSchedule');
 const syncLanguageSelect = document.getElementById('syncLanguage');
 const syncProviderSelect = document.getElementById('syncProvider');
@@ -14,7 +13,6 @@ async function loadSettings() {
     downloadPathInput.value = data.download_path || '';
     if (langSeparationCb) langSeparationCb.checked = data.lang_separation === '1';
     if (disableEnglishSubCb) disableEnglishSubCb.checked = data.disable_english_sub === '1';
-    if (namingTemplateInput) namingTemplateInput.value = data.naming_template || '{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv';
     if (syncScheduleSelect && data.sync_schedule) syncScheduleSelect.value = data.sync_schedule;
 
     const isLangSep = data.lang_separation === '1';
@@ -94,22 +92,6 @@ async function saveDisableEnglishSub() {
   }
 }
 
-async function saveNamingTemplate() {
-  try {
-    const resp = await fetch('/api/settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        naming_template: namingTemplateInput.value.trim()
-      })
-    });
-    const data = await resp.json();
-    if (data.error) { showToast(data.error); return; }
-    showToast('Naming template saved');
-  } catch (e) {
-    showToast('Failed to save setting: ' + e.message);
-  }
-}
 
 async function saveDownloadPath() {
   const download_path = downloadPathInput.value.trim();

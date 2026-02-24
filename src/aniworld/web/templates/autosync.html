@@ -1,8 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Auto Sync — AniWorld Downloader{% endblock %}
+{% block title %}Auto-Sync — AniWorld Downloader{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='autosync.css') }}">{% endblock %}
 {% block content %}
 <div class="autosync-container">
-    <h1>Auto Sync</h1>
+    <h1>Auto-Sync</h1>
     <p class="autosync-subtitle">Automatically check for new episodes and download them on a schedule.</p>
 
     <div class="autosync-list" id="autosyncList">

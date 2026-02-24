@@ -1,4 +1,4 @@
-// Auto Sync page logic
+// Auto-Sync page logic
 
 const autosyncList = document.getElementById('autosyncList');
 const autosyncEmpty = document.getElementById('autosyncEmpty');

@@ -80,28 +80,6 @@ _STO_SERIES_LINK_PATTERN = re.compile(
     r"^/serie/(stream/)?[a-zA-Z0-9\-]+/?$", re.IGNORECASE
 )
 
-def _persist_env_var(key, value):
-    """Write a single env var to the user's .env file so it survives restarts."""
-    try:
-        from ..config import ANIWORLD_CONFIG_DIR
-        env_path = ANIWORLD_CONFIG_DIR / ".env"
-        if not env_path.exists():
-            env_path.parent.mkdir(parents=True, exist_ok=True)
-            env_path.write_text(f"{key}={value}\n")
-            return
-        lines = env_path.read_text().splitlines()
-        found = False
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            if stripped.startswith(f"{key}=") or stripped.startswith(f"{key} ="):
-                lines[i] = f"{key}={value}"
-                found = True
-                break
-        if not found:
-            lines.append(f"{key}={value}")
-        env_path.write_text("\n".join(lines) + "\n")
-    except Exception as e:
-        logger.error("Failed to persist env var %s: %s", key, e)
 
 
 # Queue worker state
@@ -1011,7 +989,6 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             resolved = str(Path.home() / "Downloads")
         lang_separation = os.environ.get("ANIWORLD_LANG_SEPARATION", "0")
         disable_english_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0")
-        naming_template = os.environ.get("ANIWORLD_NAMING_TEMPLATE", "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv")
         sync_schedule = os.environ.get("ANIWORLD_SYNC_SCHEDULE", "0")
         sync_language = os.environ.get("ANIWORLD_SYNC_LANGUAGE", "German Dub")
         sync_provider = os.environ.get("ANIWORLD_SYNC_PROVIDER", "VOE")
@@ -1020,7 +997,6 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "download_path": resolved,
                 "lang_separation": lang_separation,
                 "disable_english_sub": disable_english_sub,
-                "naming_template": naming_template,
                 "sync_schedule": sync_schedule,
                 "sync_language": sync_language,
                 "sync_provider": sync_provider,
@@ -1037,25 +1013,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "1" if data["lang_separation"] else "0"
             )
         if "disable_english_sub" in data:
-            val = "1" if data["disable_english_sub"] else "0"
-            os.environ["ANIWORLD_DISABLE_ENGLISH_SUB"] = val
-            _persist_env_var("ANIWORLD_DISABLE_ENGLISH_SUB", val)
-        if "naming_template" in data:
-            val = str(data["naming_template"])
-            os.environ["ANIWORLD_NAMING_TEMPLATE"] = val
-            _persist_env_var("ANIWORLD_NAMING_TEMPLATE", val)
+            os.environ["ANIWORLD_DISABLE_ENGLISH_SUB"] = (
+                "1" if data["disable_english_sub"] else "0"
+            )
         if "sync_schedule" in data:
-            val = str(data["sync_schedule"])
-            os.environ["ANIWORLD_SYNC_SCHEDULE"] = val
-            _persist_env_var("ANIWORLD_SYNC_SCHEDULE", val)
+            os.environ["ANIWORLD_SYNC_SCHEDULE"] = str(data["sync_schedule"])
         if "sync_language" in data:
-            val = str(data["sync_language"])
-            os.environ["ANIWORLD_SYNC_LANGUAGE"] = val
-            _persist_env_var("ANIWORLD_SYNC_LANGUAGE", val)
+            os.environ["ANIWORLD_SYNC_LANGUAGE"] = str(data["sync_language"])
         if "sync_provider" in data:
-            val = str(data["sync_provider"])
-            os.environ["ANIWORLD_SYNC_PROVIDER"] = val
-            _persist_env_var("ANIWORLD_SYNC_PROVIDER", val)
+            os.environ["ANIWORLD_SYNC_PROVIDER"] = str(data["sync_provider"])
         return jsonify({"ok": True})
 
     @app.route("/api/custom-paths")
@@ -1086,24 +1052,25 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     # ===== Auto-Sync API =====
 
+    def _get_current_user_info():
+        """Return (username, is_admin) for the current request."""
+        if not auth_enabled:
+            return None, True  # no auth → treat as admin
+        user = get_current_user()
+        if not user:
+            return None, False
+        username = (
+            user.get("username") if isinstance(user, dict) else getattr(user, "username", None)
+        )
+        role = (
+            user.get("role") if isinstance(user, dict) else getattr(user, "role", "user")
+        )
+        return username, role == "admin"
+
     @app.route("/api/autosync")
     def api_autosync_list():
-        username = None
-        is_admin = True
-        if auth_enabled:
-            user = get_current_user()
-            if user:
-                username = (
-                    user.get("username")
-                    if isinstance(user, dict)
-                    else getattr(user, "username", None)
-                )
-                role = (
-                    user.get("role")
-                    if isinstance(user, dict)
-                    else getattr(user, "role", "user")
-                )
-                is_admin = role == "admin"
+        username, is_admin = _get_current_user_info()
+        # Admins see all jobs; regular users see only their own
         jobs = get_autosync_jobs(username=None if is_admin else username)
         return jsonify({"jobs": jobs})
 
@@ -1119,21 +1086,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if not title or not series_url:
             return jsonify({"error": "title and series_url are required"}), 400
 
-        # Check for duplicate
         existing = find_autosync_by_url(series_url)
         if existing:
             return jsonify({"error": "A sync job for this series already exists", "job": existing}), 409
 
-        username = None
-        if auth_enabled:
-            user = get_current_user()
-            if user:
-                username = (
-                    user.get("username")
-                    if isinstance(user, dict)
-                    else getattr(user, "username", None)
-                )
-
+        username, _ = _get_current_user_info()
         job_id = add_autosync_job(
             title=title,
             series_url=series_url,
@@ -1149,12 +1106,23 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         job = get_autosync_job(job_id)
         if not job:
             return jsonify({"error": "Job not found"}), 404
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"error": "Not authorized to edit this job"}), 403
         data = request.get_json(silent=True) or {}
-        update_autosync_job(job_id, **data)
+        allowed = {"language", "provider", "enabled", "custom_path_id"}
+        filtered = {k: v for k, v in data.items() if k in allowed}
+        update_autosync_job(job_id, **filtered)
         return jsonify({"ok": True})
 
     @app.route("/api/autosync/<int:job_id>", methods=["DELETE"])
     def api_autosync_delete(job_id):
+        job = get_autosync_job(job_id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"error": "Not authorized to delete this job"}), 403
         ok, err = remove_autosync_job(job_id)
         if not ok:
             return jsonify({"error": err}), 404
@@ -1165,7 +1133,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         job = get_autosync_job(job_id)
         if not job:
             return jsonify({"error": "Job not found"}), 404
-        # Run sync in background thread so the HTTP response returns immediately
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"error": "Not authorized"}), 403
         threading.Thread(
             target=_run_autosync_for_job, args=(job,), daemon=True
         ).start()

@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block styles %}{% endblock %}
 </head>
 
 <body>
@@ -20,7 +21,7 @@
     <div class="top-bar-right">
       <a href="{{ url_for('index') }}" class="top-bar-link">Home</a>
       <a href="{{ url_for('library_page') }}" class="top-bar-link">Library</a>
-      <a href="{{ url_for('autosync_page') }}" class="top-bar-link">Auto Sync</a>
+      <a href="{{ url_for('autosync_page') }}" class="top-bar-link">Auto-Sync</a>
       <a href="#" class="top-bar-link" id="queueBtn" onclick="openQueueModal(); return false;">
         Queue <span class="queue-badge" id="queueBadge" style="display:none">0</span>
       </a>
