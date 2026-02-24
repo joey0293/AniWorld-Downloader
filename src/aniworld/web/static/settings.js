@@ -16,6 +16,14 @@ async function loadSettings() {
     if (disableEnglishSubCb) disableEnglishSubCb.checked = data.disable_english_sub === '1';
     if (namingTemplateInput) namingTemplateInput.value = data.naming_template || '{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv';
     if (syncScheduleSelect && data.sync_schedule) syncScheduleSelect.value = data.sync_schedule;
+
+    const isLangSep = data.lang_separation === '1';
+    let currentSyncLang = data.sync_language;
+    if (currentSyncLang === 'All Languages' && !isLangSep) {
+      currentSyncLang = 'German Dub';
+    }
+    updateSyncLanguageDropdown(isLangSep, currentSyncLang);
+
     if (syncLanguageSelect && data.sync_language) syncLanguageSelect.value = data.sync_language;
     if (syncProviderSelect && data.sync_provider) syncProviderSelect.value = data.sync_provider;
   } catch (e) {
@@ -36,9 +44,37 @@ async function saveLangSeparation() {
     const data = await resp.json();
     if (data.error) { showToast(data.error); return; }
     showToast('Language separation ' + (langSeparationCb.checked ? 'enabled' : 'disabled'));
+
+    let currentSyncLang = syncLanguageSelect ? syncLanguageSelect.value : null;
+    if (!langSeparationCb.checked && currentSyncLang === 'All Languages') {
+      currentSyncLang = 'German Dub';
+      updateSyncLanguageDropdown(false, currentSyncLang);
+      saveSyncDefaults();
+    } else {
+      updateSyncLanguageDropdown(langSeparationCb.checked, currentSyncLang);
+    }
   } catch (e) {
     showToast('Failed to save setting: ' + e.message);
   }
+}
+
+function updateSyncLanguageDropdown(isLangSep, currentValue) {
+  if (!syncLanguageSelect) return;
+  syncLanguageSelect.innerHTML = '';
+  if (isLangSep) {
+    const opt = document.createElement('option');
+    opt.value = 'All Languages';
+    opt.textContent = 'All Languages';
+    syncLanguageSelect.appendChild(opt);
+  }
+  const langs = ['German Dub', 'English Sub', 'German Sub'];
+  langs.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l;
+    opt.textContent = l;
+    syncLanguageSelect.appendChild(opt);
+  });
+  if (currentValue) syncLanguageSelect.value = currentValue;
 }
 
 async function saveDisableEnglishSub() {
