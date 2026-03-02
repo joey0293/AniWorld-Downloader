@@ -192,6 +192,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True):
     reader_thread.start()
 
     # --- main loop: consume lines, log them, and watch for stalls ---
+    stderr_lines = []  # collect non-progress stderr lines for error reporting
     last_frame = None
     last_time = None
     last_change = time.monotonic()
@@ -241,12 +242,14 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True):
                 break
         elif line_str:
             logger.debug(f"[FFmpeg] {line_str}")
+            stderr_lines.append(line_str)
 
     reader_thread.join(timeout=5)
     process.wait()
     if process.returncode != 0:
-        # Re-raise standard ffmpeg error if it failed
-        raise ffmpeg.Error("ffmpeg", "", "")
+        detail = "\n".join(stderr_lines[-20:]) if stderr_lines else f"exit code {process.returncode}"
+        logger.error(f"[FFmpeg] Process failed (rc={process.returncode}):\n{detail}")
+        raise RuntimeError(f"ffmpeg error (rc={process.returncode}): {detail}")
 
 
 def download(self):
@@ -412,7 +415,7 @@ def download(self):
                 if temp.exists():
                     temp.unlink()
 
-            logger.warning(f"Download attempt {attempt} failed: {e}")
+            logger.error(f"Download attempt {attempt}/{max_retries} failed: {e}")
             if attempt >= max_retries:
                 _remove_empty_dirs(self._folder_path, self._base_folder)
                 raise
