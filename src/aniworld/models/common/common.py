@@ -264,7 +264,11 @@ def download(self):
             check = check_downloaded(self._episode_path)
 
             headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
-            input_kwargs = {}
+            input_kwargs = {
+                "reconnect": 1,
+                "reconnect_streamed": 1,
+                "reconnect_delay_max": 300,  # wait up to 5 min for connection recovery
+            }
             if headers:
                 header_list = [f"{k}: {v}" for k, v in headers.items()]
                 input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
