@@ -491,6 +491,19 @@ def remove_from_queue(queue_id):
         conn.close()
 
 
+def delete_completed_queue_item(queue_id):
+    """Delete a queue item only if its status is 'completed'. Used by auto-sync cleanup."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM download_queue WHERE id = ? AND status = 'completed'",
+            (queue_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def clear_completed():
     conn = get_db()
     try:
@@ -590,6 +603,22 @@ def init_autosync_db():
     conn = get_db()
     try:
         conn.execute(_CREATE_AUTOSYNC_TABLE)
+        # Add UNIQUE index on series_url (migration for existing DBs)
+        try:
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_autosync_series_url "
+                "ON autosync_jobs (series_url)"
+            )
+        except sqlite3.IntegrityError:
+            # Duplicates already exist — deduplicate keeping the lowest id
+            conn.execute(
+                "DELETE FROM autosync_jobs WHERE id NOT IN "
+                "(SELECT MIN(id) FROM autosync_jobs GROUP BY series_url)"
+            )
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_autosync_series_url "
+                "ON autosync_jobs (series_url)"
+            )
         conn.commit()
     finally:
         conn.close()

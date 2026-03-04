@@ -151,7 +151,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True):
     import threading
     import time
 
-    STALL_TIMEOUT = 300  # 5 minutes without progress → kill
+    STALL_TIMEOUT = 600  # 10 minutes without progress → kill (must exceed reconnect_delay_max=300)
 
     # Regex to extract progress indicators from ffmpeg status lines
     _RE_FRAME = re.compile(r"frame=\s*(\d+)")
@@ -165,7 +165,7 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True):
         args.insert(-1, "10")
 
     process = subprocess.Popen(
-        args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False
+        args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, universal_newlines=False
     )
 
     # --- reader thread: reads stderr byte-by-byte and pushes complete lines ---
@@ -410,7 +410,7 @@ def download(self):
 
         except Exception as e:
             # Clean up temp files from failed attempt
-            for suffix in (".temp_full.mkv", ".temp_audio.mkv", ".temp_video.mkv"):
+            for suffix in (".temp_full.mkv", ".temp_audio.mkv", ".temp_video.mkv", ".new.mkv"):
                 temp = self._episode_path.with_suffix(suffix)
                 if temp.exists():
                     temp.unlink()

@@ -25,6 +25,7 @@ from .db import (
     add_to_queue,
     cancel_queue_item,
     clear_completed,
+    delete_completed_queue_item,
     find_autosync_by_url,
     get_autosync_job,
     get_autosync_jobs,
@@ -88,6 +89,10 @@ _queue_lock = threading.Lock()
 
 # Auto-sync worker state
 _autosync_worker_started = False
+
+# Track jobs currently being synced to prevent duplicate runs
+_syncing_jobs = set()
+_syncing_jobs_lock = threading.Lock()
 
 # Schedule intervals in seconds
 SYNC_SCHEDULE_MAP = {
@@ -200,8 +205,8 @@ def _queue_worker():
                 set_queue_status(item["id"], status)
 
                 # Auto-remove completed sync items (non-failed)
-                if status == "completed" and item.get("source") == "sync":
-                    remove_from_queue(item["id"])
+                if status == "completed" and (item.get("source") or "").startswith("sync"):
+                    delete_completed_queue_item(item["id"])
                     logger.info("Auto-removed completed sync item %d", item["id"])
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
@@ -237,14 +242,26 @@ def _run_autosync_for_job(job):
     from datetime import datetime
     from pathlib import Path
 
+    job_id = job["id"]
+    with _syncing_jobs_lock:
+        if job_id in _syncing_jobs:
+            logger.info("Auto-sync skipped job %d — already running", job_id)
+            return
+        _syncing_jobs.add(job_id)
+
     try:
         prov = resolve_provider(job["series_url"])
         series = prov.series_cls(url=job["series_url"])
 
         lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
-        if job.get("language") == "All Languages":
-            lang_sep = True
-            
+        # Only use lang_sep for "All Languages" when the global setting is enabled;
+        # otherwise scan root directory to avoid phantom missing-episode detection.
+        if job.get("language") == "All Languages" and not lang_sep:
+            logger.warning(
+                "Auto-sync job '%s' uses 'All Languages' but lang_separation is off — scanning root.",
+                job.get("title", "?"),
+            )
+
         lang_folder_map = {
             "German Dub": "german-dub",
             "English Sub": "english-sub",
@@ -377,6 +394,9 @@ def _run_autosync_for_job(job):
             job["id"],
             last_check=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
         )
+    finally:
+        with _syncing_jobs_lock:
+            _syncing_jobs.discard(job_id)
 
 
 def _autosync_worker():
@@ -1017,11 +1037,21 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "1" if data["disable_english_sub"] else "0"
             )
         if "sync_schedule" in data:
-            os.environ["ANIWORLD_SYNC_SCHEDULE"] = str(data["sync_schedule"])
+            sched = str(data["sync_schedule"])
+            if sched != "0" and sched not in SYNC_SCHEDULE_MAP:
+                return jsonify({"error": f"Invalid sync_schedule: {sched}"}), 400
+            os.environ["ANIWORLD_SYNC_SCHEDULE"] = sched
         if "sync_language" in data:
-            os.environ["ANIWORLD_SYNC_LANGUAGE"] = str(data["sync_language"])
+            lang = str(data["sync_language"])
+            valid_langs = set(LANG_LABELS.values()) | {"All Languages"}
+            if lang not in valid_langs:
+                return jsonify({"error": f"Invalid sync_language: {lang}"}), 400
+            os.environ["ANIWORLD_SYNC_LANGUAGE"] = lang
         if "sync_provider" in data:
-            os.environ["ANIWORLD_SYNC_PROVIDER"] = str(data["sync_provider"])
+            prov = str(data["sync_provider"])
+            if prov not in WORKING_PROVIDERS:
+                return jsonify({"error": f"Invalid sync_provider: {prov}"}), 400
+            os.environ["ANIWORLD_SYNC_PROVIDER"] = prov
         return jsonify({"ok": True})
 
     @app.route("/api/custom-paths")
@@ -1136,6 +1166,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         username, is_admin = _get_current_user_info()
         if not is_admin and job.get("added_by") != username:
             return jsonify({"error": "Not authorized"}), 403
+        with _syncing_jobs_lock:
+            if job_id in _syncing_jobs:
+                return jsonify({"error": "Sync already running for this job"}), 409
         threading.Thread(
             target=_run_autosync_for_job, args=(job,), daemon=True
         ).start()
@@ -1148,7 +1181,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if not url:
             return jsonify({"exists": False})
         job = find_autosync_by_url(url)
-        return jsonify({"exists": bool(job), "job": job})
+        if not job:
+            return jsonify({"exists": False})
+        # Only expose job details to the owner or admins
+        username, is_admin = _get_current_user_info()
+        if not is_admin and job.get("added_by") != username:
+            return jsonify({"exists": False})
+        return jsonify({"exists": True, "job": job})
 
     # ===== Stats API =====
 

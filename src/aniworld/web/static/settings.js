@@ -22,7 +22,6 @@ async function loadSettings() {
     }
     updateSyncLanguageDropdown(isLangSep, currentSyncLang);
 
-    if (syncLanguageSelect && data.sync_language) syncLanguageSelect.value = data.sync_language;
     if (syncProviderSelect && data.sync_provider) syncProviderSelect.value = data.sync_provider;
   } catch (e) {
     showToast('Failed to load settings: ' + e.message);
