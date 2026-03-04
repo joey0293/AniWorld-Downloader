@@ -216,6 +216,9 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
 .select-all-label:hover{color:#9ca3af}
 .select-all-label input{margin-right:5px;accent-color:#2563eb}
 
+/* Queue sync source badge */
+.queue-sync-badge{color:#4ade80;font-size:.75rem;font-weight:700;letter-spacing:.02em}
+
 /* Episode list (legacy, kept for compatibility) */
 .episode-list{max-height:320px;overflow-y:auto;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:rgba(255,255,255,.02)}
 .episode-item{
