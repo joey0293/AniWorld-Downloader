@@ -1026,8 +1026,8 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/api/settings", methods=["PUT"])
     def api_settings_update():
         data = request.get_json(silent=True) or {}
-        download_path = data.get("download_path", "").strip()
-        os.environ["ANIWORLD_DOWNLOAD_PATH"] = download_path
+        if "download_path" in data:
+            os.environ["ANIWORLD_DOWNLOAD_PATH"] = str(data["download_path"]).strip()
         if "lang_separation" in data:
             os.environ["ANIWORLD_LANG_SEPARATION"] = (
                 "1" if data["lang_separation"] else "0"
