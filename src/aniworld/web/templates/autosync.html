@@ -1,14 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Auto-Sync — AniWorld Downloader{% endblock %}
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='autosync.css') }}">{% endblock %}
 {% block content %}
-<div class="autosync-container">
+<div class="settings-container" style="max-width:1100px">
     <h1>Auto-Sync</h1>
-    <p class="autosync-subtitle">Automatically check for new episodes and download them on a schedule.</p>
+    <p class="settings-hint" style="margin-bottom:24px">Automatically check for new episodes and download them on a schedule.</p>
 
-    <div class="autosync-list" id="autosyncList">
-        <div class="autosync-empty" id="autosyncEmpty">No sync jobs yet. Add a series via the search page.</div>
+    <div id="autosyncList">
+        <div class="queue-empty" id="autosyncEmpty">No sync jobs yet. Add a series via the search page.</div>
     </div>
 </div>
 
@@ -21,7 +19,7 @@
         <input type="hidden" id="editJobId">
         <div class="settings-row" style="margin-bottom:12px">
             <label style="color:#9ca3af;font-size:.85rem;min-width:80px">Language</label>
-            <select id="editLanguage" class="edit-select">
+            <select id="editLanguage" class="sync-select">
                 <option>German Dub</option>
                 <option>English Sub</option>
                 <option>German Sub</option>
@@ -29,7 +27,7 @@
         </div>
         <div class="settings-row" style="margin-bottom:12px">
             <label style="color:#9ca3af;font-size:.85rem;min-width:80px">Provider</label>
-            <select id="editProvider" class="edit-select">
+            <select id="editProvider" class="sync-select">
                 <option>VOE</option>
                 <option>Vidmoly</option>
                 <option>Vidoza</option>
@@ -37,13 +35,13 @@
         </div>
         <div class="settings-row" style="margin-bottom:12px">
             <label style="color:#9ca3af;font-size:.85rem;min-width:80px">Path</label>
-            <select id="editPath" class="edit-select">
+            <select id="editPath" class="sync-select">
                 <option value="">Default</option>
             </select>
         </div>
         <div class="settings-row" style="margin-bottom:18px">
             <label style="color:#9ca3af;font-size:.85rem;min-width:80px">Status</label>
-            <select id="editEnabled" class="edit-select">
+            <select id="editEnabled" class="sync-select">
                 <option value="1">Enabled</option>
                 <option value="0">Disabled</option>
             </select>

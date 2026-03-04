@@ -219,6 +219,15 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
 /* Queue sync source badge */
 .queue-sync-badge{color:#4ade80;font-size:.75rem;font-weight:700;letter-spacing:.02em}
 
+/* Sync selects (settings & autosync pages) */
+.sync-select{
+  width:100%;padding:10px 14px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:#e0e0e0;font-size:.9rem;cursor:pointer;
+}
+.sync-select option{color:#000;background:#fff}
+
 /* Episode list (legacy, kept for compatibility) */
 .episode-list{max-height:320px;overflow-y:auto;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:rgba(255,255,255,.02)}
 .episode-item{
