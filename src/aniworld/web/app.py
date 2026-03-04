@@ -553,6 +553,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         )
         return response
 
+    @app.before_request
+    def _enforce_json_content_type():
+        """Reject non-JSON POST/PUT on API routes to prevent form-based CSRF bypass."""
+        if request.method in ("POST", "PUT") and request.path.startswith("/api/"):
+            ct = request.content_type or ""
+            if not ct.startswith("application/json"):
+                return jsonify({"error": "Content-Type must be application/json"}), 415
+
     @app.route("/")
     def index():
         sto_lang_labels = {"1": "German Dub", "2": "English Dub"}
