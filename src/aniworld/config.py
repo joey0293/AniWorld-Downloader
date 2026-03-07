@@ -117,11 +117,11 @@ SUPPORTED_PROVIDERS = (
     "VOE",
     "Vidmoly",
     "Vidoza",
-    #"Doodstream",
-    #"Filemoon",
-    #"LoadX",
-    #"Luluvdo",
-    #"Streamtape",
+    # "Doodstream",
+    "Filemoon",
+    # "LoadX",
+    # "Luluvdo",
+    # "Streamtape",
 )
 
 PROVIDER_HEADERS_D = {

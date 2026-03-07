@@ -257,9 +257,7 @@ def init_queue_db():
             pass  # column already exists
         # Add custom_path_id column (migration for existing DBs)
         try:
-            conn.execute(
-                "ALTER TABLE download_queue ADD COLUMN custom_path_id INTEGER"
-            )
+            conn.execute("ALTER TABLE download_queue ADD COLUMN custom_path_id INTEGER")
         except Exception:
             pass  # column already exists
         # Add source column (migration for existing DBs) - marks origin: 'manual' or 'sync'
@@ -274,7 +272,16 @@ def init_queue_db():
         conn.close()
 
 
-def add_to_queue(title, series_url, episodes, language, provider, username=None, custom_path_id=None, source="manual"):
+def add_to_queue(
+    title,
+    series_url,
+    episodes,
+    language,
+    provider,
+    username=None,
+    custom_path_id=None,
+    source="manual",
+):
     import json
 
     conn = get_db()
@@ -316,7 +323,7 @@ def is_series_queued_or_running(series_url, language=None):
         if language:
             query += " AND language = ?"
             params.append(language)
-            
+
         row = conn.execute(query, tuple(params)).fetchone()
         return row["cnt"] > 0
     finally:
@@ -539,7 +546,9 @@ def init_custom_paths_db():
 def get_custom_paths():
     conn = get_db()
     try:
-        rows = conn.execute("SELECT id, name, path FROM custom_paths ORDER BY id").fetchall()
+        rows = conn.execute(
+            "SELECT id, name, path FROM custom_paths ORDER BY id"
+        ).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
@@ -624,8 +633,9 @@ def init_autosync_db():
         conn.close()
 
 
-def add_autosync_job(title, series_url, language, provider,
-                     custom_path_id=None, added_by=None):
+def add_autosync_job(
+    title, series_url, language, provider, custom_path_id=None, added_by=None
+):
     conn = get_db()
     try:
         cur = conn.execute(
@@ -650,9 +660,7 @@ def get_autosync_jobs(username=None):
                 (username,),
             ).fetchall()
         else:
-            rows = conn.execute(
-                "SELECT * FROM autosync_jobs ORDER BY id"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM autosync_jobs ORDER BY id").fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
@@ -687,8 +695,15 @@ def update_autosync_job(job_id, **fields):
     if not fields:
         return
     allowed = {
-        "title", "series_url", "language", "provider", "custom_path_id",
-        "enabled", "last_check", "last_new_found", "episodes_found",
+        "title",
+        "series_url",
+        "language",
+        "provider",
+        "custom_path_id",
+        "enabled",
+        "last_check",
+        "last_new_found",
+        "episodes_found",
     }
     filtered = {k: v for k, v in fields.items() if k in allowed}
     if not filtered:
@@ -697,9 +712,7 @@ def update_autosync_job(job_id, **fields):
     values = list(filtered.values()) + [job_id]
     conn = get_db()
     try:
-        conn.execute(
-            f"UPDATE autosync_jobs SET {set_clause} WHERE id = ?", values
-        )
+        conn.execute(f"UPDATE autosync_jobs SET {set_clause} WHERE id = ?", values)
         conn.commit()
     finally:
         conn.close()
@@ -722,10 +735,13 @@ def remove_autosync_job(job_id):
 
 # ===== Statistics =====
 
+
 def get_sync_stats():
     conn = get_db()
     try:
-        total = conn.execute("SELECT COUNT(*) AS cnt FROM autosync_jobs").fetchone()["cnt"]
+        total = conn.execute("SELECT COUNT(*) AS cnt FROM autosync_jobs").fetchone()[
+            "cnt"
+        ]
         enabled = conn.execute(
             "SELECT COUNT(*) AS cnt FROM autosync_jobs WHERE enabled = 1"
         ).fetchone()["cnt"]
@@ -760,7 +776,9 @@ def get_sync_stats():
 def get_queue_stats():
     conn = get_db()
     try:
-        total = conn.execute("SELECT COUNT(*) AS cnt FROM download_queue").fetchone()["cnt"]
+        total = conn.execute("SELECT COUNT(*) AS cnt FROM download_queue").fetchone()[
+            "cnt"
+        ]
         by_status = {}
         for row in conn.execute(
             "SELECT status, COUNT(*) AS cnt FROM download_queue GROUP BY status"
@@ -837,7 +855,9 @@ def get_general_stats():
             "total_episodes": total_episodes,
             "last_24h_completed": last_24h,
             "average_duration_seconds": round(avg_dur, 1) if avg_dur else None,
-            "top_titles": [{"title": r["title"], "count": r["cnt"]} for r in top_titles],
+            "top_titles": [
+                {"title": r["title"], "count": r["cnt"]} for r in top_titles
+            ],
             "by_language": [
                 {"language": r["language"], "downloads": r["cnt"], "episodes": r["eps"]}
                 for r in by_language
