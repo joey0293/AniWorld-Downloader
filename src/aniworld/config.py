@@ -267,6 +267,12 @@ SERIENSTREAM_EPISODE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+HIANIME_SERIES_PATTERN = re.compile(r"", re.IGNORECASE)
+
+HIANIME_SEASON_PATTERN = re.compile(r"", re.IGNORECASE)
+
+HIANIME_EPISODE_PATTERN = re.compile(r"", re.IGNORECASE)
+
 # -----------------------------
 # Directories
 # -----------------------------
