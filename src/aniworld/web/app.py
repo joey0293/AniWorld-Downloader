@@ -896,8 +896,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.route("/api/queue")
     def api_queue():
+        from ..models.common.common import get_ffmpeg_progress
+
         items = get_queue()
-        return jsonify({"items": items})
+        ffmpeg_pct = get_ffmpeg_progress()
+        return jsonify({"items": items, "ffmpeg_progress": ffmpeg_pct})
 
     @app.route("/api/queue/<int:queue_id>", methods=["DELETE"])
     def api_queue_remove(queue_id):
