@@ -209,7 +209,6 @@ function rebuildLanguageSelect() {
     const heading = document.getElementById("pageHeading");
     if (heading) heading.textContent = "SerienStream Downloader";
     searchInput.placeholder = "Search for series...";
-    showBrowseSections();
     randomBtn.style.display = "none";
     rebuildLanguageSelect();
   }
@@ -261,7 +260,7 @@ async function loadAniworldBrowse() {
     aniLoadedAt = 0;
   }
 }
-loadAniworldBrowse();
+showBrowseSections();
 
 async function doSearch() {
   const keyword = searchInput.value.trim();
