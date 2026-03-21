@@ -202,12 +202,14 @@ LANG_KEY_MAP = {
     "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
     "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
     "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
+    "4": (Audio.ENGLISH, Subtitles.NONE),  # English Dub
 }
 
 LANG_LABELS = {
     "1": "German Dub",
     "2": "English Sub",
     "3": "German Sub",
+    "4": "English Dub",
 }
 
 LANG_CODE_MAP = {
