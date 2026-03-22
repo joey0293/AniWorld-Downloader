@@ -32,6 +32,22 @@ function closeQueueModal() {
 
 let lastFfmpegProgress = {};
 
+function formatBandwidth(bwStr) {
+  if (!bwStr) return "";
+  const trimmed = String(bwStr).trim();
+  if (/B\/s$/i.test(trimmed)) return trimmed;
+  const m = trimmed.match(/^\s*([\d.]+)\s*([kmg])?bits\/s\s*$/i);
+  if (!m) return bwStr;
+  const value = parseFloat(m[1]);
+  if (Number.isNaN(value)) return bwStr;
+  const unit = (m[2] || "").toLowerCase();
+  let mbps = value;
+  if (unit === "k") mbps = value / 1000;
+  else if (unit === "g") mbps = value * 1000;
+  const mbytes = mbps / 8;
+  return mbytes.toFixed(1) + " MB/s";
+}
+
 async function loadQueue() {
   try {
     const resp = await fetch("/api/queue");
@@ -149,9 +165,12 @@ function renderQueue(items) {
         let epDetail = item.current_episode + "/" + item.total_episodes + " episodes";
         if (seInfo) epDetail += " - " + seInfo;
         if (lastFfmpegProgress.active && lastFfmpegProgress.percent > 0) {
+          const bw = formatBandwidth(lastFfmpegProgress.bandwidth || "");
           epDetail +=
-            " (" + lastFfmpegProgress.percent + "%" +
-            (lastFfmpegProgress.speed ? " @ " + lastFfmpegProgress.speed : "") +
+            " (" +
+            lastFfmpegProgress.percent +
+            "%" +
+            (bw ? " @ " + bw : "") +
             ")";
         }
         label = epDetail;

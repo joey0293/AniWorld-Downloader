@@ -29,6 +29,9 @@ pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.g
 
 # Launch AniWorld Downloader
 aniworld
+
+# Using WebUI
+aniworld -w
 ```
 
 > **Tip**: Use the stable release for general use. The GitHub version includes the latest features and fixes but may be less stable.
