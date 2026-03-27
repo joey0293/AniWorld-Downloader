@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 from .arguments import parse_args
+from .autodeps import ensure_patchright_chromium
 from .config import ACTION_METHODS, ANIWORLD_CONFIG_DIR, VERSION
 from .env import merge_env
 from .logger import get_logger
@@ -40,6 +41,7 @@ def aniworld():
     try:
         logger.debug("Starting...")
         set_terminal_title()
+        ensure_patchright_chromium()
 
         args = parse_args()
 

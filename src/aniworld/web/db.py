@@ -267,6 +267,11 @@ def init_queue_db():
             )
         except Exception:
             pass  # column already exists
+        # Add captcha_url column (migration for existing DBs)
+        try:
+            conn.execute("ALTER TABLE download_queue ADD COLUMN captcha_url TEXT")
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -450,6 +455,32 @@ def update_queue_errors(queue_id, errors_json):
         conn.close()
 
 
+def set_captcha_url(queue_id: int, url: str):
+    """Set the captcha_url field to signal the Web UI that a captcha needs solving."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE download_queue SET captcha_url = ? WHERE id = ?",
+            (url, queue_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def clear_captcha_url(queue_id: int):
+    """Clear the captcha_url field after the captcha has been solved."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE download_queue SET captcha_url = NULL WHERE id = ?",
+            (queue_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def cancel_queue_item(queue_id):
     conn = get_db()
     try:
@@ -494,6 +525,19 @@ def remove_from_queue(queue_id):
         conn.execute("DELETE FROM download_queue WHERE id = ?", (queue_id,))
         conn.commit()
         return True, None
+    finally:
+        conn.close()
+
+
+def delete_completed_queue_item(queue_id):
+    """Delete a queue item only if its status is 'completed'. Used by auto-sync cleanup."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "DELETE FROM download_queue WHERE id = ? AND status = 'completed'",
+            (queue_id,),
+        )
+        conn.commit()
     finally:
         conn.close()
 

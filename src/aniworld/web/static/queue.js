@@ -130,7 +130,10 @@ function renderQueue(items) {
     else if (item.status === "cancelled")
       statusBadge =
         '<span class="queue-status queue-status-cancelled">Cancelled</span>';
-
+    // Captcha badge shown on top of the running badge when captcha_url is set
+    const captchaBadge = (isRunning && item.captcha_url)
+      ? ' <span class="queue-status queue-status-captcha">CAPTCHA</span>'
+      : '';
     let progressHtml = "";
     if (isRunning || isCancelling || item.status === "cancelled") {
       const epPct =
@@ -239,7 +242,13 @@ function renderQueue(items) {
         item.id +
         ')" title="Remove">&times;</button>';
     } else if (item.status === "running") {
+      const captchaBtn = item.captcha_url
+        ? '<button class="queue-captcha-btn" onclick="openCaptchaModal(' +
+          item.id +
+          ')" title="Solve captcha">&#128274; Solve</button>'
+        : '';
       actionBtn =
+        captchaBtn +
         '<button class="queue-cancel" onclick="cancelQueueItem(' +
         item.id +
         ')" title="Cancel after current episode">Cancel</button>';
@@ -271,6 +280,7 @@ function renderQueue(items) {
       "</div>" +
       '<div class="queue-item-right">' +
       statusBadge +
+      captchaBadge +
       actionBtn +
       "</div>" +
       "</div>" +
@@ -368,7 +378,87 @@ function escQ(s) {
 // ESC key closes queue modal
 document.addEventListener("keydown", function (e) {
   if (e.key === "Escape" && queueModalOpen) closeQueueModal();
+  if (e.key === "Escape" && captchaModalOpen) closeCaptchaModal();
 });
+
+// ===== Captcha Modal =====
+
+let captchaModalOpen = false;
+let captchaQueueId = null;
+let captchaRefreshTimer = null;
+let captchaStatusTimer = null;
+
+function openCaptchaModal(queueId) {
+  captchaQueueId = queueId;
+  captchaModalOpen = true;
+  const overlay = document.getElementById("captchaOverlay");
+  const img = document.getElementById("captchaScreenshot");
+  const hint = document.getElementById("captchaHint");
+  if (!overlay || !img) return;
+
+  img.src = "";
+  if (hint) hint.textContent = "Loading browser screenshot...";
+  overlay.style.display = "block";
+
+  // Start screenshot polling
+  captchaRefreshTimer = setInterval(function () {
+    img.src = "/api/captcha/" + queueId + "/screenshot?t=" + Date.now();
+    img.onload = function () {
+      if (hint) hint.textContent = "Click anywhere in the screenshot to interact with the captcha.";
+    };
+    img.onerror = function () {
+      if (hint) hint.textContent = "Waiting for captcha browser...";
+    };
+  }, 800);
+
+  // Poll for solved status
+  captchaStatusTimer = setInterval(async function () {
+    try {
+      const resp = await fetch("/api/captcha/" + queueId + "/status");
+      const data = await resp.json();
+      if (!data.active || data.done) {
+        closeCaptchaModal();
+        if (typeof showToast === "function")
+          showToast("Captcha solved! Download resuming...");
+        loadQueue();
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, 1500);
+}
+
+function closeCaptchaModal() {
+  captchaModalOpen = false;
+  captchaQueueId = null;
+  const overlay = document.getElementById("captchaOverlay");
+  if (overlay) overlay.style.display = "none";
+  if (captchaRefreshTimer) {
+    clearInterval(captchaRefreshTimer);
+    captchaRefreshTimer = null;
+  }
+  if (captchaStatusTimer) {
+    clearInterval(captchaStatusTimer);
+    captchaStatusTimer = null;
+  }
+}
+
+(function attachCaptchaClickHandler() {
+  document.addEventListener("click", function (e) {
+    const img = document.getElementById("captchaScreenshot");
+    if (!img || e.target !== img || !captchaQueueId) return;
+    const rect = img.getBoundingClientRect();
+    const scaleX = img.naturalWidth / img.clientWidth;
+    const scaleY = img.naturalHeight / img.clientHeight;
+    const x = Math.round((e.clientX - rect.left) * scaleX);
+    const y = Math.round((e.clientY - rect.top) * scaleY);
+    fetch("/api/captcha/" + captchaQueueId + "/click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ x, y }),
+    }).catch(function () {});
+  });
+})();
 
 // Background badge poll every 10s
 (function startBadgePoll() {

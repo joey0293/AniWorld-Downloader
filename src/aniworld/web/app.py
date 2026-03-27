@@ -25,6 +25,7 @@ from .db import (
     add_to_queue,
     cancel_queue_item,
     clear_completed,
+    delete_completed_queue_item,
     find_autosync_by_url,
     get_autosync_job,
     get_autosync_jobs,
@@ -45,6 +46,8 @@ from .db import (
     remove_autosync_job,
     remove_custom_path,
     remove_from_queue,
+    set_captcha_url,
+    clear_captcha_url,
     set_queue_status,
     update_autosync_job,
     update_queue_errors,
@@ -170,6 +173,8 @@ def _queue_worker():
             elif custom_path_id:
                 selected_path = str(base)
 
+            from ..playwright import captcha as _captcha_mod
+
             for i, ep_url in enumerate(episodes):
                 update_queue_progress(item["id"], i, ep_url)
                 try:
@@ -182,8 +187,13 @@ def _queue_worker():
                     if selected_path:
                         ep_kwargs["selected_path"] = selected_path
                     episode = prov.episode_cls(**ep_kwargs)
-                    episode.download()
+                    _captcha_mod._local.queue_id = item["id"]
+                    try:
+                        episode.download()
+                    finally:
+                        _captcha_mod._local.queue_id = None
                 except Exception as e:
+                    _captcha_mod._local.queue_id = None
                     logger.error(f"Download failed for {ep_url}: {e}")
                     errors.append({"url": ep_url, "error": str(e)})
                     update_queue_errors(item["id"], json.dumps(errors))
@@ -214,7 +224,6 @@ def _ensure_queue_worker():
         return
     _queue_worker_started = True
 
-    # Crash recovery: reset any 'running' items back to 'queued'
     from .db import get_db
 
     conn = get_db()
@@ -222,6 +231,7 @@ def _ensure_queue_worker():
         conn.execute(
             "UPDATE download_queue SET status = 'queued' WHERE status = 'running'"
         )
+        conn.execute("UPDATE download_queue SET captcha_url = NULL")
         conn.commit()
     finally:
         conn.close()
@@ -558,6 +568,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     init_queue_db()
     init_custom_paths_db()
     init_autosync_db()
+
+    # Wire up captcha hooks so the Playwright module can signal the Web UI
+    from ..playwright import captcha as _captcha_mod
+    _captcha_mod._on_captcha_start = set_captcha_url
+    _captcha_mod._on_captcha_end = clear_captcha_url
 
     # In debug mode, Flask's reloader runs this in both the parent and child
     # process. Only start workers in the child (actual server) process
@@ -930,6 +945,60 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     def api_queue_clear():
         clear_completed()
         return jsonify({"ok": True})
+
+    # ── Captcha endpoints ─────────────────────────────────────────────────────
+
+    @app.route("/api/captcha/<int:queue_id>/screenshot")
+    def api_captcha_screenshot(queue_id):
+        """Return the latest JPEG screenshot of the Playwright captcha page."""
+        from ..playwright.captcha import _active_sessions, _active_sessions_lock
+        from flask import Response
+
+        with _active_sessions_lock:
+            session = _active_sessions.get(queue_id)
+        if not session:
+            return "", 404
+        data = session.get_screenshot()
+        if not data:
+            return "", 404
+        return Response(
+            data,
+            mimetype="image/jpeg",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Pragma": "no-cache",
+            },
+        )
+
+    @app.route("/api/captcha/<int:queue_id>/click", methods=["POST"])
+    def api_captcha_click(queue_id):
+        """Forward a click event (x, y) to the Playwright captcha browser."""
+        from ..playwright.captcha import _active_sessions, _active_sessions_lock
+
+        data = request.get_json(silent=True) or {}
+        x = data.get("x")
+        y = data.get("y")
+        if x is None or y is None:
+            return jsonify({"error": "x and y are required"}), 400
+        with _active_sessions_lock:
+            session = _active_sessions.get(queue_id)
+        if not session:
+            return jsonify({"error": "no active captcha session"}), 404
+        session.enqueue_click(int(x), int(y))
+        return jsonify({"ok": True})
+
+    @app.route("/api/captcha/<int:queue_id>/status")
+    def api_captcha_status(queue_id):
+        """Return whether a captcha session is active and whether it has been solved."""
+        from ..playwright.captcha import _active_sessions, _active_sessions_lock
+
+        with _active_sessions_lock:
+            session = _active_sessions.get(queue_id)
+        if not session:
+            return jsonify({"active": False})
+        return jsonify({"active": True, "done": session.done})
+
+    # ─────────────────────────────────────────────────────────────────────────
 
     @app.route("/library")
     def library_page():

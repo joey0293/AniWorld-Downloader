@@ -8,8 +8,10 @@ import niquests
 
 try:
     from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
+    from ...playwright.captcha import is_captcha_page, solve_captcha
 except ImportError:
     from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
+    from aniworld.playwright.captcha import is_captcha_page, solve_captcha
 
 # -----------------------------
 # Precompiled regex patterns
@@ -128,6 +130,15 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             resp.raise_for_status()
             html = resp.text
 
+            # Captcha on VOE page -> solve and retry this request
+            if is_captcha_page(html, resp.status_code):
+                solve_captcha(embeded_voe_link)
+                resp = GLOBAL_SESSION.get(
+                    embeded_voe_link, headers=enhanced_headers, timeout=timeout
+                )
+                resp.raise_for_status()
+                html = resp.text
+
             # Extract redirect URL
             redirect_match = REDIRECT_PATTERN.search(html)
             if redirect_match:
@@ -148,6 +159,15 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
                         )
                         resp.raise_for_status()
                         html = resp.text
+
+                        # Captcha on redirect target solve and retry
+                        if is_captcha_page(html, resp.status_code):
+                            solve_captcha(redirect_url)
+                            resp = GLOBAL_SESSION.get(
+                                redirect_url, headers=enhanced_headers, timeout=timeout
+                            )
+                            resp.raise_for_status()
+                            html = resp.text
                         break
                     except (niquests.RequestException, Exception) as err:
                         if redirect_attempt == max_retries - 1:

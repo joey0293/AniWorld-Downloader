@@ -11,7 +11,6 @@ from ...config import (
     logger,
 )
 from ...extractors import provider_functions
-from ...playwright.captcha import playwright_get_page_url
 from ..common import check_downloaded
 from ..common.common import (
     download as episode_download,
@@ -286,11 +285,7 @@ class SerienstreamEpisode:
     @property
     def provider_url(self):
         if self.__provider_url is None:
-            url = GLOBAL_SESSION.get(self.redirect_url)
-            if "<title>Stream wird vorbereitet...</title>" in url.text:
-                self.__provider_url = playwright_get_page_url(self.redirect_url)
-            else:
-                self.__provider_url = url.url
+            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url).url
         return self.__provider_url
 
     @property

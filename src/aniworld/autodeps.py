@@ -217,6 +217,38 @@ def get_syncplay_path() -> Path:
 # -----------------------------
 # Testing
 # -----------------------------
+def ensure_patchright_chromium():
+    """Install the patchright Chromium browser if not already present."""
+    _log = get_logger(__name__)
+    try:
+        import patchright  # noqa: F401
+    except ImportError:
+        _log.debug("patchright not installed, skipping chromium check")
+        return
+
+    try:
+        result = subprocess.run(
+            ["patchright", "install", "--dry-run", "chromium"],
+            capture_output=True,
+            text=True,
+        )
+        already_installed = result.returncode == 0 and "chromium" not in (result.stdout + result.stderr).lower()
+    except FileNotFoundError:
+        already_installed = False
+
+    try:
+        _log.debug("Ensuring patchright chromium is installed...")
+        subprocess.run(
+            ["patchright", "install", "chromium"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _log.debug("patchright chromium is ready")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        _log.debug(f"patchright chromium install failed (non-fatal): {e}")
+
+
 if __name__ == "__main__":
     print(get_player_path())
     print(get_syncplay_path())
