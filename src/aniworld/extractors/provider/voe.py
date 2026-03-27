@@ -100,7 +100,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
     """Get direct VOE video URL with improved retry logic."""
     if headers is None:
         headers = PROVIDER_HEADERS_D.get("VOE", {"User-Agent": DEFAULT_USER_AGENT})
-    
+
     # Enhanced headers for better compatibility
     enhanced_headers = {
         **headers,
@@ -110,55 +110,67 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
         "Connection": "keep-alive",
         "Upgrade-Insecure-Requests": "1",
     }
-    
+
     for attempt in range(max_retries):
         try:
             # Add delay between retries
             if attempt > 0:
-                wait_time = 2 ** attempt  # Exponential backoff: 2, 4, 8 seconds
-                print(f"Retry attempt {attempt + 1}/{max_retries}, waiting {wait_time}s...")
+                wait_time = 2**attempt  # Exponential backoff: 2, 4, 8 seconds
+                print(
+                    f"Retry attempt {attempt + 1}/{max_retries}, waiting {wait_time}s..."
+                )
                 time.sleep(wait_time)
-            
+
             # First request to VOE
-            resp = GLOBAL_SESSION.get(embeded_voe_link, headers=enhanced_headers, timeout=timeout)
+            resp = GLOBAL_SESSION.get(
+                embeded_voe_link, headers=enhanced_headers, timeout=timeout
+            )
             resp.raise_for_status()
             html = resp.text
-            
+
             # Extract redirect URL
             redirect_match = REDIRECT_PATTERN.search(html)
             if redirect_match:
                 redirect_url = redirect_match.group(0)
-                
+
                 # Second request with retry
                 for redirect_attempt in range(max_retries):
                     try:
                         if redirect_attempt > 0:
-                            wait_time = 2 ** redirect_attempt
-                            print(f"Redirect retry {redirect_attempt + 1}/{max_retries}, waiting {wait_time}s...")
+                            wait_time = 2**redirect_attempt
+                            print(
+                                f"Redirect retry {redirect_attempt + 1}/{max_retries}, waiting {wait_time}s..."
+                            )
                             time.sleep(wait_time)
-                        
-                        resp = GLOBAL_SESSION.get(redirect_url, headers=enhanced_headers, timeout=timeout)
+
+                        resp = GLOBAL_SESSION.get(
+                            redirect_url, headers=enhanced_headers, timeout=timeout
+                        )
                         resp.raise_for_status()
                         html = resp.text
                         break
                     except (niquests.RequestException, Exception) as err:
                         if redirect_attempt == max_retries - 1:
-                            raise ValueError(f"Failed to fetch redirect URL after {max_retries} attempts: {err}") from err
+                            raise ValueError(
+                                f"Failed to fetch redirect URL after {max_retries} attempts: {err}"
+                            ) from err
                         continue
-            
+
             source = extract_voe_source_from_html(html)
             if not source:
                 raise ValueError("No VOE video source found in page.")
-            
+
             print(f"✓ Successfully extracted VOE source on attempt {attempt + 1}")
             return source
-            
+
         except (niquests.RequestException, Exception) as err:
             if attempt == max_retries - 1:
-                raise ValueError(f"Failed to fetch VOE page after {max_retries} attempts: {err}") from err
+                raise ValueError(
+                    f"Failed to fetch VOE page after {max_retries} attempts: {err}"
+                ) from err
             print(f"Attempt {attempt + 1} failed: {str(err)[:100]}...")
             continue
-    
+
     raise ValueError("Unexpected error in get_direct_link_from_voe")
 
 
