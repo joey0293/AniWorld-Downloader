@@ -16,7 +16,6 @@ def playwright_get_page_url(url: str):
             if "<title>Stream wird vorbereitet...</title>" in page.content():
                 print("Captcha detected on the page...")
                 print(
-                    "Please open this url in your browser and solve it manually and press on next."
                     f"\nPlease solve the captcha in the now opened playwright browser manually and press next:\n{url}"
                 )
                 page.wait_for_timeout(3000)
@@ -27,7 +26,7 @@ def playwright_get_page_url(url: str):
                 print("Captcha solved...")
                 break
 
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(1000)
         browser.close()
 
         return page.url
