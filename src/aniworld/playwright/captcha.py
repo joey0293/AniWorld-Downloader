@@ -1,30 +1,36 @@
-from patchright.sync_api import sync_playwright
-
-
 def playwright_get_page_url(url: str):
+    try:
+        from patchright.sync_api import sync_playwright
+    except ImportError:
+        raise ImportError(
+            "Playwright is required for captcha handling. Please install it with 'pip install patchright' and run 'patchright install chromium'."
+        )
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
         page = browser.new_page()
         page.goto(url)
 
-        content = page.content()
-        if "captcha" in content.lower():
-            print("Captcha detected on the page.")
-
         for i in range(50):
             print(f"\nChecking for captcha... Attempt {i + 1}/50")
-            if "captcha" in page.content().lower():
-                print("Captcha still detected, waiting...")
-                page.wait_for_timeout(2000)
-            else:
+            if "<title>Stream wird vorbereitet...</title>" in page.content():
+                print("Captcha detected on the page...")
+                print(
+                    "Please open this url in your browser and solve it manually and press on next."
+                    f"\nPlease solve the captcha in the now opened playwright browser manually and press next:\n{url}"
+                )
+                page.wait_for_timeout(3000)
+
                 # TODO: currently manually, but will be automated by click
-                print("Captcha resolved.")
+                # click on <input type="checkbox"> somehow
+            else:
+                print("Captcha solved...")
                 break
 
         page.wait_for_timeout(5000)
         browser.close()
 
-        return page.content()
+        return page.url
 
 
 if __name__ == "__main__":
@@ -46,6 +52,8 @@ if __name__ == "__main__":
 
     if "<title>Stream wird vorbereitet...</title>" in final_url.text:
         print("Captcha detected, solving with Playwright...")
-        final_url = playwright_get_page_url(provider_link)
+        url = playwright_get_page_url(provider_link)
+    else:
+        url = final_url.url
 
-    print(f"Final URL: {final_url}")
+    print(f"Final URL: {url}")
