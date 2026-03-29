@@ -2,6 +2,8 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+
 # Install ffmpeg, Xvfb and system dependencies required by Chromium (patchright)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
