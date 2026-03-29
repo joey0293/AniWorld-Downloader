@@ -40,8 +40,11 @@ def aniworld():
     """Main entry point"""
     try:
         logger.debug("Starting...")
+        logger.info("Starting AniWorld-Downloader...")
         set_terminal_title()
+        logger.info("Checking dependencies...")
         ensure_patchright_chromium()
+        logger.info("Dependencies OK")
 
         args = parse_args()
 
