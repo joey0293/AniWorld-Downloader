@@ -143,7 +143,7 @@ def _solve_captcha_cli(url: str) -> bool:
                             cookie["value"],
                             domain=cookie.get("domain", "").lstrip("."),
                         )
-                    logger.info("CAPTCHA gelöst — Cookies in Session injiziert")
+                    logger.warning("CAPTCHA gelöst — Cookies in Session injiziert")
                 else:
                     logger.warning("CAPTCHA-Timeout nach 5 Minuten")
 
@@ -289,7 +289,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                         cookie["value"],
                         domain=cookie.get("domain", "").lstrip("."),
                     )
-                logger.info("CAPTCHA gelöst — Cookies in Session injiziert")
+                logger.warning("CAPTCHA gelöst — Cookies in Session injiziert")
             else:
                 logger.warning("CAPTCHA-Timeout nach 5 Minuten")
 
