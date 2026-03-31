@@ -23,17 +23,13 @@ const newSeriesGrid = document.getElementById("newSeriesGrid");
 const popularSeriesGrid = document.getElementById("popularSeriesGrid");
 const newSeriesSection = document.getElementById("newSeriesSection");
 const popularSeriesSection = document.getElementById("popularSeriesSection");
-const BROWSE_REFRESH_MS = 60000;
 
 let currentSeasons = [];
 let currentSeriesTitle = "";
 let currentSeriesUrl = "";
-let currentOpenSeriesToken = 0;
-let seasonEpisodesCache = {};
-let seasonEpisodesLoading = {};
-let providersLoadedForSeries = false;
 // Provider data per language label
 let availableProviders = null;
+let langSeparationEnabled = false;
 // Static list of providers rendered into the template
 const staticProviders = Array.from(providerSelect.options).map((o) => o.value);
 
@@ -81,29 +77,22 @@ async function loadDownloadedFolders() {
 }
 
 let stoLoadedAt = 0;
-let stoBrowsePromise = null;
-async function loadStoBrowse(force = false) {
-  if (!force && stoLoadedAt && Date.now() - stoLoadedAt < BROWSE_REFRESH_MS) return;
-  if (stoBrowsePromise) return stoBrowsePromise;
+async function loadStoBrowse() {
+  if (stoLoadedAt && Date.now() - stoLoadedAt < 3600000) return;
   stoLoadedAt = Date.now();
-  stoBrowsePromise = (async () => {
-    try {
-      const [newResp, popResp] = await Promise.all([
-        fetch("/api/new-series"),
-        fetch("/api/popular-series"),
-      ]);
-      await loadDownloadedFolders();
-      const newData = await newResp.json();
-      const popData = await popResp.json();
-      if (newData.results) renderBrowseCards(newSeriesGrid, newData.results);
-      if (popData.results) renderBrowseCards(popularSeriesGrid, popData.results);
-    } catch (e) {
-      stoLoadedAt = 0;
-    } finally {
-      stoBrowsePromise = null;
-    }
-  })();
-  return stoBrowsePromise;
+  try {
+    const [newResp, popResp] = await Promise.all([
+      fetch("/api/new-series"),
+      fetch("/api/popular-series"),
+    ]);
+    await loadDownloadedFolders();
+    const newData = await newResp.json();
+    const popData = await popResp.json();
+    if (newData.results) renderBrowseCards(newSeriesGrid, newData.results);
+    if (popData.results) renderBrowseCards(popularSeriesGrid, popData.results);
+  } catch (e) {
+    stoLoadedAt = 0;
+  }
 }
 
 function showBrowseSections() {
@@ -192,8 +181,6 @@ function rebuildLanguageSelect() {
     currentSite === "sto"
       ? window.STO_LANGS || {}
       : window.ANIWORLD_LANGS || {};
-  const previousValue = languageSelect.value;
-  const preferredValue = previousValue || window.DEFAULT_WEB_LANGUAGE || "German Dub";
   languageSelect.innerHTML = "";
 
   if (langSeparationEnabled) {
@@ -208,18 +195,6 @@ function rebuildLanguageSelect() {
     opt.value = label;
     opt.textContent = label;
     languageSelect.appendChild(opt);
-  }
-
-  const validValues = Array.from(languageSelect.options).map((opt) => opt.value);
-  if (validValues.includes(preferredValue)) {
-    languageSelect.value = preferredValue;
-  } else if (
-    currentSite === "aniworld" &&
-    validValues.includes(window.DEFAULT_WEB_LANGUAGE)
-  ) {
-    languageSelect.value = window.DEFAULT_WEB_LANGUAGE;
-  } else if (validValues.length) {
-    languageSelect.value = validValues[0];
   }
 }
 
@@ -269,53 +244,23 @@ function renderBrowseCards(grid, items) {
 }
 
 let aniLoadedAt = 0;
-let aniBrowsePromise = null;
-async function loadAniworldBrowse(force = false) {
-  if (!force && aniLoadedAt && Date.now() - aniLoadedAt < BROWSE_REFRESH_MS) return;
-  if (aniBrowsePromise) return aniBrowsePromise;
+async function loadAniworldBrowse() {
+  if (aniLoadedAt && Date.now() - aniLoadedAt < 3600000) return;
   aniLoadedAt = Date.now();
-  aniBrowsePromise = (async () => {
-    try {
-      const [newResp, popResp] = await Promise.all([
-        fetch("/api/new-animes"),
-        fetch("/api/popular-animes"),
-      ]);
-      await loadDownloadedFolders();
-      const newData = await newResp.json();
-      const popData = await popResp.json();
-      if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
-      if (popData.results) renderBrowseCards(popularAnimesGrid, popData.results);
-    } catch (e) {
-      aniLoadedAt = 0;
-    } finally {
-      aniBrowsePromise = null;
-    }
-  })();
-  return aniBrowsePromise;
+  try {
+    const [newResp, popResp] = await Promise.all([
+      fetch("/api/new-animes"),
+      fetch("/api/popular-animes"),
+    ]);
+    await loadDownloadedFolders();
+    const newData = await newResp.json();
+    const popData = await popResp.json();
+    if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
+    if (popData.results) renderBrowseCards(popularAnimesGrid, popData.results);
+  } catch (e) {
+    aniLoadedAt = 0;
+  }
 }
-
-function isBrowseVisible() {
-  return browseDiv.style.display !== "none" && !searchInput.value.trim();
-}
-
-function refreshVisibleBrowse(force = false) {
-  if (!isBrowseVisible()) return;
-  if (currentSite === "aniworld") loadAniworldBrowse(force);
-  else loadStoBrowse(force);
-}
-
-setInterval(() => {
-  refreshVisibleBrowse(true);
-}, BROWSE_REFRESH_MS);
-
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") refreshVisibleBrowse(true);
-});
-
-window.addEventListener("focus", () => {
-  refreshVisibleBrowse(true);
-});
-
 showBrowseSections();
 
 async function doSearch() {
@@ -391,7 +336,6 @@ async function loadPoster(url, imgEl) {
 }
 
 async function openSeries(url) {
-  const openToken = ++currentOpenSeriesToken;
   overlay.style.display = "block";
   document.getElementById("modalPoster").src = "";
   document.getElementById("modalTitle").textContent = "Loading...";
@@ -401,9 +345,6 @@ async function openSeries(url) {
   seasonAccordion.innerHTML = "";
   statusBar.classList.remove("active");
   availableProviders = null;
-  seasonEpisodesCache = {};
-  seasonEpisodesLoading = {};
-  providersLoadedForSeries = false;
   currentSeriesUrl = url;
   currentSeriesTitle = "";
   await checkLangSeparation();
@@ -418,7 +359,6 @@ async function openSeries(url) {
     ]);
     const seriesData = await seriesResp.json();
     const seasonsData = await seasonsResp.json();
-    if (openToken !== currentOpenSeriesToken) return;
 
     currentSeriesTitle = seriesData.title || "Unknown";
     document.getElementById("modalTitle").textContent = currentSeriesTitle;
@@ -433,7 +373,7 @@ async function openSeries(url) {
       seriesData.description || "";
 
     currentSeasons = seasonsData.seasons || [];
-    buildAccordion(currentSeasons, openToken);
+    buildAccordion(currentSeasons);
 
     // Check if auto-sync exists for this series
     if (autoSyncCheck) {
@@ -453,154 +393,101 @@ async function openSeries(url) {
   }
 }
 
-function buildAccordion(seasons, openToken) {
+function buildAccordion(seasons) {
   seasonAccordion.innerHTML = "";
+  episodeSpinner.style.display = "block";
   selectAllCb.checked = false;
-  episodeSpinner.style.display = seasons.length ? "block" : "none";
 
-  seasons.forEach((season, index) => {
-    const section = document.createElement("div");
-    section.className = "season-section";
-    section.dataset.seasonIndex = index;
+  // Fetch all seasons' episodes in parallel
+  const fetches = seasons.map((s, i) =>
+    fetch("/api/episodes?url=" + encodeURIComponent(s.url))
+      .then((r) => r.json())
+      .then((data) => ({ index: i, episodes: data.episodes || [] }))
+      .catch(() => ({ index: i, episodes: [] })),
+  );
 
-    const count =
-      typeof season.episode_count === "number" ? season.episode_count : "?";
-    const label = season.are_movies
-      ? `Movies (${count} episodes)`
-      : `Season ${season.season_number} (${count} episodes)`;
-
-    const header = document.createElement("div");
-    header.className = "season-header" + (index === 0 ? " expanded" : "");
-    header.innerHTML =
-      `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}</div>` +
-      `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
-    header.addEventListener("click", () => toggleSeason(index));
-
-    const body = document.createElement("div");
-    body.className = "season-body" + (index === 0 ? " expanded" : "");
-    body.id = "seasonBody-" + index;
-    body.innerHTML =
-      '<div style="color:#888;padding:12px 0;text-align:center">Loading episodes...</div>';
-
-    section.appendChild(header);
-    section.appendChild(body);
-    seasonAccordion.appendChild(section);
-  });
-
-  if (seasons.length) {
-    loadSeasonEpisodes(0, openToken).finally(() => {
-      if (openToken === currentOpenSeriesToken) {
-        episodeSpinner.style.display = "none";
-      }
-    });
-  } else {
+  Promise.all(fetches).then((results) => {
     episodeSpinner.style.display = "none";
-  }
-}
+    let firstProviderUrl = null;
 
-async function loadSeasonEpisodes(index, openToken = currentOpenSeriesToken) {
-  if (seasonEpisodesCache[index]) return seasonEpisodesCache[index];
-  if (seasonEpisodesLoading[index]) return seasonEpisodesLoading[index];
-  const season = currentSeasons[index];
-  const body = document.getElementById("seasonBody-" + index);
-  if (!season || !body) return [];
+    results.sort((a, b) => a.index - b.index);
+    results.forEach(({ index, episodes }) => {
+      const season = seasons[index];
+      const section = document.createElement("div");
+      section.className = "season-section";
+      section.dataset.seasonIndex = index;
 
-  seasonEpisodesLoading[index] = fetch(
-    "/api/episodes?url=" + encodeURIComponent(season.url),
-  )
-    .then((r) => r.json())
-    .then((data) => {
-      if (openToken !== currentOpenSeriesToken) return [];
-      const episodes = data.episodes || [];
-      seasonEpisodesCache[index] = episodes;
-      renderSeasonEpisodes(index, episodes);
-      if (!providersLoadedForSeries && episodes.length) {
-        providersLoadedForSeries = true;
-        fetchProviders(episodes[0].url);
+      const label = season.are_movies
+        ? `Movies (${episodes.length} episodes)`
+        : `Season ${season.season_number} (${episodes.length} episodes)`;
+
+      // Header
+      const allDownloaded =
+        episodes.length > 0 && episodes.every((ep) => ep.downloaded);
+      const seasonDlIcon = allDownloaded
+        ? '<span class="season-downloaded" title="All episodes downloaded">&#10003;</span>'
+        : "";
+      const header = document.createElement("div");
+      header.className = "season-header" + (index === 0 ? " expanded" : "");
+      header.innerHTML =
+        `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}${seasonDlIcon}</div>` +
+        `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
+      header.addEventListener("click", () => toggleSeason(index));
+
+      // Body
+      const body = document.createElement("div");
+      body.className = "season-body" + (index === 0 ? " expanded" : "");
+      body.id = "seasonBody-" + index;
+
+      episodes.forEach((ep) => {
+        const div = document.createElement("div");
+        div.className = "episode-item";
+        const title = ep.title_en || ep.title_de || "";
+        const dlIcon = ep.downloaded
+          ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>'
+          : "";
+        div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<span class="ep-title">${esc(title)}</span>`;
+        body.appendChild(div);
+      });
+
+      if (!firstProviderUrl && episodes.length) {
+        firstProviderUrl = episodes[0].url;
       }
-      return episodes;
-    })
-    .catch(() => {
-      if (openToken === currentOpenSeriesToken) {
-        body.innerHTML =
-          '<div style="color:#888;padding:12px 0;text-align:center">Failed to load episodes.</div>';
-      }
-      return [];
-    })
-    .finally(() => {
-      delete seasonEpisodesLoading[index];
+
+      section.appendChild(header);
+      section.appendChild(body);
+      seasonAccordion.appendChild(section);
     });
 
-  return seasonEpisodesLoading[index];
-}
-
-function renderSeasonEpisodes(index, episodes) {
-  const section = seasonAccordion.querySelector(`[data-season-index="${index}"]`);
-  const body = document.getElementById("seasonBody-" + index);
-  if (!section || !body) return;
-
-  body.innerHTML = "";
-  episodes.forEach((ep) => {
-    const div = document.createElement("div");
-    div.className = "episode-item";
-    const title = ep.title_en || ep.title_de || "";
-    const dlIcon = ep.downloaded
-      ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>'
-      : "";
-    div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<span class="ep-title">${esc(title)}</span>`;
-    body.appendChild(div);
+    // Fetch providers from first episode
+    if (firstProviderUrl) {
+      fetchProviders(firstProviderUrl);
+    }
   });
-
-  const header = section.querySelector(".season-header");
-  const season = currentSeasons[index];
-  const allDownloaded =
-    episodes.length > 0 && episodes.every((ep) => ep.downloaded);
-  const seasonDlIcon = allDownloaded
-    ? '<span class="season-downloaded" title="All episodes downloaded">&#10003;</span>'
-    : "";
-  const label = season.are_movies
-    ? `Movies (${episodes.length} episodes)`
-    : `Season ${season.season_number} (${episodes.length} episodes)`;
-  header.innerHTML =
-    `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}${seasonDlIcon}</div>` +
-    `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
 }
 
-async function toggleSeason(index) {
+function toggleSeason(index) {
   const section = seasonAccordion.querySelector(
     `[data-season-index="${index}"]`,
   );
   if (!section) return;
   const header = section.querySelector(".season-header");
   const body = section.querySelector(".season-body");
-  if (!body.classList.contains("expanded") && !seasonEpisodesCache[index]) {
-    await loadSeasonEpisodes(index);
-  }
   header.classList.toggle("expanded");
   body.classList.toggle("expanded");
 }
 
-async function toggleSeasonAll(checkbox, seasonIndex) {
+function toggleSeasonAll(checkbox, seasonIndex) {
   const body = document.getElementById("seasonBody-" + seasonIndex);
   if (!body) return;
-  if (!seasonEpisodesCache[seasonIndex]) {
-    await loadSeasonEpisodes(seasonIndex);
-  }
   body
     .querySelectorAll("input[type=checkbox]")
     .forEach((cb) => (cb.checked = checkbox.checked));
   syncSelectAll();
 }
 
-async function ensureAllSeasonsLoaded() {
-  await Promise.all(currentSeasons.map((_, index) => loadSeasonEpisodes(index)));
-}
-
-async function toggleSelectAll() {
+function toggleSelectAll() {
   const checked = selectAllCb.checked;
-  if (checked) {
-    await ensureAllSeasonsLoaded();
-  }
   seasonAccordion
     .querySelectorAll("input[type=checkbox]")
     .forEach((cb) => (cb.checked = checked));
@@ -691,11 +578,6 @@ function selectDefaultProvider() {
 }
 
 async function startDownload(all) {
-  if (all) {
-    episodeSpinner.style.display = "block";
-    await ensureAllSeasonsLoaded();
-    episodeSpinner.style.display = "none";
-  }
   const episodes = all ? getAllEpisodeUrls() : getSelectedEpisodeUrls();
   if (!episodes.length) {
     showToast(all ? "No episodes available." : "No episodes selected.");
@@ -752,11 +634,8 @@ async function toggleAutoSync() {
   if (!autoSyncCheck) return;
   if (autoSyncCheck.checked) {
     // Select all episodes
-    episodeSpinner.style.display = "block";
-    await ensureAllSeasonsLoaded();
-    episodeSpinner.style.display = "none";
     selectAllCb.checked = true;
-    await toggleSelectAll();
+    toggleSelectAll();
     // Create sync job
     try {
       const body = {
@@ -849,7 +728,6 @@ function esc(s) {
   return d.innerHTML;
 }
 
-let langSeparationEnabled = false;
 const downloadAllLangsBtn = document.getElementById("downloadAllLangsBtn");
 let defaultSyncLanguage = "German Dub";
 
@@ -870,9 +748,6 @@ async function checkLangSeparation() {
 }
 
 async function startDownloadAllLangs() {
-  episodeSpinner.style.display = "block";
-  await ensureAllSeasonsLoaded();
-  episodeSpinner.style.display = "none";
   const episodes = getAllEpisodeUrls();
   if (!episodes.length) {
     showToast("No episodes available.");
