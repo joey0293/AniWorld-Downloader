@@ -100,6 +100,8 @@ def _solve_captcha_cli(url: str) -> bool:
         logger.warning(f"CAPTCHA detected for {url} — opening browser for manual solving")
 
         try:
+            from ..autodeps import _ensure_xvfb
+            _ensure_xvfb()
             with sync_playwright() as p:
                 browser = p.chromium.launch(
                     headless=False,
@@ -230,6 +232,8 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
 
     global _captcha_state
     try:
+        from ..autodeps import _ensure_xvfb
+        _ensure_xvfb()
         with sync_playwright() as p:
             # headless=False required for Cloudflare/Turnstile to work.
             # Window pushed off-screen to avoid visible popup on server desktops.
