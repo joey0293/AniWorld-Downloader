@@ -17,6 +17,24 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+}
+
+.site-footer {
+  margin: auto 0 24px;
+  padding: 0 24px;
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.site-footer p {
+  margin: 0;
+}
+
+.site-footer a {
+  font-weight: 600;
 }
 a {
   color: #6ea8fe;
@@ -1695,6 +1713,10 @@ h1 {
 @media (max-width: 600px) {
   .container {
     padding: 20px 14px;
+  }
+  .site-footer {
+    margin: 24px 0 20px;
+    padding: 0 14px;
   }
   .modal {
     margin: 20px 12px;
