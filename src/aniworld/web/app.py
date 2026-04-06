@@ -633,11 +633,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/")
     def index():
         sto_lang_labels = {"1": "German Dub", "2": "English Dub"}
+        default_web_language = os.environ.get("ANIWORLD_LANGUAGE", "German Dub")
+        if default_web_language not in LANG_LABELS.values():
+            default_web_language = "German Dub"
         return render_template(
             "index.html",
             lang_labels=LANG_LABELS,
             sto_lang_labels=sto_lang_labels,
             supported_providers=WORKING_PROVIDERS,
+            default_web_language=default_web_language,
         )
 
     @app.route("/api/search", methods=["POST"])
