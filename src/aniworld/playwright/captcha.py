@@ -1,6 +1,7 @@
 import threading as _threading
 import queue as _queue_module
 import time as _time
+import random as _random
 
 # Threading-local: set queue_id from the web worker to enable interactive mode
 _local = _threading.local()
@@ -19,6 +20,56 @@ _captcha_state = None  # None or {"url": ..., "started_at": ..., "solved": bool}
 
 # Serialise concurrent solve attempts
 _captcha_lock = _threading.Lock()
+
+
+def _click_turnstile(page, logger=None) -> bool:
+    """Locate the Cloudflare Turnstile iframe and click its checkbox.
+
+    Uses human-like mouse movement (random offsets + step-based move) so that
+    Turnstile does not flag the click as automated.
+    Returns True if a click was performed.
+    """
+    selectors = (
+        "iframe[src*='challenges.cloudflare.com']",
+        "iframe[src*='cdn-cgi/challenge-platform']",
+    )
+    for selector in selectors:
+        try:
+            iframe_el = page.locator(selector).first
+            iframe_el.wait_for(state="visible", timeout=2500)
+            box = iframe_el.bounding_box()
+            if not box:
+                continue
+
+            # The checkbox sits on the left side of the widget (~28px in).
+            x = box["x"] + 28 + _random.uniform(-4, 4)
+            y = box["y"] + box["height"] / 2 + _random.uniform(-3, 3)
+
+            # Move in several steps, pause briefly, then mouse-down/up.
+            page.mouse.move(x, y, steps=_random.randint(8, 20))
+            page.wait_for_timeout(_random.randint(80, 250))
+            page.mouse.down()
+            page.wait_for_timeout(_random.randint(40, 100))
+            page.mouse.up()
+
+            if logger:
+                logger.info("Turnstile checkbox clicked")
+            return True
+        except Exception:
+            continue
+    return False
+
+
+def _is_turnstile_token_ready(page) -> bool:
+    """Check whether the Turnstile hidden input already carries a token."""
+    try:
+        return page.evaluate(
+            "() => { const el = document.querySelector"
+            "('input[name=\"cf-turnstile-response\"]');"
+            " return !!(el && el.value && el.value.length > 20); }"
+        )
+    except Exception:
+        return False
 
 
 def is_captcha_page(html: str, status_code: int = 200) -> bool:
@@ -103,23 +154,15 @@ def _solve_captcha_cli(url: str) -> bool:
             from ..autodeps import _ensure_xvfb
             _ensure_xvfb()
             with sync_playwright() as p:
-                browser = p.chromium.launch(
-                    headless=False,
-                    args=["--disable-blink-features=AutomationControlled"],
-                )
-                context = browser.new_context(
-                    user_agent=(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/124.0.0.0 Safari/537.36"
-                    )
-                )
+                browser = p.chromium.launch(headless=False)
+                context = browser.new_context()
                 page = context.new_page()
                 page.goto(url, wait_until="domcontentloaded")
 
                 timeout = 300  # 5 minutes
                 start = _time.time()
                 solved = False
+                turnstile_clicked = False
 
                 while _time.time() - start < timeout:
                     # Standard Cloudflare full-page challenge
@@ -148,14 +191,25 @@ def _solve_captcha_cli(url: str) -> bool:
                     except Exception:
                         pass
 
+                    # Click Turnstile checkbox if not yet clicked
+                    if not turnstile_clicked and not _is_turnstile_token_ready(page):
+                        if _click_turnstile(page, logger):
+                            turnstile_clicked = True
+                            page.wait_for_timeout(_random.randint(2000, 4000))
+                            continue
+                    elif turnstile_clicked and not _is_turnstile_token_ready(page):
+                        # Turnstile may have reset — allow re-click
+                        turnstile_clicked = False
+
                     # Auto-click Weiter once Turnstile token is present
-                    try:
-                        weiter = page.locator('button[type="submit"]')
-                        weiter.wait_for(state="visible", timeout=1500)
-                        weiter.click()
-                        page.wait_for_timeout(2000)
-                    except Exception:
-                        pass
+                    if _is_turnstile_token_ready(page):
+                        try:
+                            weiter = page.locator('button[type="submit"]')
+                            weiter.wait_for(state="visible", timeout=1500)
+                            weiter.click()
+                            page.wait_for_timeout(2000)
+                        except Exception:
+                            pass
 
                     _time.sleep(1.5)
 
@@ -249,6 +303,7 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                 _captcha_state = {"url": url, "started_at": _time.time(), "solved": False}
 
             solved = False
+            turnstile_clicked = False
             for _ in range(300):  # up to ~5 minutes
                 # Stream screenshot to Web UI
                 try:
@@ -290,14 +345,24 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                 except Exception:
                     pass
 
-                # Auto-click Weiter button
-                try:
-                    weiter_button = page.locator('button[type="submit"]')
-                    weiter_button.wait_for(state="visible", timeout=2000)
-                    weiter_button.click()
-                    page.wait_for_timeout(2000)
-                except Exception:
-                    pass
+                # Click Turnstile checkbox if not yet clicked
+                if not turnstile_clicked and not _is_turnstile_token_ready(page):
+                    if _click_turnstile(page):
+                        turnstile_clicked = True
+                        page.wait_for_timeout(_random.randint(2000, 4000))
+                        continue
+                elif turnstile_clicked and not _is_turnstile_token_ready(page):
+                    turnstile_clicked = False
+
+                # Auto-click Weiter button once Turnstile token is present
+                if _is_turnstile_token_ready(page):
+                    try:
+                        weiter_button = page.locator('button[type="submit"]')
+                        weiter_button.wait_for(state="visible", timeout=2000)
+                        weiter_button.click()
+                        page.wait_for_timeout(2000)
+                    except Exception:
+                        pass
 
                 page.wait_for_timeout(1000)
 
@@ -438,11 +503,12 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
             logger.warning(f"Opening episode page for modal solving: {episode_url}")
             page.goto(episode_url, wait_until="domcontentloaded")
 
-            # Single poll loop: streams screenshots from the start, waits for
-            # Turnstile to auto-fill, clicks Weiter once, then waits for result.
+            # Single poll loop: streams screenshots from the start, clicks
+            # Turnstile checkbox, clicks Weiter once, then waits for result.
             from urllib.parse import urlparse as _urlparse
             final_url = None
             weiter_clicked = False
+            turnstile_clicked = False
             start = _time.time()
 
             while _time.time() - start < 90:
@@ -461,16 +527,17 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
                             pass
 
                 if not weiter_clicked:
-                    # Check if Turnstile token is filled (user clicked checkbox
-                    # manually via WebUI click-forward or CLI browser window)
-                    try:
-                        token_ready = page.evaluate(
-                            "() => { const el = document.querySelector"
-                            "('input[name=\"cf-turnstile-response\"]');"
-                            " return !!(el && el.value && el.value.length > 20); }"
-                        )
-                    except Exception:
-                        token_ready = False
+                    token_ready = _is_turnstile_token_ready(page)
+
+                    # Click Turnstile checkbox if token not yet filled
+                    if not token_ready and not turnstile_clicked:
+                        if _click_turnstile(page, logger):
+                            turnstile_clicked = True
+                            page.wait_for_timeout(_random.randint(2000, 4000))
+                            continue
+                    elif not token_ready and turnstile_clicked:
+                        # Turnstile may have reset — allow re-click
+                        turnstile_clicked = False
 
                     if token_ready:
                         try:
