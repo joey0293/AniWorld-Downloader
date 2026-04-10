@@ -160,7 +160,20 @@ class AniworldEpisode:
     @property
     def provider_url(self):
         if self.__provider_url is None:
+            from urllib.parse import urlparse
+
             self.__provider_url = GLOBAL_SESSION.get(self.redirect_url).url
+            parsed_provider = urlparse((self.__provider_url or "").strip())
+            redirect_netloc = urlparse(self.redirect_url).netloc
+            if (
+                not parsed_provider.scheme
+                or not parsed_provider.netloc
+                or parsed_provider.netloc == redirect_netloc
+            ):
+                raise ValueError(
+                    f"Failed to resolve provider URL for {self.selected_provider} "
+                    f"from redirect {self.redirect_url}"
+                )
         return self.__provider_url
 
     @property

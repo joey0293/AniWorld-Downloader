@@ -304,6 +304,18 @@ class SerienstreamEpisode:
                     self.url, self.selected_provider, language_label
                 )
                 self.__provider_url = result if result else resp.url
+
+            parsed_provider = urlparse((self.__provider_url or "").strip())
+            redirect_netloc = urlparse(self.redirect_url).netloc
+            if (
+                not parsed_provider.scheme
+                or not parsed_provider.netloc
+                or parsed_provider.netloc == redirect_netloc
+            ):
+                raise ValueError(
+                    f"Failed to resolve provider URL for {self.selected_provider} "
+                    f"from redirect {self.redirect_url}"
+                )
         return self.__provider_url
 
     @property

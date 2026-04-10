@@ -1,7 +1,8 @@
 services:
   aniworld:
+    image: ghcr.io/phoenixthrush/aniworld-downloader:latest
     container_name: aniworld-downloader
-    build: .
+  # build: .
     ports:
       - "8080:8080"
     volumes:

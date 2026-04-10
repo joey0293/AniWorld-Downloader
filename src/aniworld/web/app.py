@@ -3,6 +3,7 @@ import re
 import threading
 import time
 
+import requests
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
@@ -107,6 +108,31 @@ SYNC_SCHEDULE_MAP = {
     "16h": 57600,
     "24h": 86400,
 }
+
+_PUBLIC_IP_LOOKUP_URLS = (
+    "https://api.ipify.org?format=json",
+    "https://ifconfig.me/all.json",
+)
+
+
+def _fetch_public_ip():
+    """Resolve the current public IP address of the running container."""
+    last_error = None
+    headers = {"User-Agent": "AniWorld Downloader"}
+    for url in _PUBLIC_IP_LOOKUP_URLS:
+        try:
+            resp = requests.get(url, headers=headers, timeout=5)
+            resp.raise_for_status()
+            data = resp.json()
+            ip = (data.get("ip") or data.get("ip_addr") or "").strip()
+            if ip:
+                return {"ip": ip, "source": url}
+            last_error = "No IP address returned by upstream service"
+        except requests.RequestException as exc:
+            last_error = str(exc)
+        except ValueError as exc:
+            last_error = f"Invalid response: {exc}"
+    raise RuntimeError(last_error or "Failed to resolve public IP")
 
 
 def _queue_worker():
@@ -607,11 +633,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.route("/")
     def index():
         sto_lang_labels = {"1": "German Dub", "2": "English Dub"}
+        default_web_language = os.environ.get("ANIWORLD_LANGUAGE", "German Dub")
+        if default_web_language not in LANG_LABELS.values():
+            default_web_language = "German Dub"
         return render_template(
             "index.html",
             lang_labels=LANG_LABELS,
             sto_lang_labels=sto_lang_labels,
             supported_providers=WORKING_PROVIDERS,
+            default_web_language=default_web_language,
         )
 
     @app.route("/api/search", methods=["POST"])
@@ -1136,6 +1166,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             }
         )
 
+    @app.route("/api/settings/public-ip", methods=["GET"])
+    def api_settings_public_ip():
+        try:
+            result = _fetch_public_ip()
+            return jsonify({"ok": True, **result})
+        except RuntimeError as exc:
+            logger.warning("Failed to resolve public IP: %s", exc)
+            return jsonify({"ok": False, "error": "Failed to fetch public IP"}), 502
+
     @app.route("/api/settings", methods=["PUT"])
     def api_settings_update():
         data = request.get_json(silent=True) or {}
@@ -1580,6 +1619,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         _admin_only = {
             "settings_page",
             "api_settings",
+            "api_settings_public_ip",
             "api_settings_update",
             "api_library_delete",
             "api_custom_paths_add",
