@@ -72,6 +72,99 @@ def _is_turnstile_token_ready(page) -> bool:
         return False
 
 
+def _neutralize_click_blockers(page) -> None:
+    """Disable common ad/overlay blockers that intercept submit clicks."""
+    try:
+        page.evaluate(
+            """
+            () => {
+                const selectors = [
+                    "iframe[id^='container-']",
+                    "a[id^='lk']",
+                    "div[id^='b'] iframe",
+                ];
+
+                for (const sel of selectors) {
+                    for (const el of document.querySelectorAll(sel)) {
+                        el.style.pointerEvents = "none";
+                        el.style.display = "none";
+                        el.setAttribute("aria-hidden", "true");
+                    }
+                }
+
+                for (const iframe of document.querySelectorAll("iframe")) {
+                    const r = iframe.getBoundingClientRect();
+                    if (r.width >= 700 && r.height >= 500) {
+                        iframe.style.pointerEvents = "none";
+                        iframe.style.display = "none";
+                        iframe.setAttribute("aria-hidden", "true");
+                    }
+                }
+            }
+            """
+        )
+    except Exception:
+        pass
+
+
+def _click_submit_button(page, logger=None) -> bool:
+    """Click the modal submit button with robust fallbacks for intercepted clicks."""
+    selectors = (
+        'button[type="submit"]',
+        "button:has-text('Weiter')",
+    )
+
+    for selector in selectors:
+        try:
+            button = page.locator(selector).first
+            button.wait_for(state="visible", timeout=2000)
+        except Exception:
+            continue
+
+        try:
+            button.click(timeout=2000)
+            return True
+        except Exception as err:
+            if logger:
+                logger.warning(f"Submit normal click failed: {err}")
+
+        _neutralize_click_blockers(page)
+
+        try:
+            button.click(force=True, timeout=2000)
+            return True
+        except Exception as err:
+            if logger:
+                logger.warning(f"Submit force-click failed: {err}")
+
+        try:
+            clicked = page.evaluate(
+                """
+                () => {
+                    const byType = document.querySelector("button[type='submit']");
+                    if (byType) {
+                        byType.click();
+                        return true;
+                    }
+                    const byText = Array.from(document.querySelectorAll("button"))
+                        .find((b) => (b.textContent || "").trim().toLowerCase() === "weiter");
+                    if (byText) {
+                        byText.click();
+                        return true;
+                    }
+                    return false;
+                }
+                """
+            )
+            if clicked:
+                return True
+        except Exception as err:
+            if logger:
+                logger.warning(f"Submit JS click failed: {err}")
+
+    return False
+
+
 def is_captcha_page(html: str, status_code: int = 200) -> bool:
     """Detect Cloudflare challenge / CAPTCHA pages."""
     if status_code in (403, 503):
@@ -204,10 +297,8 @@ def _solve_captcha_cli(url: str) -> bool:
                     # Auto-click Weiter once Turnstile token is present
                     if _is_turnstile_token_ready(page):
                         try:
-                            weiter = page.locator('button[type="submit"]')
-                            weiter.wait_for(state="visible", timeout=1500)
-                            weiter.click()
-                            page.wait_for_timeout(2000)
+                            if _click_submit_button(page, logger):
+                                page.wait_for_timeout(2000)
                         except Exception:
                             pass
 
@@ -357,10 +448,8 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
                 # Auto-click Weiter button once Turnstile token is present
                 if _is_turnstile_token_ready(page):
                     try:
-                        weiter_button = page.locator('button[type="submit"]')
-                        weiter_button.wait_for(state="visible", timeout=2000)
-                        weiter_button.click()
-                        page.wait_for_timeout(2000)
+                        if _click_submit_button(page, logger):
+                            page.wait_for_timeout(2000)
                     except Exception:
                         pass
 
@@ -541,11 +630,12 @@ def solve_sto_modal(episode_url: str, provider_name: str, language_label: str):
 
                     if token_ready:
                         try:
-                            weiter = page.locator('button[type="submit"]')
-                            weiter.wait_for(state="visible", timeout=2000)
-                            weiter.click()
-                            logger.warning("Submit clicked (Turnstile solved)")
-                            weiter_clicked = True
+                            if _click_submit_button(page, logger):
+                                logger.warning("Submit clicked (Turnstile solved)")
+                                weiter_clicked = True
+                            else:
+                                logger.warning("Submit click failed (will retry)")
+                            page.wait_for_timeout(1200)
                         except Exception as e:
                             logger.warning(f"Submit button error: {e}")
                 else:
