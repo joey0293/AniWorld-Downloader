@@ -20,7 +20,7 @@ except ImportError:
 # -----------------------------
 # Precompiled regex patterns
 # -----------------------------
-REDIRECT_PATTERN = re.compile(r"""['"](\s*https?://[^'"<>\s]+/e/[^'"<>\s]+)['"]""")
+REDIRECT_PATTERN = re.compile(r"https?://[^'\"<>]+")
 B64_PATTERN = re.compile(r"var a168c='([^']+)'")
 HLS_PATTERN = re.compile(r"'hls': '(?P<hls>[^']+)'")
 VOE_SCRIPT_PATTERN = re.compile(
@@ -71,46 +71,32 @@ def decode_voe_string(encoded):
 
 
 def extract_voe_source_from_html(html):
-    """Extract VOE video source — tries all known encoding variants."""
-    # Variant 1: <script type="application/json"> with encoded payload
+    """Extract VOE video source using regex + decode_voe_string"""
     try:
         script_blocks = re.findall(
             r'<script\s+type=["\']application/json["\']>(.*?)</script>', html, re.DOTALL
         )
+        if not script_blocks:
+            return None
+
         for script_block in script_blocks:
             encoded_text = script_block.strip()
             if encoded_text.startswith('"') and encoded_text.endswith('"'):
                 encoded_text = encoded_text[1:-1]
+
+            encoded_text = encoded_text.encode().decode("unicode_escape")
+
             try:
-                decoded = decode_voe_string(encoded_text.encode().decode("unicode_escape"))
+                decoded = decode_voe_string(encoded_text)
                 source = decoded.get("source")
                 if source:
                     return source
-            except (ValueError, UnicodeDecodeError):
+            except ValueError:
                 continue
-    except Exception:
-        pass
 
-    # Variant 2: var a168c='<encoded>' pattern
-    try:
-        m = B64_PATTERN.search(html)
-        if m:
-            decoded = decode_voe_string(m.group(1))
-            source = decoded.get("source")
-            if source:
-                return source
+        return None
     except Exception:
-        pass
-
-    # Variant 3: plain 'hls': '<url>' in page JS
-    try:
-        m = HLS_PATTERN.search(html)
-        if m:
-            return m.group("hls")
-    except Exception:
-        pass
-
-    return None
+        return None
 
 
 # -----------------------------
@@ -168,7 +154,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None, max_retries=3, time
             # Fallback: follow the redirect URL embedded in the page
             redirect_match = REDIRECT_PATTERN.search(html)
             if redirect_match:
-                redirect_url = redirect_match.group(1).strip()
+                redirect_url = redirect_match.group(0)
 
                 # Second request with retry
                 for redirect_attempt in range(max_retries):
