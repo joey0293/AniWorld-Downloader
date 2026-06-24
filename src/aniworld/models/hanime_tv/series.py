@@ -1,11 +1,14 @@
 import re
 from datetime import datetime, timezone
 
+import requests
+
 from ...config import logger
-from ...extractors.provider.hanime_tv import fetch_hanime_api_data
 from ..common import clean_title
 
+HANIME_API_URL = "https://hanime.tv/api/v8/video?id={slug}"
 HANIME_SEARCH_URL = "https://search.htv-services.com/"
+_HANIME_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
 
 class HanimeTVSeries:
@@ -71,7 +74,11 @@ class HanimeTVSeries:
     def _api_data(self):
         if self.__api_data is None:
             slug = self._slug_from_url(self.url)
-            self.__api_data = fetch_hanime_api_data(slug)
+            api_url = HANIME_API_URL.format(slug=slug)
+            logger.debug(f"fetching hanime API ({api_url})...")
+            resp = requests.get(api_url, headers=_HANIME_HEADERS, timeout=15)
+            resp.raise_for_status()
+            self.__api_data = resp.json()
         return self.__api_data
 
     @property
@@ -104,7 +111,9 @@ class HanimeTVSeries:
         if self.__genres is None:
             hv = self._api_data.get("hentai_video") or {}
             tags = hv.get("hentai_tags") or []
-            self.__genres = [t["text"] for t in tags if isinstance(t, dict) and "text" in t]
+            self.__genres = [
+                t["text"] for t in tags if isinstance(t, dict) and "text" in t
+            ]
         return self.__genres
 
     @property
