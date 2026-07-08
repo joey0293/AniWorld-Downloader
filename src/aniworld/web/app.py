@@ -400,8 +400,14 @@ def _run_autosync_for_job(job):
 
 
 def _autosync_worker():
-    """Background thread that periodically syncs all enabled autosync jobs."""
+    """Background thread that periodically syncs all enabled autosync jobs.
+
+    Uses short-polling (every 10 s) and checks each job's last_check
+    against the configured interval so that schedule changes take effect
+    immediately instead of blocking in a long sleep.
+    """
     import os
+    from datetime import datetime, timedelta
 
     while True:
         try:
@@ -411,13 +417,23 @@ def _autosync_worker():
                 time.sleep(10)
                 continue
 
+            now = datetime.utcnow()
             jobs = get_autosync_jobs()
             for job in jobs:
                 if not job.get("enabled"):
                     continue
+                # Per-job check: only run if enough time has elapsed
+                last_check = job.get("last_check")
+                if last_check:
+                    try:
+                        last_dt = datetime.strptime(last_check, "%Y-%m-%d %H:%M:%S")
+                    except (ValueError, TypeError):
+                        last_dt = datetime.min
+                    if now < last_dt + timedelta(seconds=interval):
+                        continue
                 _run_autosync_for_job(job)
 
-            time.sleep(interval)
+            time.sleep(10)
         except Exception as e:
             logger.error("Auto-sync worker error: %s", e, exc_info=True)
             time.sleep(30)

@@ -581,9 +581,28 @@ async function toggleAutoSync() {
       const data = await resp.json();
       if (data.ok) {
         showToast('Auto-Sync enabled for "' + currentSeriesTitle + '"');
+      } else if (resp.status === 409 && data.job) {
+        // Job already exists — update it with current modal settings
+        const updateBody = {
+          language: languageSelect.value,
+          provider: providerSelect.value,
+          custom_path_id: (customPathSelect && customPathSelect.value)
+            ? parseInt(customPathSelect.value)
+            : null,
+        };
+        const putResp = await fetch('/api/autosync/' + data.job.id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateBody),
+        });
+        const putData = await putResp.json();
+        if (putData.ok) {
+          showToast('Auto-Sync updated for "' + currentSeriesTitle + '"');
+        } else {
+          showToast(putData.error || 'Failed to update sync job');
+        }
       } else if (data.error) {
         showToast(data.error);
-        // If job already exists, keep checked
       }
     } catch (e) {
       showToast('Failed to create sync job');

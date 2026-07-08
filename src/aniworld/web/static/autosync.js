@@ -70,7 +70,11 @@ function renderJobs(jobs) {
         const lastCheck = job.last_check ? formatDate(job.last_check) : '—';
         const nextCheck = job.enabled ? computeNextCheck(job.last_check) : '—';
         const lastNew = job.last_new_found ? formatDate(job.last_new_found) : '—';
-        const dlPath = job.custom_path_id ? 'Custom #' + job.custom_path_id : 'Default';
+        let dlPath = 'Default';
+        if (job.custom_path_id) {
+            const cp = customPathsCache.find(p => p.id === job.custom_path_id);
+            dlPath = cp ? cp.name : 'Custom #' + job.custom_path_id;
+        }
         const addedBy = job.added_by ? esc(job.added_by) : '—';
         html += '<tr>' +
             '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:#e2e4e9" title="' + esc(job.series_url) + '">' + esc(job.title) + '</td>' +
@@ -238,5 +242,5 @@ function esc(s) {
 }
 
 // Init
-loadSyncSchedule().then(loadAutosyncJobs);
+Promise.all([loadSyncSchedule(), loadCustomPathsForEdit()]).then(loadAutosyncJobs);
 setInterval(loadAutosyncJobs, 30000);
