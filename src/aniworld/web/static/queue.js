@@ -87,29 +87,29 @@ function renderQueue(items) {
       }
       progressHtml =
         '<div class="queue-progress">' +
-          '<div class="queue-progress-info">' +
-            '<span>' + label + '</span>' +
-            '<span>' + pct + '%</span>' +
-          '</div>' +
-          '<div class="queue-progress-bar"><div class="queue-progress-fill" style="width:' + pct + '%"></div></div>' +
+        '<div class="queue-progress-info">' +
+        '<span>' + label + '</span>' +
+        '<span>' + pct + '%</span>' +
+        '</div>' +
+        '<div class="queue-progress-bar"><div class="queue-progress-fill" style="width:' + pct + '%"></div></div>' +
         '</div>';
     }
 
     let errorsHtml = '';
     if (item.errors) {
       let errors = [];
-      try { errors = typeof item.errors === 'string' ? JSON.parse(item.errors) : item.errors; } catch(e) {}
+      try { errors = typeof item.errors === 'string' ? JSON.parse(item.errors) : item.errors; } catch (e) { }
       if (errors.length) {
         const errId = 'qerr-' + item.id;
         let details = '';
-        errors.forEach(function(err) {
+        errors.forEach(function (err) {
           var ep = err.url ? parseSeasonEpisode(err.url) : '';
           var label = ep ? ep + ': ' : '';
           details += '<div class="queue-error-detail">' + escQ(label + (err.error || '')) + '</div>';
         });
         errorsHtml =
           '<div class="queue-errors queue-errors-expandable" onclick="this.classList.toggle(\'expanded\');document.getElementById(\'' + errId + '\').classList.toggle(\'expanded\')">' +
-            errors.length + ' error(s) <span class="queue-errors-toggle">&#9654;</span>' +
+          errors.length + ' error(s) <span class="queue-errors-toggle">&#9654;</span>' +
           '</div>' +
           '<div class="queue-error-details" id="' + errId + '">' + details + '</div>';
       }
@@ -127,20 +127,22 @@ function renderQueue(items) {
 
     const userHtml = item.username ? '<span class="queue-user">' + escQ(item.username) + '</span>' : '';
 
+    const syncBadge = item.source === 'sync' ? '<span class="queue-sync-badge">[Sync]</span> ' : '';
+
     html +=
       '<div class="' + cls + '">' +
-        '<div class="queue-item-header">' +
-          '<div class="queue-item-title">' + escQ(item.title) + '</div>' +
-          '<div class="queue-item-right">' + statusBadge + actionBtn + '</div>' +
-        '</div>' +
-        '<div class="queue-item-meta">' +
-          '<span>' + item.total_episodes + ' episode(s)</span>' +
-          '<span>' + escQ(item.language) + '</span>' +
-          '<span>' + escQ(item.provider) + '</span>' +
-          userHtml +
-        '</div>' +
-        progressHtml +
-        errorsHtml +
+      '<div class="queue-item-header">' +
+      '<div class="queue-item-title">' + syncBadge + escQ(item.title) + '</div>' +
+      '<div class="queue-item-right">' + statusBadge + actionBtn + '</div>' +
+      '</div>' +
+      '<div class="queue-item-meta">' +
+      '<span>' + item.total_episodes + ' episode(s)</span>' +
+      '<span>' + escQ(item.language) + '</span>' +
+      '<span>' + escQ(item.provider) + '</span>' +
+      userHtml +
+      '</div>' +
+      progressHtml +
+      errorsHtml +
       '</div>';
   });
 
@@ -182,8 +184,8 @@ async function moveQueueItem(id, direction) {
   try {
     const resp = await fetch('/api/queue/' + id + '/move', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({direction})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direction })
     });
     const data = await resp.json();
     if (data.error && typeof showToast === 'function') showToast(data.error);
@@ -209,14 +211,14 @@ function escQ(s) {
 }
 
 // ESC key closes queue modal
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape' && queueModalOpen) closeQueueModal();
 });
 
 // Background badge poll every 10s
 (function startBadgePoll() {
   loadQueue();
-  badgePollTimer = setInterval(function() {
+  badgePollTimer = setInterval(function () {
     if (!queueModalOpen) loadQueue();
   }, 10000);
 })();
