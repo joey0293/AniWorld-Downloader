@@ -9,13 +9,20 @@ description = "AniWorld-Downloader is a command-line tool for downloading and st
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-  'niquests',
-  'npyscreen',
-  'ffmpeg-python',
-  'python-dotenv',
-  'rich',
-  'fake-useragent',
-  'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"', # npyscreen
+    'niquests',
+    'npyscreen',
+    'ffmpeg-python',
+    'python-dotenv',
+    'rich',
+    'fake-useragent',
+    'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"', # npyscreen
+    'niquests',
+    'npyscreen',
+    'ffmpeg-python',
+    'python-dotenv',
+    'fake-useragent',  # maybe replaced in future
+    'flask',
+    'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"',  # needed for npyscreen on windows
 ]
 classifiers = [
   "Programming Language :: Python :: 3",

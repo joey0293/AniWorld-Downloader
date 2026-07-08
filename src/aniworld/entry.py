@@ -43,6 +43,14 @@ def aniworld():
 
         args = parse_args()
 
+        if args.web_ui:
+            from .web import start_web_ui
+            host = "0.0.0.0" if args.web_expose else "127.0.0.1"
+            port = args.web_port
+            open_browser = not args.no_browser
+            start_web_ui(host=host, port=port, open_browser=open_browser)
+            return 0
+
         action = (args.action or "download").lower()
 
         # ===== no-menu path =====
