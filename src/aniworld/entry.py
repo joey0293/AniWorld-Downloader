@@ -9,14 +9,14 @@ from .search import search
 logger = get_logger(__name__)
 
 
-def set_terminal_title() -> None:
+def set_terminal_title():
     """Set the terminal title if running in a TTY"""
     if sys.stdout.isatty():
         title = f"AniWorld-Downloader v.{VERSION}"
         print(f"\033]0;{title}\007", end="", flush=True)
 
 
-def aniworld() -> int:
+def aniworld():
     """Main entry point"""
     try:
         logger.debug("Starting...")

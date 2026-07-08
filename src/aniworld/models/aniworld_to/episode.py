@@ -29,7 +29,7 @@ class ProviderData:
 
     The internal structure is:
 
-        dict[(Audio, Subtitles)][provider_name] -> url
+        dict[(Audio, Subtitles)][provider_name]
 
     Meaning:
     - The key is a tuple of (Audio, Subtitles)
@@ -148,11 +148,15 @@ class AniworldEpisode:
         self.__title_en = title_en
         self.__episode_number = episode_number
 
+        self.__selected_path_param = selected_path
+        self.__selected_language_param = selected_language
+        self.__selected_provider_param = selected_provider
+
         self.__provider_data = None
 
-        self.selected_path = selected_path or Path.home() / "Downloads"
-        self.selected_language = selected_language or "German Dub"
-        self.selected_provider = selected_provider or "VOE"
+        self.__selected_path = None
+        self.__selected_language = None
+        self.__selected_provider = None
 
         self.__redirect_url = None
         self.__provider_url = None
@@ -171,7 +175,7 @@ class AniworldEpisode:
         self.__html = None
 
     @staticmethod
-    def is_valid_aniworld_episode_url(url: str) -> bool:
+    def is_valid_aniworld_episode_url(url):
         """
         Checks if the URL is a valid AniWorld episode URL.
         """
@@ -223,17 +227,17 @@ class AniworldEpisode:
     def _base_folder(self):
         if self.__base_folder is None:
             # Base folder: Series title + year
-            self.__base_folder = os.path.join(
-                self.selected_path,
-                f"{self.series.title_cleaned} ({self.series.release_year}) [imdbid-{self.series.imbd}]",
+            self.__base_folder = (
+                Path(self.selected_path)
+                / f"{self.series.title_cleaned} ({self.series.release_year}) [imdbid-{self.series.imbd}]"
             )
         return self.__base_folder
 
     @property
     def _folder_path(self):
         if self.__folder_path is None:
-            self.__folder_path = os.path.join(
-                self._base_folder, f"Season {self.season.season_number:02d}"
+            self.__folder_path = (
+                Path(self._base_folder) / f"Season {self.season.season_number:02d}"
             )
         return self.__folder_path
 
@@ -252,8 +256,8 @@ class AniworldEpisode:
     @property
     def _episode_path(self):
         if self.__episode_path is None:
-            self.__episode_path = os.path.join(
-                self._folder_path, f"{self._file_name}.{self._file_extension}"
+            self.__episode_path = (
+                Path(self._folder_path) / f"{self._file_name}.{self._file_extension}"
             )
         return self.__episode_path
 
@@ -334,11 +338,39 @@ class AniworldEpisode:
         return self.__html
 
     @property
-    def provider_data(self) -> ProviderData:
+    def provider_data(self):
         if self.__provider_data is None:
             raw = self.__extract_provider_data()
             self.__provider_data = ProviderData(raw)
         return self.__provider_data
+
+    # Load Configuration Values
+
+    @property
+    def selected_path(self):
+        if self.__selected_path is None:
+            self.__selected_path = self.__selected_path_param or os.getenv(
+                "ANIWORLD_DOWNLOAD_PATH", "Downloads"
+            )
+        return self.__selected_path
+
+    @property
+    def selected_language(self):
+        if self.__selected_language is None:
+            self.__selected_language = self.__selected_language_param or os.getenv(
+                "ANIWORLD_LANGUAGE", "German Dub"
+            )
+        return self.__selected_language
+
+    @property
+    def selected_provider(self):
+        if self.__selected_provider is None:
+            self.__selected_provider = self.__selected_provider_param or os.getenv(
+                "ANIWORLD_PROVIDER", "VOE"
+            )
+        return self.__selected_provider
+
+    ###
 
     @property
     def is_movie(self):

@@ -73,7 +73,7 @@ class AniworldSeries:
     # -----------------------------
 
     @staticmethod
-    def is_valid_aniworld_series_url(url: str) -> bool:
+    def is_valid_aniworld_series_url(url):
         """
         Checks if the URL is a valid AniWorld series URL.
         """
@@ -87,7 +87,7 @@ class AniworldSeries:
     # -----------------------------
 
     @property
-    def _html(self) -> str:
+    def _html(self):
         if self.__html is None:
             logger.debug(f"fetching ({self.url})...")
             resp = GLOBAL_SESSION.get(self.url)
@@ -95,13 +95,13 @@ class AniworldSeries:
         return self.__html
 
     @property
-    def title(self) -> str:
+    def title(self):
         if self.__title is None:
             self.__title = self.__extract_title()
         return self.__title
 
     @property
-    def title_cleaned(self) -> str:
+    def title_cleaned(self):
         if self.__title_cleaned is None:
             # Remove only forbidden characters for Windows/macOS/Linux
             forbidden_chars = r'[<>:"/\\|?*\:]'  # colon included for macOS
@@ -114,67 +114,67 @@ class AniworldSeries:
         return self.__title_cleaned
 
     @property
-    def description(self) -> str:
+    def description(self):
         if self.__description is None:
             self.__description = self.__extract_description()
         return self.__description
 
     @property
-    def genres(self) -> list[str]:
+    def genres(self):
         if self.__genres is None:
             self.__genres = self.__extract_genres()
         return self.__genres
 
     @property
-    def release_year(self) -> str:
+    def release_year(self):
         if self.__release_year is None:
             self.__release_year = self.__extract_release_year()
         return self.__release_year
 
     @property
-    def poster_url(self) -> str:
+    def poster_url(self):
         if self.__poster_url is None:
             self.__poster_url = self.__extract_poster_url()
         return self.__poster_url
 
     @property
-    def directors(self) -> list[str]:
+    def directors(self):
         if self.__directors is None:
             self.__directors = self.__extract_directors()
         return self.__directors
 
     @property
-    def actors(self) -> list[str]:
+    def actors(self):
         if self.__actors is None:
             self.__actors = self.__extract_actors()
         return self.__actors
 
     @property
-    def producer(self) -> str:
+    def producer(self):
         if self.__producer is None:
             self.__producer = self.__extract_producer()
         return self.__producer
 
     @property
-    def country(self) -> str:
+    def country(self):
         if self.__country is None:
             self.__country = self.__extract_country()
         return self.__country
 
     @property
-    def age_rating(self) -> str:
+    def age_rating(self):
         if self.__age_rating is None:
             self.__age_rating = self.__extract_age_rating()
         return self.__age_rating
 
     @property
-    def rating(self) -> str:
+    def rating(self):
         if self.__rating is None:
             self.__rating = self.__extract_rating()
         return self.__rating
 
     @property
-    def imbd(self) -> str:
+    def imbd(self):
         if self.__imbd is None:
             self.__imbd = self.__extract_imbd()
         return self.__imbd
@@ -341,7 +341,7 @@ class AniworldSeries:
 
         small_block = block[small_start:small_end]
 
-        def extract_year(marker: str) -> str | None:
+        def extract_year(marker):
             pos = small_block.find(marker)
             if pos == -1:
                 return None

@@ -46,7 +46,7 @@ class AniworldSeason:
         self.__html = None
 
     @staticmethod
-    def is_valid_aniworld_season_url(url: str) -> bool:
+    def is_valid_aniworld_season_url(url):
         """
         Checks if the URL is a valid AniWorld season URL.
         """

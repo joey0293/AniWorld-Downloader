@@ -1,12 +1,12 @@
-import os
 import platform
 import random
 import re
+from pathlib import Path
 
 
 def __load_ascii_content():
     """Load the contents of the ASCII.txt file."""
-    ascii_file = os.path.join(os.path.dirname(__file__), "ASCII.txt")
+    ascii_file = Path(__file__).parent / "ASCII.txt"
     with open(ascii_file, encoding="utf-8") as f:
         return f.read()
 
