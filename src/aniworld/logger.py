@@ -40,17 +40,28 @@ class ColorFormatter(logging.Formatter):
         return formatted
 
 
-def get_logger(name=__name__, level=logging.DEBUG):
-    logger = logging.getLogger(name)
-    if not logger.hasHandlers():
+# TODO: I dont like having global variables at all...
+_global_logger = None
+
+
+def get_logger(name=__name__, level=logging.WARNING):
+    global _global_logger
+    if _global_logger is None:
+        _global_logger = logging.getLogger("aniworld")
+
         log_format = "%(asctime)s - %(levelname)s - %(func_info)s - %(message)s"
         date_format = "%Y-%m-%d %H:%M:%S"
 
         handler = logging.StreamHandler()
         handler.setFormatter(ColorFormatter(log_format, datefmt=date_format))
 
-        logger.addHandler(handler)
-        logger.setLevel(level)
+        _global_logger.addHandler(handler)
+
+        if os.environ.get("ANIWORLD_DEBUG"):
+            _global_logger.setLevel(logging.DEBUG)
+        else:
+            _global_logger.setLevel(level)
 
         logging.getLogger("urllib3").setLevel(logging.WARNING)
-    return logger
+
+    return _global_logger

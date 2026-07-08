@@ -1,7 +1,9 @@
 from niquests import Session
-from logger import get_logger
+from .logger import get_logger
 
 logger = get_logger(__name__)
+
+VERSION = "4.0.0"
 
 GLOBAL_SESSION = Session(
     resolver=["doh+google://"],

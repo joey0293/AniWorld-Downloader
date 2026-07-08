@@ -1,0 +1,40 @@
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#a-full-example
+[project]
+name = "aniworld"
+version = "4.0.0"
+authors = [
+  { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" },
+]
+maintainers = [
+  { name="Phoenixthrush UwU", email="contact@phoenixthrush.com" }
+]
+description = "AniWorld-Downloader is a command-line tool for downloading and streaming movies and series."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    'niquests',
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICENSE"]
+
+[project.urls]
+# https://daniel.feldroy.com/posts/2023-08-pypi-project-urls-cheatsheet
+# https://github.com/pypi/warehouse/blob/70eac9796fa1eae24741525688a112586eab9010/warehouse/templates/packaging/detail.html#L20-L62
+homepage = "https://github.com/phoenixthrush/AniWorld-Downloader"
+changelog = "https://github.com/phoenixthrush/AniWorld-Downloader/commits/models"
+documentation = "https://readthedocs.org"
+bugs = "https://github.com/phoenixthrush/AniWorld-Downloader/issues"
+issues = "https://github.com/phoenixthrush/AniWorld-Downloader/issues"
+tracker = "https://github.com/phoenixthrush/AniWorld-Downloader/issues"
+download = "https://pypi.org/project/aniworld/#files"
+sponsor = "https://github.com/sponsors/phoenixthrush"
+funding = "https://github.com/sponsors/phoenixthrush"
+donate = "https://github.com/sponsors/phoenixthrush"
+discord = "https://discord.com/invite/BfDvrKd8V5"
+
+[project.scripts]
+aniworld = "aniworld.__main__:main"

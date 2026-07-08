@@ -1,6 +1,7 @@
 import re
 
-from config import logger, GLOBAL_SESSION
+from ...config import logger, GLOBAL_SESSION
+from .season import AniworldSeason
 
 
 class AniworldSeries:
@@ -612,8 +613,6 @@ class AniworldSeries:
         logger.debug("extracting seasons...")
 
         html = self._html
-
-        from AniworldSeason import AniworldSeason
 
         seasons = []
         seen = set()
