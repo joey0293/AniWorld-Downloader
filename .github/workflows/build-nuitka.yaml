@@ -1,3 +1,5 @@
+name: Build Executable with Nuitka
+
 on:
   workflow_dispatch:
 
