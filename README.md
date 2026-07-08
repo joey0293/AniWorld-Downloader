@@ -20,9 +20,10 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading anime
 
 ```bash
 # Installation - Stable Release (v.3.9.0)
-pip install -U aniworld
+pip install aniworld==3.9.0
 
 # Installation - Latest Development Version (v.4.0.0)
+# Menu will only work on Python 3.9-3.13 due to windows-curses dependency
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models#egg=aniworld
 
 # Usage
