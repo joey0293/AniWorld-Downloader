@@ -1,8 +1,8 @@
-import shutil
 from enum import Enum
 
 from niquests import Session
 
+from .autodeps import DependencyManager
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -133,6 +133,44 @@ INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}
 # Executables
 # -----------------------------
 
-# TODO: pull required deps automatically if needed
-SYNCPLAY_PATH = shutil.which("mpv")
-MPV_PATH = shutil.which("mpv")
+# TODO: add function to fetch latest url
+deps = {
+    "mpv": {
+        "Windows": {
+            "package": "mpv.net",
+            "url": "<>",
+        },
+        "Linux": {
+            "package": "mpv",
+            "url": "<>",
+        },
+        "Darwin": {
+            "package": "mpv",  # TODO: check env var if iina wanted instead in DependencyManager
+            "url": "<>",
+        },
+    },
+    "syncplay": {
+        "Windows": {
+            "package": "Syncplay.Syncplay",
+            "url": "<>",
+        },
+        "Linux": {
+            "package": "syncplay",
+            "url": "<>",
+        },
+        "Darwin": {
+            "package": "syncplay",
+            "url": "<>",
+        },
+    },
+}
+
+# TODO: maybe lazy load later :)
+
+deps_manager = DependencyManager(deps=deps)
+
+mpv_path = deps_manager.fetch_binary("mpv")
+syncplay_path = deps_manager.fetch_binary("syncplay")
+
+MPV_PATH = mpv_path
+SYNCPLAY_PATH = syncplay_path
