@@ -85,7 +85,7 @@ SUPPORTED_PROVIDERS = (
 )
 
 PROVIDER_HEADERS_D = {
-    "Vidmoly": {"Referer": "https://vidmoly.net"},
+    "Vidmoly": {"Referer": "https://vidmoly.biz"},
     "Doodstream": {"Referer": "https://dood.li/"},
     "VOE": {"User-Agent": DEFAULT_USER_AGENT},
     "LoadX": {"Accept": "*/*"},
@@ -99,7 +99,7 @@ PROVIDER_HEADERS_D = {
 }
 
 PROVIDER_HEADERS_W = {
-    "Vidmoly": {"Referer": "https://vidmoly.net"},
+    "Vidmoly": {"Referer": "https://vidmoly.biz"},
     "Doodstream": {"Referer": "https://dood.li/"},
     "VOE": {"User-Agent": DEFAULT_USER_AGENT},
     "Luluvdo": {"User-Agent": LULUVDO_USER_AGENT},

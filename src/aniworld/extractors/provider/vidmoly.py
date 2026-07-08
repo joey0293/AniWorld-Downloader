@@ -8,8 +8,8 @@ except ImportError:
 # -----------------------------
 # Constants
 # -----------------------------
-FILE_LINK_PATTERN = re.compile(r'file:\s*"(https?://[^"]+)"')
-PREVIEW_IMAGE_PATTERN = re.compile(r'image\s*:\s*"([^"]+\.jpg)"')
+FILE_LINK_PATTERN = re.compile(r'file\s*:\s*[\'"]([^\'"]+\.m3u8)[\'"]')
+PREVIEW_IMAGE_PATTERN = re.compile(r'image\s*:\s*[\'"]([^\'"]+\.(?:jpg|jpeg|png|webp))[\'"]')
 
 
 # -----------------------------
@@ -17,7 +17,7 @@ PREVIEW_IMAGE_PATTERN = re.compile(r'image\s*:\s*"([^"]+\.jpg)"')
 # -----------------------------
 def _get_headers():
     """Return headers for Vidmoly requests."""
-    return {"Referer": "https://vidmoly.net"}
+    return {"Referer": "https://vidmoly.biz"}
 
 
 def _extract_regex(pattern, content, name, url):
@@ -72,7 +72,7 @@ def get_preview_image_link_from_vidmoly(embed_url):
 
 
 if __name__ == "__main__":
-    # Tested on 2026/01/20 -> KIND OF WORKING
+    # Tested on 2026/01/27 -> WORKING
     # Example: https://vidmoly.net/embed-zquo82b8dm1k.html
 
     link = input("Enter Vidmoly Link: ").strip()
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         print("=" * 25)
 
         print(
-            f'mpv --http-header-fields="Referer: https://vidmoly.net" "{direct_link}"'
+            f'mpv --http-header-fields="Referer: https://vidmoly.biz" "{direct_link}"'
         )
         print("=" * 25)
 
