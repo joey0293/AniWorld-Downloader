@@ -602,8 +602,8 @@ class AniworldEpisode:
         # ---------------------------------------------------------
         # 6) Decide if we can download a single full stream
         # ---------------------------------------------------------
-        # German Dub or other source containing both video+audio needed
-        full_stream_needed = need_audio and need_video and wants_clean_video
+        # Download single stream when both audio and video needed (includes all language configs)
+        full_stream_needed = need_audio and need_video
 
         temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
         temp_video = self._episode_path.with_suffix(".temp_video.mkv")
