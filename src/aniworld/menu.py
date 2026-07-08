@@ -75,6 +75,7 @@ class Action(Enum):
 # ============================================================
 # Application
 # ============================================================
+# TODO: auto rescale on terminal size change
 class MenuApp(npyscreen.NPSApp):
     def main(self):
         npyscreen.setTheme(CustomTheme)

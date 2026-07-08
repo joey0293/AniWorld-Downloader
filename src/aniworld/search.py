@@ -1,9 +1,39 @@
 import curses
+import os
+import random
 
 from .ascii import display_ascii_art
 from .config import GLOBAL_SESSION, logger
 
 SEARCH_URL = "https://aniworld.to/ajax/search"
+RANDOM_URL = "https://aniworld.to/ajax/randomGeneratorSeries"
+
+
+def random_anime():
+    """Fetch a random anime series from Aniworld and return its URL."""
+    data = {"productionStart": "all", "productionEnd": "all", "genres[]": "all"}
+
+    try:
+        response = GLOBAL_SESSION.post(RANDOM_URL, data=data)
+        response.raise_for_status()
+        result = response.json()
+
+        if not result:
+            logger.error("Random anime response is empty")
+            return None
+
+        # Pick a random anime from the list
+        series = random.choice(result)
+        link = series.get("link")
+        if link:
+            return f"https://aniworld.to/anime/stream/{link}"
+        else:
+            logger.error("No link found in selected random anime")
+            return None
+
+    except Exception as e:
+        logger.error(f"Failed to fetch random anime: {e}")
+        return None
 
 
 def query(keyword):
@@ -68,33 +98,55 @@ def search():
     """Prompt user for a search keyword and return a single series URL using a curses menu."""
     display_ascii_art()
 
+    use_random = os.getenv("ANIWORLD_RANDOM_ANIME", "0") == "1"
+
+    if use_random:
+        # Get random anime directly
+        result = random_anime()
+        if result:
+            logger.debug(f"Random anime selected: {result}")
+            return result
+        else:
+            logger.error("Failed to get random anime. Please try again.")
+            return None
+
     while True:
         keyword = input("\nSearch for a series: ").strip()
         if not keyword:
-            print("No keyword entered, aborting search.")
+            logger.error("No keyword entered, aborting search.")
             return None
 
         results = query(keyword)
+
         if not results:
-            print("No series found for that keyword. Please try again.")
+            logger.error("No results found. Please try again.")
             continue
+
+        # Ensure results is always a list
+        if isinstance(results, dict):
+            results = [results]
+        elif isinstance(results, str):
+            # random_anime() could return a single URL string
+            return results
 
         # Filter results to only include links containing "/anime/stream/"
         stream_results = [
             item for item in results if "/anime/stream/" in item.get("link", "")
         ]
         if not stream_results:
-            print("No series found for that keyword. Please try again.")
+            logger.error("No streamable series found. Please try again.")
             continue
 
         # Auto-select if only one result
         if len(stream_results) == 1:
             selected_item = stream_results[0]
-            logger.debug(
-                f"Auto-selected: {selected_item.get('title', 'Unknown Title')}"
+            title = selected_item.get("title") or selected_item.get(
+                "name", "Unknown Title"
             )
+            logger.debug(f"Auto-selected: {title}")
             return f"https://aniworld.to{selected_item['link']}"
 
+        # Show curses menu if multiple results
         def menu_wrapper(stdscr):
             curses.start_color()
             curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
