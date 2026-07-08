@@ -1,13 +1,33 @@
-FROM python:3.13-alpine
+FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install ffmpeg for runtime media operations (e.g., muxing/transcoding helpers)
-RUN apk add --no-cache ffmpeg
+# Install ffmpeg and system dependencies required by Chromium (patchright)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxext6 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create an unprivileged user and pre-create the app/runtime directories it needs
 # This avoids running the app as root and prevents permission issues at runtime
-RUN adduser -D -h /home/aniworld aniworld \
+RUN adduser --disabled-password --gecos "" aniworld \
     && mkdir -p /app/Downloads /home/aniworld/.aniworld \
     && chown -R aniworld:aniworld /app /home/aniworld
 
@@ -32,6 +52,9 @@ COPY src/ /app/src/
 
 # Install the project into the image
 RUN pip install --no-cache-dir .
+
+# Pre-install patchright Chromium into the image so it's available at runtime
+RUN python -m patchright install chromium
 
 # Ensure the runtime directories are still writable after COPY overwrote ownership
 RUN chown -R aniworld:aniworld /app/Downloads /home/aniworld/.aniworld
