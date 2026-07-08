@@ -59,13 +59,13 @@ print(episode.provider_data)
 # result = episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
 # print(result)
 
-"""
+
 print(episode._base_folder)
 print(episode._folder_path)
 print(episode._file_name)
 print(episode._file_extension)
 print(episode._episode_path)
-"""
 
-episode.watch()
+
+# episode.watch()
 # print(episode.is_downloaded)

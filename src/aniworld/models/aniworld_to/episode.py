@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 from collections import defaultdict
+from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
 
@@ -235,7 +236,7 @@ class AniworldEpisode:
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
             )
-            self.__base_folder = self.selected_path / folder_str
+            self.__base_folder = Path(self.selected_path) / folder_str
         return self.__base_folder
 
     @property
@@ -266,6 +267,13 @@ class AniworldEpisode:
             # Remove extension
             if "." in file_template:
                 file_template = ".".join(file_template.split(".")[:-1])
+
+            # Replace %style% with {style} for compatibility
+            file_template = file_template.replace("%title%", "{title}")
+            file_template = file_template.replace("%year%", "{year}")
+            file_template = file_template.replace("%imdbid%", "{imdbid}")
+            file_template = file_template.replace("%season%", "{season}")
+            file_template = file_template.replace("%episode%", "{episode}")
 
             self.__file_name = file_template.format(
                 title=self.series.title_cleaned,
