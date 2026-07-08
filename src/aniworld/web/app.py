@@ -82,7 +82,6 @@ _STO_SERIES_LINK_PATTERN = re.compile(
 )
 
 
-
 # Queue worker state
 _queue_worker_started = False
 _queue_lock = threading.Lock()
@@ -264,7 +263,7 @@ def _run_autosync_for_job(job):
             "German Sub": "german-sub",
             "English Dub": "english-dub",
         }
-        
+
         target_languages = []
         if job.get("language") == "All Languages":
             disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
@@ -279,7 +278,9 @@ def _run_autosync_for_job(job):
         total_episodes_found = 0
 
         for target_lang in target_languages:
-            job_lang_folder = lang_folder_map.get(target_lang, target_lang.lower().replace(" ", "-"))
+            job_lang_folder = lang_folder_map.get(
+                target_lang, target_lang.lower().replace(" ", "-")
+            )
 
             raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
             if raw:
@@ -299,8 +300,7 @@ def _run_autosync_for_job(job):
             # Build set of downloaded (season, episode) on disk
             downloaded_eps = set()
             title_clean = (
-                getattr(series, "title_cleaned", None)
-                or getattr(series, "title", "")
+                getattr(series, "title_cleaned", None) or getattr(series, "title", "")
             ).lower()
             if title_clean:
                 ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
@@ -314,9 +314,8 @@ def _run_autosync_for_job(job):
                     if not base.is_dir():
                         continue
                     for folder in base.iterdir():
-                        if (
-                            not folder.is_dir()
-                            or not folder.name.lower().startswith(title_clean)
+                        if not folder.is_dir() or not folder.name.lower().startswith(
+                            title_clean
                         ):
                             continue
                         for f in folder.rglob("*"):
@@ -340,7 +339,7 @@ def _run_autosync_for_job(job):
                     if key not in downloaded_eps:
                         missing_episodes.append(ep.url)
 
-            # In "All Languages" mode we want to make sure the specific language is actually 
+            # In "All Languages" mode we want to make sure the specific language is actually
             # available on this episode before downloading? For VOE/Vidoza, it downloads what is chosen.
             # If a language isn't available, the extractor fails, which is fine (handled in queue).
             # But the queue item will contain episodes.
@@ -353,7 +352,9 @@ def _run_autosync_for_job(job):
                 # Skip if series is already queued or running for THIS language
                 if is_series_queued_or_running(job["series_url"], language=target_lang):
                     logger.info(
-                        "Auto-sync skipped '%s' (%s) — already queued/running", job["title"], target_lang
+                        "Auto-sync skipped '%s' (%s) — already queued/running",
+                        job["title"],
+                        target_lang,
                     )
                     continue
 
@@ -366,11 +367,15 @@ def _run_autosync_for_job(job):
                     provider=job["provider"],
                     username=job.get("added_by"),
                     custom_path_id=job.get("custom_path_id"),
-                    source="sync:all_langs" if job.get("language") == "All Languages" else "sync",
+                    source="sync:all_langs"
+                    if job.get("language") == "All Languages"
+                    else "sync",
                 )
                 logger.info(
                     "Auto-sync queued %d episodes for '%s' (%s)",
-                    len(missing_episodes), job["title"], target_lang
+                    len(missing_episodes),
+                    job["title"],
+                    target_lang,
                 )
 
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -378,7 +383,7 @@ def _run_autosync_for_job(job):
             "last_check": now_str,
             "episodes_found": total_episodes_found,
         }
-        
+
         if total_new_queued > 0:
             update_fields["last_new_found"] = now_str
 
@@ -386,6 +391,7 @@ def _run_autosync_for_job(job):
     except Exception as e:
         logger.error("Auto-sync failed for '%s': %s", job.get("title", "?"), e)
         from datetime import datetime
+
         update_autosync_job(
             job["id"],
             last_check=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
@@ -574,11 +580,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     @app.before_request
     def _enforce_json_content_type():
         """Reject non-JSON POST/PUT/DELETE on API routes to prevent form-based CSRF bypass."""
-        if request.method in ("POST", "PUT", "DELETE") and request.path.startswith("/api/"):
+        if request.method in ("POST", "PUT", "DELETE") and request.path.startswith(
+            "/api/"
+        ):
             if request.content_length and request.content_length > 0:
                 ct = request.content_type or ""
                 if not ct.startswith("application/json"):
-                    return jsonify({"error": "Content-Type must be application/json"}), 415
+                    return jsonify(
+                        {"error": "Content-Type must be application/json"}
+                    ), 415
 
     @app.route("/")
     def index():
@@ -874,7 +884,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         custom_path_id = data.get("custom_path_id")
 
         queue_id = add_to_queue(
-            title, series_url, episodes, language, provider, username,
+            title,
+            series_url,
+            episodes,
+            language,
+            provider,
+            username,
             custom_path_id=custom_path_id,
         )
         return jsonify({"queue_id": queue_id})
@@ -1117,10 +1132,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if not user:
             return None, False
         username = (
-            user.get("username") if isinstance(user, dict) else getattr(user, "username", None)
+            user.get("username")
+            if isinstance(user, dict)
+            else getattr(user, "username", None)
         )
         role = (
-            user.get("role") if isinstance(user, dict) else getattr(user, "role", "user")
+            user.get("role")
+            if isinstance(user, dict)
+            else getattr(user, "role", "user")
         )
         return username, role == "admin"
 
@@ -1145,7 +1164,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         existing = find_autosync_by_url(series_url)
         if existing:
-            return jsonify({"error": "A sync job for this series already exists", "job": existing}), 409
+            return jsonify(
+                {"error": "A sync job for this series already exists", "job": existing}
+            ), 409
 
         username, _ = _get_current_user_info()
         job_id = add_autosync_job(
@@ -1196,9 +1217,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         with _syncing_jobs_lock:
             if job_id in _syncing_jobs:
                 return jsonify({"error": "Sync already running for this job"}), 409
-        threading.Thread(
-            target=_run_autosync_for_job, args=(job,), daemon=True
-        ).start()
+        threading.Thread(target=_run_autosync_for_job, args=(job,), daemon=True).start()
         return jsonify({"ok": True, "message": "Sync started"})
 
     @app.route("/api/autosync/check", methods=["GET"])
@@ -1228,6 +1247,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         stats["next_run_at"] = None
         if interval and stats.get("last_check"):
             from datetime import datetime, timedelta
+
             try:
                 last = datetime.strptime(stats["last_check"], "%Y-%m-%d %H:%M:%S")
                 nxt = last + timedelta(seconds=interval)
@@ -1259,7 +1279,17 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
         lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
         ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
-        video_exts = {".mkv", ".mp4", ".avi", ".webm", ".flv", ".mov", ".wmv", ".m4v", ".ts"}
+        video_exts = {
+            ".mkv",
+            ".mp4",
+            ".avi",
+            ".webm",
+            ".flv",
+            ".mov",
+            ".wmv",
+            ".m4v",
+            ".ts",
+        }
 
         # Build list of (label, custom_path_id, base_path) to scan
         scan_targets = [("Default", None, dl_base)]
@@ -1305,7 +1335,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         for e in entry["seasons"][skey]
                     ):
                         entry["seasons"][skey].append(
-                            {"episode": enum, "file": f.name, "size": fsize, "is_video": is_video}
+                            {
+                                "episode": enum,
+                                "file": f.name,
+                                "size": fsize,
+                                "is_video": is_video,
+                            }
                         )
                         entry["total_size"] += fsize
 
@@ -1336,26 +1371,32 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 for lf in lang_folders:
                     lf_titles = _scan_base(base_path / lf)
                     if lf_titles:
-                        loc_lang_folders.append({
-                            "name": lf,
-                            "titles": lf_titles,
-                        })
+                        loc_lang_folders.append(
+                            {
+                                "name": lf,
+                                "titles": lf_titles,
+                            }
+                        )
                 if loc_lang_folders:
-                    locations.append({
-                        "label": label,
-                        "custom_path_id": cp_id,
-                        "lang_folders": loc_lang_folders,
-                        "titles": None,
-                    })
+                    locations.append(
+                        {
+                            "label": label,
+                            "custom_path_id": cp_id,
+                            "lang_folders": loc_lang_folders,
+                            "titles": None,
+                        }
+                    )
             else:
                 loc_titles = _scan_base(base_path)
                 if loc_titles:
-                    locations.append({
-                        "label": label,
-                        "custom_path_id": cp_id,
-                        "lang_folders": None,
-                        "titles": loc_titles,
-                    })
+                    locations.append(
+                        {
+                            "label": label,
+                            "custom_path_id": cp_id,
+                            "lang_folders": None,
+                            "titles": loc_titles,
+                        }
+                    )
 
         return jsonify({"lang_sep": lang_sep, "locations": locations})
 
@@ -1371,7 +1412,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         custom_path_id = data.get("custom_path_id")  # int or null
 
         # Security: reject dangerous folder names
-        if not folder or ".." in folder or "/" in folder or "\\" in folder or "\x00" in folder:
+        if (
+            not folder
+            or ".." in folder
+            or "/" in folder
+            or "\\" in folder
+            or "\x00" in folder
+        ):
             return jsonify({"error": "Invalid folder name"}), 400
 
         # Resolve base path from custom_path_id or default
@@ -1426,9 +1473,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         rf"S{int(season):02d}E{int(episode):03d}(?!\d)", re.IGNORECASE
                     )
                 else:
-                    pat = re.compile(
-                        rf"S{int(season):02d}E\d{{2,3}}", re.IGNORECASE
-                    )
+                    pat = re.compile(rf"S{int(season):02d}E\d{{2,3}}", re.IGNORECASE)
 
                 for f in list(title_path.rglob("*")):
                     if f.is_file() and pat.search(f.name):
@@ -1462,9 +1507,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         # Endpoints that require admin instead of just login
         _admin_only = {
-            "settings_page", "api_settings", "api_settings_update", "api_library_delete",
-            "api_custom_paths_add", "api_custom_paths_delete",
-            "api_autosync_create", "api_autosync_update", "api_autosync_delete",
+            "settings_page",
+            "api_settings",
+            "api_settings_update",
+            "api_library_delete",
+            "api_custom_paths_add",
+            "api_custom_paths_delete",
+            "api_autosync_create",
+            "api_autosync_update",
+            "api_autosync_delete",
             "api_autosync_trigger",
         }
 
