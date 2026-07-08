@@ -40,7 +40,7 @@ async function loadAutosyncJobs() {
         const data = await res.json();
         renderJobs(data.jobs || []);
     } catch (e) {
-        autosyncList.innerHTML = '<div class="autosync-empty">Failed to load sync jobs.</div>';
+        autosyncList.innerHTML = '<div class="queue-empty">Failed to load sync jobs.</div>';
     }
 }
 
@@ -57,15 +57,15 @@ function computeNextCheck(lastCheck) {
 
 function renderJobs(jobs) {
     if (!jobs.length) {
-        autosyncList.innerHTML = '<div class="autosync-empty">No sync jobs yet. Add a series via the search page.</div>';
+        autosyncList.innerHTML = '<div class="queue-empty">No sync jobs yet. Add a series via the search page.</div>';
         return;
     }
-    let html = '<table class="user-table autosync-table"><thead><tr>' +
+    let html = '<table class="user-table" style="table-layout:auto"><thead><tr>' +
         '<th>Title</th><th>Last Check</th><th>Re-Check at</th><th>Last New Found</th><th>Episodes</th>' +
         '<th>Download Path</th><th>Status</th><th>Added By</th><th>Actions</th>' +
         '</tr></thead><tbody>';
     for (const job of jobs) {
-        const statusClass = job.enabled ? 'autosync-status-enabled' : 'autosync-status-disabled';
+        const statusClass = job.enabled ? 'queue-status-completed' : 'queue-status-queued';
         const statusLabel = job.enabled ? 'Enabled' : 'Disabled';
         const lastCheck = job.last_check ? formatDate(job.last_check) : '—';
         const nextCheck = job.enabled ? computeNextCheck(job.last_check) : '—';
@@ -73,7 +73,7 @@ function renderJobs(jobs) {
         const dlPath = job.custom_path_id ? 'Custom #' + job.custom_path_id : 'Default';
         const addedBy = job.added_by ? esc(job.added_by) : '—';
         html += '<tr>' +
-            '<td class="autosync-title-cell" title="' + esc(job.series_url) + '">' + esc(job.title) + '</td>' +
+            '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;color:#e2e4e9" title="' + esc(job.series_url) + '">' + esc(job.title) + '</td>' +
             '<td>' + lastCheck + '</td>' +
             '<td>' + nextCheck + '</td>' +
             '<td>' + lastNew + '</td>' +
@@ -81,10 +81,10 @@ function renderJobs(jobs) {
             '<td>' + dlPath + '</td>' +
             '<td><span class="queue-status ' + statusClass + '">' + statusLabel + '</span></td>' +
             '<td>' + addedBy + '</td>' +
-            '<td><div class="autosync-actions">' +
-            '<button class="btn-autosync-action btn-edit" onclick="openEditModal(' + job.id + ')" title="Edit">✎</button>' +
-            '<button class="btn-autosync-action btn-sync" onclick="syncNow(' + job.id + ')" title="Sync Now">⟳</button>' +
-            '<button class="btn-autosync-action btn-del" onclick="removeJob(' + job.id + ')" title="Remove">✕</button>' +
+            '<td><div class="queue-item-right">' +
+            '<button class="queue-move" onclick="openEditModal(' + job.id + ')" title="Edit" style="font-size:.85rem">✎</button>' +
+            '<button class="queue-move" onclick="syncNow(' + job.id + ')" title="Sync Now" style="font-size:.85rem;color:#6ea8fe">⟳</button>' +
+            '<button class="queue-remove" onclick="removeJob(' + job.id + ')" title="Remove" style="font-size:.85rem">✕</button>' +
             '</div></td>' +
             '</tr>';
     }
