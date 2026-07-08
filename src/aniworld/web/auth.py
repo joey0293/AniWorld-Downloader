@@ -318,7 +318,7 @@ def oidc_callback():
 @auth_bp.route("/admin")
 @admin_required
 def admin_dashboard():
-    return render_template("admin.html")
+    return redirect(url_for("settings_page"))
 
 
 @auth_bp.route("/admin/api/users")

@@ -1,8 +1,43 @@
+// Download path settings
+const downloadPathInput = document.getElementById('downloadPath');
+
+async function loadSettings() {
+  try {
+    const resp = await fetch('/api/settings');
+    const data = await resp.json();
+    downloadPathInput.value = data.download_path || '';
+  } catch (e) {
+    showToast('Failed to load settings: ' + e.message);
+  }
+}
+
+async function saveDownloadPath() {
+  const download_path = downloadPathInput.value.trim();
+  try {
+    const resp = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({download_path})
+    });
+    const data = await resp.json();
+    if (data.error) { showToast(data.error); return; }
+    showToast('Download path saved');
+  } catch (e) {
+    showToast('Failed to save settings: ' + e.message);
+  }
+}
+
+loadSettings();
+
+// User management (only runs if the user table exists)
 const userTableBody = document.getElementById('userTableBody');
 
-loadUsers();
+if (userTableBody) {
+  loadUsers();
+}
 
 async function loadUsers() {
+  if (!userTableBody) return;
   try {
     const resp = await fetch('/admin/api/users');
     const data = await resp.json();

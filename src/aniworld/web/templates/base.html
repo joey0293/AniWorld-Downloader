@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}AniWorld Downloader{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="top-bar">
+  <div class="top-bar-left">
+    <a href="{{ url_for('index') }}" class="top-bar-brand">AniWorld Downloader</a>
+  </div>
+  <div class="top-bar-right">
+    {% if not auth_enabled or (current_user and current_user.role == 'admin') %}
+    <a href="{{ url_for('settings_page') }}" class="top-bar-link">Settings</a>
+    {% endif %}
+    {% if auth_enabled and current_user %}
+    <span class="top-bar-user">{{ current_user.username }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="top-bar-link">Logout</a>
+    {% endif %}
+  </div>
+</div>
+{% block content %}{% endblock %}
+<div class="toast" id="toast"></div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

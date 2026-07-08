@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Settings — AniWorld Downloader{% endblock %}
+{% block content %}
+<div class="settings-container">
+  <h1>Settings</h1>
+
+  <div class="settings-section">
+    <h2>Download Path</h2>
+    <div class="settings-row">
+      <input type="text" id="downloadPath" placeholder="/path/to/downloads">
+      <button onclick="saveDownloadPath()">Save</button>
+    </div>
+    <div class="settings-hint">Changes take effect immediately for new downloads</div>
+  </div>
+
+  {% if auth_enabled %}
+  <div class="settings-section">
+    <h2>User Management</h2>
+
+    {% if not force_sso %}
+    <div class="add-user-form" style="border:none;padding:0;margin-bottom:16px">
+      <h3>Add User</h3>
+      <div class="add-user-row">
+        <input type="text" id="newUsername" placeholder="Username">
+        <input type="password" id="newPassword" placeholder="Password">
+        <select id="newRole">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button onclick="addUser()">Add</button>
+      </div>
+    </div>
+    {% endif %}
+
+    <table class="user-table" id="userTable">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Auth</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="userTableBody"></tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='settings.js') }}"></script>
+{% endblock %}
