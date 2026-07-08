@@ -1,6 +1,15 @@
 let queueModalOpen = false;
 let queuePollTimer = null;
 let badgePollTimer = null;
+let queueCustomPaths = [];
+
+(async function loadQueueCustomPaths() {
+  try {
+    const resp = await fetch('/api/custom-paths');
+    const data = await resp.json();
+    queueCustomPaths = data.paths || [];
+  } catch (e) { /* ignore */ }
+})();
 
 function openQueueModal() {
   queueModalOpen = true;
@@ -127,7 +136,14 @@ function renderQueue(items) {
 
     const userHtml = item.username ? '<span class="queue-user">' + escQ(item.username) + '</span>' : '';
 
-    const syncBadge = item.source === 'sync' ? '<span class="queue-sync-badge">[Sync]</span> ' : '';
+    let pathHtml = '';
+    if (item.custom_path_id) {
+      const cp = queueCustomPaths.find(p => p.id === item.custom_path_id);
+      const pathName = cp ? cp.name : 'Custom #' + item.custom_path_id;
+      pathHtml = '<span class="queue-path">' + escQ(pathName) + '</span>';
+    }
+
+    const syncBadge = (item.source || '').startsWith('sync') ? '<span class="queue-sync-badge">[Sync]</span> ' : '';
 
     html +=
       '<div class="' + cls + '">' +
@@ -139,6 +155,7 @@ function renderQueue(items) {
       '<span>' + item.total_episodes + ' episode(s)</span>' +
       '<span>' + escQ(item.language) + '</span>' +
       '<span>' + escQ(item.provider) + '</span>' +
+      pathHtml +
       userHtml +
       '</div>' +
       progressHtml +

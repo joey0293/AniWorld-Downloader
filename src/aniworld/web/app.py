@@ -204,10 +204,6 @@ def _queue_worker():
                 )
                 set_queue_status(item["id"], status)
 
-                # Auto-remove completed sync items (non-failed)
-                if status == "completed" and (item.get("source") or "").startswith("sync"):
-                    delete_completed_queue_item(item["id"])
-                    logger.info("Auto-removed completed sync item %d", item["id"])
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
             time.sleep(3)
