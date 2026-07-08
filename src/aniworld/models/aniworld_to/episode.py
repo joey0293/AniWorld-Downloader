@@ -134,11 +134,23 @@ class AniworldEpisode:
         selected_provider:      Filemoon
         selected_path:          PosixPath('/Users/phoenixthrush/Downloads')
 
+        self._base_folder:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)
+        self._folder_path:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)/Season 01
+        self._file_name:        Highschool DxD S01E01.mp4
+        self._episode_path:     /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)/Season 01/Highschool DxD S01E01.mp4
+
         provider_link():        For example: provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
-        TODO: maybe provider_link_image_preview url
+        TODO: maybe provider_link_image_preview(): https://...
 
         _is_movie:              False
+        _is_downloaded:         True
         _html:                  <!doctype html> ...
+
+    <many other internal functions being used here>
+
+    download()
+    watch()
+    syncplay()
     """
 
     def __init__(
@@ -167,9 +179,51 @@ class AniworldEpisode:
         self.selected_language = selected_language or "German Dub"
         self.selected_provider = selected_provider or "Filemoon"
 
+        ### PATHS
+
+        # https://jellyfin.org/docs/general/server/media/shows/#organization
+
+        self.__base_folder = None
+        self.__folder_path = None
+        self.__file_name = None
+        self.__episode_path = None
+
+        ###
+
         self.__is_movie = None
+        self.__is_downloaded = None
 
         self.__html = None
+
+    @property
+    def _base_folder(self):
+        if self.__base_folder is None:
+            # Base folder: Series title + year
+            self.__base_folder = os.path.join(
+                self.selected_path,
+                f"{self.series.title_cleaned} ({self.series.release_year})",
+            )
+        return self.__base_folder
+
+    @property
+    def _folder_path(self):
+        if self.__folder_path is None:
+            self.__folder_path = os.path.join(
+                self._base_folder, f"Season {self.season.season_number:02d}"
+            )
+        return self.__folder_path
+
+    @property
+    def _file_name(self):
+        if self.__file_name is None:
+            self.__file_name = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:02d}.mp4"
+        return self.__file_name
+
+    @property
+    def _episode_path(self):
+        if self.__episode_path is None:
+            self.__episode_path = os.path.join(self._folder_path, self._file_name)
+        return self.__episode_path
 
     @property
     def title_de(self):
@@ -259,6 +313,12 @@ class AniworldEpisode:
         if self.__is_movie is None:
             self.__is_movie = self.__extract_is_movie()
         return self.__is_movie
+
+    @property
+    def is_downloaded(self):
+        if self.__is_downloaded is None:
+            self.__is_downloaded = os.path.isfile(self._episode_path)
+        return self.__is_downloaded
 
     def __extract_episode_number(self):
         """
@@ -350,35 +410,11 @@ class AniworldEpisode:
     def download(self):
         print(f"[DOWNLOADING] {self.url}")
 
-        series = self.series
-        season = self.season
-
-        # https://jellyfin.org/docs/general/server/media/shows/#organization
-
-        # Base folder: Series title + year
-        base_folder = os.path.join(
-            self.selected_path, f"{series.title_cleaned} ({series.release_year})"
-        )
-
-        """
-        if self.is_movie:
-            folder_path = os.path.join(base_folder, "Season 00")
-            file_name = f"{series.title_cleaned} S{season.season_number:02d}E{self.episode_number:02d}.mp4"
-        else:
-            folder_path = os.path.join(
-                base_folder, f"Season {season.season_number:02d}"
-            )
-            file_name = f"{series.title_cleaned} S{season.season_number:02d}E{self.episode_number:02d}.mp4"
-        """
-
-        folder_path = os.path.join(base_folder, f"Season {season.season_number:02d}")
-        file_name = f"{series.title_cleaned} S{season.season_number:02d}E{self.episode_number:02d}.mp4"
-
         # Create folder if it doesn't exist
-        os.makedirs(folder_path, exist_ok=True)
+        os.makedirs(self._folder_path, exist_ok=True)
 
         # Create the empty file
-        Path(os.path.join(folder_path, file_name)).touch()
+        Path(self._episode_path).touch()
 
     def watch(self):
         print(f"[WATCHING] {self.series.title} Movie E{self.episode_number:02d}.mp4")
