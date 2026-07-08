@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+
 from config import logger, GLOBAL_SESSION
 from AniworldSeries import AniworldSeries
 from AniworldEpisode import AniworldEpisode
@@ -7,24 +7,35 @@ from AniworldEpisode import AniworldEpisode
 
 class AniworldSeason:
     """
-    Attributes:
-        series
-        url
-        season_number
-        episode_count
-        episodes
-        _html
+    Represents a single season (or a movie collection) of an AniWorld anime series.
+
+    Parameters:
+        series:     Parent series object.
+        url:        Required. The AniWorld URL for this season, e.g.
+                    https://aniworld.to/anime/stream/highschool-dxd/staffel-1
+
+    Attributes (Example):
+        series:         <AniworldSeries object>
+        url:            https://aniworld.to/anime/stream/highschool-dxd/staffel-1
+        are_movies:     False
+        season_number:  1
+        episode_count:  12
+        episodes:       [<AniworldEpisode object>, <AniworldEpisode object>, ...]
+        _html:          <!doctype html> ...
     """
 
-    def __init__(self, url: str, series: Optional[AniworldSeries] = None):
+    def __init__(self, url, series=None):
         self._series = series
         self.url = url
 
-        self.__html = None
-
+        self.__are_movies = None
         self.__season_number = None
-        self.__episode_count = None  # lazy-loaded episode count
-        self.__episodes = None  # lazy-loaded list of AniworldEpisode
+        self.__episode_count = None
+        self.__episodes = (
+            None  # TODO IMPORTANT: episode objects are not being created for movies
+        )
+
+        self.__html = None
 
     @property
     def series(self):
@@ -35,12 +46,18 @@ class AniworldSeason:
         return self._series
 
     @property
-    def _html(self) -> str:
+    def _html(self):
         if self.__html is None:
             logger.debug(f"fetching ({self.url})...")
             resp = GLOBAL_SESSION.get(self.url)
             self.__html = resp.text
         return self.__html
+
+    @property
+    def are_movies(self):
+        if self.__are_movies is None:
+            self.__are_movies = self.__check_if_are_movies()
+        return self.__are_movies
 
     @property
     def season_number(self):
@@ -68,12 +85,22 @@ class AniworldSeason:
     # Extraction helpers
     # -----------------------------
 
+    def __check_if_are_movies(self):
+        return (
+            re.fullmatch(r"https://aniworld\.to/anime/stream/[^/]+/filme", self.url)
+            is not None
+        )
+
     def __extract_season_number(self):
+        if self.are_movies:
+            return 0
+
         match = re.search(r"staffel-(\d+)", self.url)
         if match:
             return int(match.group(1))
         return None
 
+    # TODO: FIXXX - DOES NOT WORK
     def __extract_episodes(self):
         """
             <tbody id="season1">
@@ -93,140 +120,64 @@ class AniworldSeason:
                 <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-2"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
                 <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-2"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
             </tr>
-            <tr class="" data-episode-id="2313" data-episode-season-id="3" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="3"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-3"> Folge 3 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-3"> <strong>Unerwarteter Besuch</strong> - <span>Unexpected Visitors</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-3"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-3"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2314" data-episode-season-id="4" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="4"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-4"> Folge 4 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-4"> <strong>Die Starken</strong> - <span>The Strong</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-4"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-4"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2315" data-episode-season-id="5" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="5"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-5"> Folge 5 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-5"> <strong>Abenteuer und Alltag</strong> - <span>Adventures and Daily Life</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-5"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-5"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2316" data-episode-season-id="6" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="6"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-6"> Folge 6 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-6"> <strong>Goblintöten in Wasserstadt</strong> - <span>Goblin Slayer in the Water Town</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-6"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-6"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2317" data-episode-season-id="7" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="7"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-7"> Folge 7 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-7"> <strong>Auf in den Tod</strong> - <span>Onward Unto Death</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-7"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-7"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2318" data-episode-season-id="8" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="8"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-8"> Folge 8 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-8"> <strong>Flüstern, Gebete und Gesänge</strong> - <span>Whispers and Prayers and Chants</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-8"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-8"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2319" data-episode-season-id="9" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="9"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-9"> Folge 9 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-9"> <strong>Hin und zurück</strong> - <span>There and Back Again</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-9"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-9"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2320" data-episode-season-id="10" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="10"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-10"> Folge 10 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-10"> <strong>Schlummer</strong> - <span>Dozing</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-10"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-10"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2321" data-episode-season-id="11" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="11"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-11"> Folge 11 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-11"> <strong>Ein Festmahl für Abenteurer</strong> - <span>A Gathering of Adventurers</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-11"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-11"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
-            <tr class="" data-episode-id="2322" data-episode-season-id="12" itemprop="episode" itemscope="" itemtype="http://schema.org/Episode">
-                <td class="season1EpisodeID">
-                    <meta itemprop="episodeNumber" content="12"><a itemprop="url" href="/anime/stream/goblin-slayer/staffel-1/episode-12"> Folge 12 </a>
-                </td>
-                <td class="seasonEpisodeTitle"><a href="/anime/stream/goblin-slayer/staffel-1/episode-12"> <strong>Vom Ende eines Abenteurers</strong> - <span>The Fate of an Adventurer</span> </a></td>
-                <td><a href="/anime/stream/goblin-slayer/staffel-1/episode-12"> <i class="icon VOE" title="VOE"></i><i class="icon Filemoon" title="Filemoon"></i><i class="icon Vidmoly" title="Vidmoly"></i> </a></td>
-                <td class="editFunctions"><a href="/anime/stream/goblin-slayer/staffel-1/episode-12"> <img class="flag" src="/public/img/german.svg" alt="Deutsche Sprache, Flagge" title="Deutsch/German"> <img class="flag" src="/public/img/japanese-german.svg" alt="Deutsche Flagge, Untertitel, Flagge" title="Mit deutschem Untertitel"> <img class="flag" src="/public/img/japanese-english.svg" alt="Englische Sprache, Flagge" title="Englisch"> </a></td>
-            </tr>
+            ...
         </tbody>
         """
-        logger.debug("extracting episodes...")
 
-        html = self._html
-        episodes = []
+        """
+            TODO for Tobias:
+            I have those entries like above this comment and I want to create episode objects for each episode lol
 
-        marker = 'itemtype="http://schema.org/Episode"'
-        pos = 0
+            you need to create a providers variable which holds languages and providers and this combo gives you a direct link
+            
+            after that count all languages that can be build using this:
 
-        while True:
-            pos = html.find(marker, pos)
-            if pos == -1:
-                break
+            class Audio(Enum):
+                JAPANESE = "Japanese"
+                GERMAN = "German"
+                ENGLISH = "English"
 
-            tr_start = html.rfind("<tr", 0, pos)
-            tr_end = html.find("</tr>", pos)
-            if tr_start == -1 or tr_end == -1:
-                break
 
-            tr_html = html[tr_start:tr_end]
+            class Subtitles(Enum):
+                NONE = "None"
+                GERMAN = "German"
+                ENGLISH = "English"
 
-            # Episode number
-            ep_num = None
-            meta_pos = tr_html.find('itemprop="episodeNumber"')
-            if meta_pos != -1:
-                c_start = tr_html.find('content="', meta_pos) + 9
-                c_end = tr_html.find('"', c_start)
-                ep_num = int(tr_html[c_start:c_end])
 
-            # Episode URL
-            ep_url = None
-            url_pos = tr_html.find('itemprop="url"')
-            if url_pos != -1:
-                h_start = tr_html.find('href="', url_pos) + 6
-                h_end = tr_html.find('"', h_start)
-                ep_url = tr_html[h_start:h_end]
-                if ep_url.startswith("/"):
-                    ep_url = "https://aniworld.to" + ep_url
+            def parse_source(source: str):
+                source = source.lower()
 
-            # Titles
-            title_de = None
-            s_start = tr_html.find("<strong>")
-            if s_start != -1:
-                s_start += 8
-                s_end = tr_html.find("</strong>", s_start)
-                title_de = tr_html[s_start:s_end].strip()
+                # Audio
+                if "dub" in source:
+                    if "german" in source:
+                        audio = Audio.GERMAN
+                    elif "english" in source:
+                        audio = Audio.ENGLISH
+                    else:
+                        audio = Audio.JAPANESE
+                    subtitles = Subtitles.NONE
 
-            title_en = None
-            span_start = tr_html.find("<span>")
-            if span_start != -1:
-                span_start += 6
-                span_end = tr_html.find("</span>", span_start)
-                title_en = tr_html[span_start:span_end].strip()
+                # Subtitles
+                elif "sub" in source:
+                    audio = Audio.JAPANESE
+                    if "german" in source:
+                        subtitles = Subtitles.GERMAN
+                    elif "english" in source:
+                        subtitles = Subtitles.ENGLISH
+                    else:
+                        subtitles = Subtitles.NONE
+
+                else:
+                    raise ValueError(f"Unknown source format: {source}")
+
+                return audio, subtitles
+
+
+            for example if there only is German Dub available you need to somehow store this information in languages
+
+            that will tell me that only audio german and no subtitles are possible
+
+            but in a way that I am able to access this direct link using a language and provider pair when querying
 
             if ep_url and ep_num:
                 episodes.append(
@@ -236,10 +187,86 @@ class AniworldSeason:
                         episode_number=ep_num,
                         title_de=title_de,
                         title_en=title_en,
+                        languages=languages,  # just pass all languages that are contained in the providers dict
+                        providers=providers,
                     )
                 )
+        """
 
-            pos = tr_end
+        from bs4 import BeautifulSoup
+
+        episodes = []
+
+        soup = BeautifulSoup(self._html, "html.parser")
+        rows = soup.select("tbody#season1 tr")
+
+        for row in rows:
+            # Episode number
+            ep_num = int(row.select_one("meta[itemprop='episodeNumber']")["content"])
+
+            # Titles
+            title_de = row.select_one("td.seasonEpisodeTitle strong").get_text(
+                strip=True
+            )
+            title_en_span = row.select_one("td.seasonEpisodeTitle span")
+            title_en = title_en_span.get_text(strip=True) if title_en_span else title_de
+
+            # Generic episode URL
+            ep_url = row.select_one("td.season1EpisodeID a")["href"]
+
+            # Hosters and their direct links
+            hoster_links = {}
+            for i_tag in row.select("td a i.icon"):
+                hoster_name = i_tag.get("title")
+                if hoster_name:
+                    hoster_links[hoster_name] = i_tag.find_parent("a")["href"]
+
+            # Languages and providers mapping
+            providers = {}
+            languages_set = set()
+            flags = [img["title"] for img in row.select("td.editFunctions img")]
+
+            for flag in flags:
+                if "Deutsch/German" in flag:
+                    src_str = "German Dub"
+                elif "Englisch" in flag and "Untertitel" not in flag:
+                    src_str = "English Dub"
+                elif "Mit deutschem Untertitel" in flag:
+                    src_str = "German Sub"
+                elif "Mit englischem Untertitel" in flag:
+                    src_str = "English Sub"
+                else:
+                    continue
+
+                # Parse audio/subtitle
+                from config import parse_source
+
+                audio, sub = parse_source(src_str)
+                languages_set.add((audio, sub))
+
+                # Map each hoster to its direct link
+                for hoster_name, link in hoster_links.items():
+                    providers[(audio, sub, hoster_name)] = link
+
+            languages = list(languages_set)
+
+            # Create episode object
+            episodes.append(
+                AniworldEpisode(
+                    season=self,
+                    url=ep_url,  # store the generic episode page URL
+                    episode_number=ep_num,
+                    title_de=title_de,
+                    title_en=title_en,
+                    languages=languages,
+                    providers=providers,
+                )
+            )
+
+            logger.warning(episodes[0].url)
+            logger.warning(episodes[0].episode_number)
+            logger.warning(episodes[0].languages)
+            logger.warning(episodes[0].providers)
 
         return episodes
 
@@ -250,6 +277,7 @@ class AniworldSeason:
         logger.debug("counting episodes...")
 
         html = self._html
+
         marker = 'itemtype="http://schema.org/Episode"'
         count = 0
         pos = 0
@@ -265,4 +293,54 @@ class AniworldSeason:
 
 
 if __name__ == "__main__":
-    print("TODO: Add test")
+    series = AniworldSeries("https://aniworld.to/anime/stream/kaguya-sama-love-is-war")
+
+    print("\n" + "=" * 60)
+    print(f"SEASON OVERVIEW — {series.title}")
+    print("=" * 60)
+
+    for season in series.seasons:
+        fields = {
+            "URL": season.url,
+            "Are Movies": season.are_movies,
+            "Season Number": season.season_number,
+            "Episode Count": season.episode_count,
+            "Episodes": season.episodes,
+        }
+
+        if season.are_movies:
+            print("\nMovies")
+        else:
+            print(f"\nSeason {season.season_number}")
+
+        print("-" * 60)
+
+        max_key_len = max(len(k) for k in fields.keys())
+        for key, value in fields.items():
+            print(f"{key:<{max_key_len}} : {value}")
+
+        """
+        # Show first episode if available
+        if season.episodes:
+            ep = season.episodes[0]
+
+            print("\n  First Episode")
+            print("  " + "-" * 56)
+
+            ep_fields = {
+                "URL": ep.url,
+                "Title DE": ep.title_de,
+                "Title EN": ep.title_en,
+                "Episode #": ep.episode_number,
+                "Language": ep.language,
+                "Is Movie": ep.is_movie,
+            }
+
+            max_ep_key_len = max(len(k) for k in ep_fields.keys())
+            for key, value in ep_fields.items():
+                print(f"  {key:<{max_ep_key_len}} : {value}")
+
+        print("\n" + "-" * 60)
+        """
+
+    print("\n" + "=" * 60 + "\n")

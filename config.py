@@ -53,12 +53,63 @@ GLOBAL_SESSION = Session(
 )
 
 
-class Language(Enum):
+"""
+Audio:
+
+Japenese Dub -> Quelle: German Sub, English Sub
+German Dub   -> Quelle: German Dub
+English Dub  -> Quelle: English Dub
+
+
+Subtitles:
+
+German Sub   -> Quelle: German Sub
+English Sub  -> Quelle: English Sub
+"""
+
+
+class Audio(Enum):
     JAPANESE = "Japanese"
     GERMAN = "German"
     ENGLISH = "English"
 
 
-class TrackType(Enum):
-    SUB = "Sub"
-    DUB = "Dub"
+class Subtitles(Enum):
+    NONE = "None"
+    GERMAN = "German"
+    ENGLISH = "English"
+
+
+def parse_source(source: str):
+    source = source.lower()
+
+    # Audio
+    if "dub" in source:
+        if "german" in source:
+            audio = Audio.GERMAN
+        elif "english" in source:
+            audio = Audio.ENGLISH
+        else:
+            audio = Audio.JAPANESE
+        subtitles = Subtitles.NONE
+
+    # Subtitles
+    elif "sub" in source:
+        audio = Audio.JAPANESE
+        if "german" in source:
+            subtitles = Subtitles.GERMAN
+        elif "english" in source:
+            subtitles = Subtitles.ENGLISH
+        else:
+            subtitles = Subtitles.NONE
+
+    else:
+        raise ValueError(f"Unknown source format: {source}")
+
+    return audio, subtitles
+
+
+if __name__ == "__main__":
+    string = "German Dub"
+    audio, subs = parse_source(string)
+    print(audio.value, subs.value)

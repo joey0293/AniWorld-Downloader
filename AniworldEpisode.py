@@ -1,33 +1,52 @@
+import re
+
 from config import logger, GLOBAL_SESSION
 from AniworldSeries import AniworldSeries
 
 
 class AniworldEpisode:
     """
-    Attributes:
-    series
-    season
-    url
-    title_de
-    title_en
-    episode_number
-    language
-    is_movie
-    _html
+    Represents a single episode (or movie entry) of an AniWorld anime series.
+
+    Parameters:
+        season:         Parent season object this episode belongs to.
+        url:            Required. The AniWorld URL for this episode, e.g.
+                        https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+        episode_number: Episode index within the season. Movies may use a special numbering.
+        title_de:       German episode title.
+        title_en:       English episode title, if available.
+        languages:      Optional. List of available language options (e.g. ['German', 'Subbed']).
+
+    Attributes (Example):
+        season:         <AniworldSeason object>
+        series:         <AniworldSeries object>
+        url:            https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+        title_de:       "Wir machen einen Ausflug ans Meer!"
+        title_en:       "Going Sunbathing [Special]"
+        episode_number: 1
+        _language:
+        _providers:
+        _is_movie:      False
+        _html:          <!doctype html> ...
     """
 
-    def __init__(self, season, url, episode_number, title_de, title_en):
-        self.series = season.series
+    def __init__(
+        self, season, url, episode_number, title_de, title_en, languages, providers
+    ):
         self.season = season
+        self.series = season.series
         self.url = url
 
-        self.episode_number = episode_number
         self.title_de = title_de
         self.title_en = title_en
+        self.episode_number = episode_number
+
+        self.__languages = languages
+        self.__providers = providers
+
+        self.__is_movie = None
 
         self.__html = None
-        self.__language = None
-        self.__is_movie = None
 
     @property
     def _html(self):
@@ -36,12 +55,6 @@ class AniworldEpisode:
             resp = GLOBAL_SESSION.get(self.url)
             self.__html = resp.text
         return self.__html
-
-    @property
-    def language(self):
-        if self.__language is None:
-            self.__language = self._extract_language()
-        return self.__language
 
     @property
     def is_movie(self):
@@ -53,13 +66,9 @@ class AniworldEpisode:
     # Extraction helpers
     # -----------------------------
 
-    def _extract_language(self):
-        # TODO: parse flags from episode page
-        return "German"
-
     def _extract_is_movie(self):
-        # TODO: detect movie episodes (specials)
-        return False
+        pattern = r"^https://aniworld\.to/anime/stream/[^/]+/filme/film-\d+/?$"
+        return re.match(pattern, self.url) is not None
 
 
 if __name__ == "__main__":
@@ -92,11 +101,12 @@ if __name__ == "__main__":
     for i, season in enumerate(series.seasons, 1):
         print(f"\nSeason {i}:")
         print(f"  URL: {season.url}")
-        print(f"  Season Number: {season.season_number}")
-        print(f"  Episode Count: {season.episode_count}")
-        print(f"  Episodes: {len(season.episodes)} objects")
+        # print(f"  Season Number: {season.season_number}")
+        # print(f"  Episode Count: {season.episode_count}")
+        # print(f"  Episodes: {len(season.episodes)} objects")
         if season.episodes:
             print(f"  First Episode: {season.episodes[0].title_de}")
+            print(f"  First Episode: {season.episodes[0].language}")
 
     """
     TODO:
