@@ -308,14 +308,14 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
                 if m:
                     size_val = float(m.group(1))
                     size_unit = m.group(2).lower()
-                    size_kb = size_val * (1000 if size_unit == "m" else 1)
+                    size_kb = size_val * (1024 if size_unit == "m" else 1)
                     now = time.monotonic()
                     if last_size_kb is not None and last_size_ts is not None:
                         dt = now - last_size_ts
                         if dt > 0:
                             kb_per_sec = (size_kb - last_size_kb) / dt
                             if kb_per_sec > 0:
-                                mb_per_sec = kb_per_sec / 1000
+                                mb_per_sec = kb_per_sec / 1024
                                 cur_bw_str = f"{mb_per_sec:.1f} MB/s"
                     last_size_kb = size_kb
                     last_size_ts = now
