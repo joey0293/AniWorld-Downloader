@@ -312,6 +312,9 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
   font-size:1.05rem;color:#e2e4e9;margin-bottom:16px;font-weight:600;
   display:flex;align-items:center;gap:8px;
 }
+.settings-subtitle{
+  font-size:.9rem;color:#9ca3af;font-weight:500;margin-bottom:10px;
+}
 .settings-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .settings-row input{
   flex:1;padding:10px 14px;border-radius:10px;
