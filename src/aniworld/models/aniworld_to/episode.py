@@ -123,6 +123,7 @@ class AniworldEpisode:
         selected_provider:      Filemoon
 
         provider_link():        For example: provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+        TODO: maybe provider_link_image_preview url
 
         _is_movie:              False
         _html:                  <!doctype html> ...
@@ -141,9 +142,9 @@ class AniworldEpisode:
         self._season = season
         self.url = url
 
-        self.title_de = title_de
-        self.title_en = title_en
-        self.episode_number = episode_number
+        self.__title_de = title_de
+        self.__title_en = title_en
+        self.__episode_number = episode_number
 
         self.__provider_data = None
 
@@ -158,11 +159,26 @@ class AniworldEpisode:
         self.__html = None
 
     @property
+    def title_de(self):
+        if self.__title_de is None:
+            self.__title_de = self.__extract_title_de()
+        return self.__title_de
+
+    @property
+    def title_en(self):
+        if self.__title_en is None:
+            self.__title_en = self.__extract_title_en()
+        return self.__title_en
+
+    @property
+    def episode_number(self):
+        if self.__episode_number is None:
+            self.__episode_number = self.__extract_episode_number()
+        return self.__episode_number
+
+    @property
     def season(self):
         if self._season is None:
-            if not self.url:
-                raise ValueError("Episode URL is required to auto-generate season")
-
             from .season import AniworldSeason
 
             if self.is_movie:
@@ -210,6 +226,59 @@ class AniworldEpisode:
         if self.__is_movie is None:
             self.__is_movie = self.__extract_is_movie()
         return self.__is_movie
+
+    def __extract_episode_number(self):
+        """
+        Extract episode number.
+
+        Returns:
+            int: Episode number if found, otherwise None.
+        """
+
+        match = re.search(r"\d+(?!.*\d)", self.url)
+        return int(match.group()) if match else None
+
+    def __extract_title_de(self):
+        """
+        Extract German title from the episode page.
+
+        Returns:
+            str or None: German title if found, otherwise None.
+        """
+
+        html = self._html
+        if not html:
+            return None
+
+        german_match = re.search(
+            r'<span[^>]*class="episodeGermanTitle"[^>]*>([^<]*)', html
+        )
+
+        if german_match:
+            return german_match.group(1).strip()
+
+        return None
+
+    def __extract_title_en(self):
+        """
+        Extract English title from the episode page.
+
+        Returns:
+            str or None: English title if found, otherwise None.
+        """
+
+        html = self._html
+        if not html:
+            return None
+
+        # Look for specific English title class
+        english_match = re.search(
+            r'<small[^>]*class="episodeEnglishTitle"[^>]*>([^<]*)', html
+        )
+        if english_match:
+            return english_match.group(1).strip()
+
+        return None
 
     def provider_link(self, language=None, provider=None):
         """
@@ -437,21 +506,6 @@ class AniworldEpisode:
             result[(audio, subtitles)][provider] = url
 
         return dict(result)
-
-    def __extract_provider_link(self):
-        """
-        Get the provider URL for a given language and provider name.
-
-        Returns:
-            str URL if found, else None
-        """
-        audio, subtitles = self.selected_language  # unpack the tuple
-        provider_dict = self.provider_data.get(audio, subtitles)
-
-        if not provider_dict:
-            return None
-
-        return provider_dict.get(self.selected_provider)
 
     def __extract_is_movie(self):
         """
