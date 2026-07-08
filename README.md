@@ -33,11 +33,12 @@ aniworld
 
 ## Still in Development from v3
 
+- [ ] Implement arguments: aniskip and keep-watching
 - [ ] README -> add sections from v3
-- [ ] Syncplay -> fix argument structure crash
 - [ ] Nuitka -> fix build crash
 - [ ] Remove empty lines below action when running on docker run -it
-- [ ] WebUI
+- [ ] Detect docker environment to omit adding env variables when running in docker run -it
+- [ ] WebUI -> coming soon
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -137,8 +138,8 @@ Contributions to AniWorld Downloader are highly appreciated! You can help enhanc
 
 ### Contributors
 
-<a href="https://github.com/phoenixthrush/Aniworld-Downloader/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=phoenixthrush/Aniworld-Downloader" alt="Contributors" />
+<a href="https://github.com/phoenixthrush/AniWorld-Downloader/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=phoenixthrush/AniWorld-Downloader" alt="Contributors" />
 </a>
 
 - **Lulu** (since Sep 14, 2024)  
@@ -202,17 +203,19 @@ Thank you for using AniWorld Downloader!
 
 ## Legal Disclaimer
 
-AniWorld Downloader is made for accessing content that's already publicly available online. It doesn't support or promote piracy or copyright violations. The developer isn't responsible for how the tool is used or for any content found through external links.
+AniWorld Downloader is a client-side tool that helps you access content hosted by third-party websites. It does not host, upload, store, or distribute any media itself.
 
-All content accessed with AniWorld Downloader is available on the internet, and the tool itself doesn't host or share copyrighted files. It also has no control over the accuracy, legality, or availability of websites it links to.
+AniWorld Downloader is not intended to promote piracy or copyright infringement. You are solely responsible for how you use the software and for ensuring that your use complies with applicable laws and the terms of the websites you access.
 
-If you have concerns about any content accessed through this tool, please reach out directly to the website's owner, admin, or hosting provider. Thanks for your understanding.
+The developer provides this project “as is” and is not responsible for third-party content, external links, or the availability, accuracy, legality, or reliability of any third-party service.
+
+If you have concerns about specific content, please contact the relevant website owner, administrator, or hosting provider.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=phoenixthrush/Aniworld-Downloader&type=Date)](https://star-history.com/#phoenixthrush/Aniworld-Downloader&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=phoenixthrush/AniWorld-Downloader&type=Date)](https://star-history.com/#phoenixthrush/AniWorld-Downloader&Date)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -220,5 +223,3 @@ If you have concerns about any content accessed through this tool, please reach 
 
 This project is licensed under the **[MIT License](LICENSE)**.
 For more details, see the LICENSE file.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
