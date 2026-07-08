@@ -3,9 +3,9 @@ from collections import defaultdict
 from enum import Enum
 from typing import Tuple
 from urllib.parse import urlparse
-# import time
 
-from ...config import logger, GLOBAL_SESSION
+# import time
+from ...config import GLOBAL_SESSION, logger
 
 
 class Audio(Enum):
@@ -45,6 +45,14 @@ class Subtitles(Enum):
     NONE = "None"
     GERMAN = "German"
     ENGLISH = "English"
+
+
+# Map site-specific language keys to semantic meaning
+LANG_KEY_MAP = {
+    "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
+    "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
+    "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
+}
 
 
 class ProviderData:
@@ -456,13 +464,6 @@ class AniworldEpisode:
             </li>
         </ul>
         """
-
-        # Map site-specific language keys to semantic meaning
-        LANG_KEY_MAP = {
-            "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
-            "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
-            "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
-        }
 
         result = defaultdict(dict)
 

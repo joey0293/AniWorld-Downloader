@@ -1,4 +1,5 @@
 from niquests import Session
+
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -25,3 +26,15 @@ GLOBAL_SESSION = Session(
 )
 
 logger.debug("Config initialized successfully")
+
+SUPPORTED_PROVIDERS = (
+    "Filemoon",
+    "Vidmoly",
+    "VOE",
+    "LoadX",
+    "Luluvdo",
+    "Doodstream",
+    "SpeedFiles",
+    "Streamtape",
+    "Vidoza",
+)
