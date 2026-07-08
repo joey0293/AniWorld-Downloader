@@ -9,4 +9,4 @@ print("Redirect URL:", episode.redirect_url)
 print("Provider URL:", episode.provider_url)
 print("Stream URL:", episode.stream_url)
 
-# episode.download()
+# Now run this x times until you need to solve a captcha to test the captcha solver

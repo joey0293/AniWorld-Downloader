@@ -1,4 +1,5 @@
 def playwright_get_page_url(url: str):
+    """Open the page and return the final URL."""
     try:
         from patchright.sync_api import sync_playwright
     except ImportError:
@@ -7,32 +8,52 @@ def playwright_get_page_url(url: str):
         )
 
     with sync_playwright() as p:
+        # needs to be non-headless to solve let the captcha load and be solvable
         browser = p.chromium.launch(headless=False)
         page = browser.new_page()
         page.goto(url)
 
         for i in range(50):
             print(f"\nChecking for captcha... Attempt {i + 1}/50")
+
             if "<title>Stream wird vorbereitet...</title>" in page.content():
                 print("Captcha detected on the page...")
-                print(
-                    f"\nPlease solve the captcha in the now opened playwright browser manually and press next:\n{url}"
-                )
-                page.wait_for_timeout(3000)
 
-                # TODO: currently manually, but will be automated by click
-                # click on <input type="checkbox"> somehow
+                try:
+                    # checkbox
+                    checkbox = page.frame_locator("iframe").locator(
+                        'input[type="checkbox"]'
+                    )
+                    checkbox.wait_for(state="visible", timeout=5000)
+                    checkbox.click()
+
+                    # submit button
+                    page.wait_for_timeout(3000)
+                    weiter_button = page.locator('button[type="submit"]')
+                    weiter_button.wait_for(state="visible", timeout=5000)
+                    weiter_button.click()
+                except Exception as e:
+                    print(f"Could not click captcha automatically: {e}")
+                    print(
+                        f"\nPlease solve the captcha in the opened browser manually:\n{url}"
+                    )
+
+                page.wait_for_timeout(3000)
             else:
                 print("Captcha solved...")
                 break
 
+        final_url = page.url
         page.wait_for_timeout(1000)
         browser.close()
 
-        return page.url
+        return final_url
 
 
 if __name__ == "__main__":
+    # Use test.py instead :)
+
+    """
     import niquests
 
     from aniworld.config import Audio, Subtitles
@@ -56,3 +77,4 @@ if __name__ == "__main__":
         url = final_url.url
 
     print(f"Final URL: {url}")
+    """
