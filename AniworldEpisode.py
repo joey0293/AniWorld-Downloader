@@ -1,7 +1,73 @@
 import re
+from collections import defaultdict
+from enum import Enum
+from typing import Tuple
+from urllib.parse import urlparse
 
 from config import logger, GLOBAL_SESSION
 from AniworldSeries import AniworldSeries
+
+
+class Audio(Enum):
+    """
+    Japenese Dub -> Quelle: German Sub, English Sub
+    German Dub   -> Quelle: German Dub
+    English Dub  -> Quelle: English Dub
+    """
+
+    JAPANESE = "Japanese"
+    GERMAN = "German"
+    ENGLISH = "English"
+
+
+class Subtitles(Enum):
+    """
+    German Sub   -> Quelle: German Sub
+    English Sub  -> Quelle: English Sub
+    """
+
+    NONE = "None"
+    GERMAN = "German"
+    ENGLISH = "English"
+
+
+class ProviderData:
+    """
+    dict[(Audio, Subtitles)][provider_name]
+    """
+
+    def __init__(self, data):
+        self._data = data
+
+    def __str__(self):
+        lines = []
+
+        for (audio, subtitles), providers in sorted(
+            self._data.items(), key=lambda item: (item[0][0].value, item[0][1].value)
+        ):
+            header = f"{audio.value} audio"
+            if subtitles != Subtitles.NONE:
+                header += f" + {subtitles.value} subtitles"
+
+            lines.append(header)
+
+            for provider, url in providers.items():
+                lines.append(f"  • {provider:<8} -> {url}")
+
+            lines.append("")
+
+        return "\n".join(lines).rstrip()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self._data!r})"
+
+    # Accept a tuple directly
+    def get(self, lang_tuple: Tuple[Audio, Subtitles]):
+        return self._data.get(lang_tuple, {})
+
+    # Optional: behave like a dictionary
+    def __getitem__(self, lang_tuple: Tuple[Audio, Subtitles]):
+        return self._data[lang_tuple]
 
 
 class AniworldEpisode:
@@ -9,40 +75,51 @@ class AniworldEpisode:
     Represents a single episode (or movie entry) of an AniWorld anime series.
 
     Parameters:
-        season:         Parent season object this episode belongs to.
-        url:            Required. The AniWorld URL for this episode, e.g.
-                        https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
-        episode_number: Episode index within the season. Movies may use a special numbering.
-        title_de:       German episode title.
-        title_en:       English episode title, if available.
-        languages:      Optional. List of available language options (e.g. ['German', 'Subbed']).
+        series:                 Parent series object.
+        season:                 Parent season object this episode belongs to.
+        url:                    Required. The AniWorld URL for this episode, e.g.
+                                https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+        episode_number:         Episode index within the season. Movies may use a special numbering.
+        title_de:               German episode title.
+        title_en:               English episode title, if available.
 
     Attributes (Example):
-        season:         <AniworldSeason object>
-        series:         <AniworldSeries object>
-        url:            https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
-        title_de:       "Wir machen einen Ausflug ans Meer!"
-        title_en:       "Going Sunbathing [Special]"
-        episode_number: 1
-        _language:
-        _providers:
-        _is_movie:      False
-        _html:          <!doctype html> ...
+        series:                 <AniworldSeries object>
+        season:                 <AniworldSeason object>
+        url:                    https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1
+        episode_number:         1
+        title_de:               "Wir machen einen Ausflug ans Meer!"
+        title_en:               "Going Sunbathing [Special]"
+
+        provider_data:          For example: dict[(Audio, Subtitles)][provider_name]
+
+        available_languages:    TODO -> implement
+        available_providers:    TODO -> implement
+        selected_language:      (Audio.JAPANESE, Subtitles.GERMAN)
+        selected_provider:      Filemoon
+
+        provider_link():        For example: provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
+
+        _is_movie:              False
+        _html:                  <!doctype html> ...
     """
 
-    def __init__(
-        self, season, url, episode_number, title_de, title_en, languages, providers
-    ):
+    def __init__(self, series, season, url, episode_number, title_de, title_en):
+        self.series = series
         self.season = season
-        self.series = season.series
         self.url = url
 
         self.title_de = title_de
         self.title_en = title_en
         self.episode_number = episode_number
 
-        self.__languages = languages
-        self.__providers = providers
+        self.__provider_data = None
+
+        self.selected_language = (
+            Audio.JAPANESE,
+            Subtitles.GERMAN,
+        )  # TODO: defaults for now
+        self.selected_provider = "Filemoon"  # TODO: defaults for now
 
         self.__is_movie = None
 
@@ -57,16 +134,223 @@ class AniworldEpisode:
         return self.__html
 
     @property
+    def provider_data(self) -> ProviderData:
+        if self.__provider_data is None:
+            raw = self.__extract_provider_data()
+            self.__provider_data = ProviderData(raw)
+        return self.__provider_data
+
+    @property
     def is_movie(self):
         if self.__is_movie is None:
-            self.__is_movie = self._extract_is_movie()
+            self.__is_movie = self.__extract_is_movie()
         return self.__is_movie
+
+    def provider_link(self, language=None, provider=None):
+        """
+        Get the provider URL for a given language and provider name.
+
+        Args:
+            language: tuple (Audio, Subtitles). Defaults to self.selected_language.
+            provider: str, provider name. Defaults to self.selected_provider.
+
+        Returns:
+            str URL if found, else None
+        """
+        if language is None:
+            language = self.selected_language
+        if provider is None:
+            provider = self.selected_provider
+
+        # Use tuple directly
+        provider_dict = self.provider_data.get(language)
+        if not provider_dict:
+            return None
+
+        return provider_dict.get(provider)
 
     # -----------------------------
     # Extraction helpers
     # -----------------------------
 
-    def _extract_is_movie(self):
+    def __extract_provider_data(self):
+        """
+        Extract provider links grouped by (Audio, Subtitles).
+
+        Returns:
+            dict[(Audio, Subtitles)][provider_name]
+        """
+
+        """
+        <ul class="row">
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink2738955" data-lang-key="1" data-link-id="2738955" data-link-target="/redirect/2738955" data-external-embed="false">
+                <div class="generateInlinePlayer">
+                    <a class="watchEpisode" itemprop="url" href="/redirect/2738955" target="_blank">
+                        <i class="icon VOE" title="Hoster VOE"></i>
+                        <h4>VOE</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink2892597" data-lang-key="1" data-link-id="2892597" data-link-target="/redirect/2892597" data-external-embed="false">
+                <div>
+                    <a class="watchEpisode" itemprop="url" href="/redirect/2892597" target="_blank">
+                        <i class="icon Filemoon" title="Hoster Filemoon"></i>
+                        <h4>Filemoon</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink3033759" data-lang-key="1" data-link-id="3033759" data-link-target="/redirect/3033759" data-external-embed="false">
+                <div>
+                    <a class="watchEpisode" itemprop="url" href="/redirect/3033759" target="_blank">
+                        <i class="icon Vidmoly" title="Hoster Vidmoly"></i>
+                        <h4>Vidmoly</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink2739118" data-lang-key="2" data-link-id="2739118" data-link-target="/redirect/2739118" data-external-embed="false" style="display: none;">
+                <div class="generateInlinePlayer">
+                    <a class="watchEpisode" itemprop="url" href="/redirect/2739118" target="_blank">
+                        <i class="icon VOE" title="Hoster VOE"></i>
+                        <h4>VOE</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink2892472" data-lang-key="2" data-link-id="2892472" data-link-target="/redirect/2892472" data-external-embed="false" style="display: none;">
+                <div>
+                    <a class="watchEpisode" itemprop="url" href="/redirect/2892472" target="_blank">
+                        <i class="icon Filemoon" title="Hoster Filemoon"></i>
+                        <h4>Filemoon</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink3682431" data-lang-key="2" data-link-id="3682431" data-link-target="/redirect/3682431" data-external-embed="false" style="display: none;">
+                <div>
+                    <a class="watchEpisode" itemprop="url" href="/redirect/3682431" target="_blank">
+                        <i class="icon Vidmoly" title="Hoster Vidmoly"></i>
+                        <h4>Vidmoly</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink2738802" data-lang-key="3" data-link-id="2738802" data-link-target="/redirect/2738802" data-external-embed="false" style="display: none;">
+                <div class="generateInlinePlayer">
+                    <a class="watchEpisode" itemprop="url" href="/redirect/2738802" target="_blank">
+                        <i class="icon VOE" title="Hoster VOE"></i>
+                        <h4>VOE</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink3595798" data-lang-key="3" data-link-id="3595798" data-link-target="/redirect/3595798" data-external-embed="false" style="display: none;">
+                <div>
+                    <a class="watchEpisode" itemprop="url" href="/redirect/3595798" target="_blank">
+                        <i class="icon Filemoon" title="Hoster Filemoon"></i>
+                        <h4>Filemoon</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+            <li class="col-md-3 col-xs-12 col-sm-6 episodeLink3682483" data-lang-key="3" data-link-id="3682483" data-link-target="/redirect/3682483" data-external-embed="false" style="display: none;">
+                <div>
+                    <a class="watchEpisode" itemprop="url" href="/redirect/3682483" target="_blank">
+                        <i class="icon Vidmoly" title="Hoster Vidmoly"></i>
+                        <h4>Vidmoly</h4>
+                        <div class="hosterSiteVideoButton">Video öffnen</div>
+                    </a>
+                    <span>
+                    </span>
+                </div>
+            </li>
+        </ul>
+        """
+
+        # Map site-specific language keys to semantic meaning
+        LANG_KEY_MAP = {
+            "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
+            "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
+            "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
+        }
+
+        result = defaultdict(dict)
+
+        # Pattern to find <li data-lang-key="...">...</li>
+        li_pattern = re.compile(
+            r'<li\s+[^>]*data-lang-key="(?P<key>\d+)"[^>]*>(?P<content>.*?)</li>',
+            re.DOTALL,
+        )
+        # Pattern to find <h4>Provider</h4>
+        h4_pattern = re.compile(r"<h4>(.*?)</h4>", re.DOTALL)
+        # Pattern to find <a class="watchEpisode" href="...">
+        a_pattern = re.compile(
+            r'<a\s+[^>]*class="watchEpisode"[^>]*href="([^"]+)"', re.DOTALL
+        )
+
+        for match in li_pattern.finditer(self._html):
+            lang_key = match.group("key")
+            if lang_key not in LANG_KEY_MAP:
+                continue
+
+            audio, subtitles = LANG_KEY_MAP[lang_key]
+            content = match.group("content")
+
+            # Extract provider name
+            h4_match = h4_pattern.search(content)
+            if not h4_match:
+                continue
+            provider = h4_match.group(1).strip()
+
+            # Extract URL
+            a_match = a_pattern.search(content)
+            if not a_match:
+                continue
+            href = a_match.group(1)
+
+            # Build absolute URL
+            parsed_url = urlparse(self.url)
+            domain = f"{parsed_url.scheme}://{parsed_url.netloc}"
+            url = f"{domain}{href}"
+
+            result[(audio, subtitles)][provider] = url
+
+        return dict(result)
+
+    def __extract_provider_link(self):
+        """
+        Get the provider URL for a given language and provider name.
+
+        Returns:
+            str URL if found, else None
+        """
+        audio, subtitles = self.selected_language  # unpack the tuple
+        provider_dict = self.provider_data.get(audio, subtitles)
+
+        if not provider_dict:
+            return None
+
+        return provider_dict.get(self.selected_provider)
+
+    def __extract_is_movie(self):
         pattern = r"^https://aniworld\.to/anime/stream/[^/]+/filme/film-\d+/?$"
         return re.match(pattern, self.url) is not None
 
@@ -91,6 +375,7 @@ if __name__ == "__main__":
         input(f"\n{'=' * 40}\nENTER TO QUIT\n{'=' * 40}\n")
     """
 
+    """
     series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
     print(f"Testing Series: {series.title}")
     print(f"Series URL: {series.url}")
@@ -109,10 +394,22 @@ if __name__ == "__main__":
             print(f"  First Episode: {season.episodes[0].language}")
 
     """
-    TODO:
+
+    """
     
-    - Add hosting_links section with language/ provider mapping
+    TODO:
     - Copy provider extractors from next
     - Add .watch() .download() and .syncplay() function
-    
+
     """
+
+    series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
+
+    episode = series.seasons[0].episodes[0]
+
+    print(episode.url)
+    print(episode.title_de)
+    print(episode.provider_data)
+
+    # TODO: fix being None
+    print(episode.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon"))
