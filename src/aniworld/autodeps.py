@@ -217,6 +217,30 @@ def get_syncplay_path() -> Path:
 # -----------------------------
 # Testing
 # -----------------------------
+def _ensure_xvfb():
+    """On headless Linux: install Xvfb if missing and start a virtual display on :99."""
+    if PLATFORM != "Linux":
+        return
+    if os.environ.get("DISPLAY"):
+        return
+    _log = get_logger(__name__)
+    if not shutil.which("Xvfb"):
+        _log.info("Xvfb not found — installing via apt...")
+        try:
+            subprocess.run(["sudo", "apt-get", "install", "-y", "xvfb"],
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            _log.warning(f"Could not install Xvfb: {e}")
+            return
+    _log.info("No DISPLAY found — starting Xvfb on :99")
+    subprocess.Popen(
+        ["Xvfb", ":99", "-screen", "0", "1280x720x24", "-nolisten", "tcp"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    os.environ["DISPLAY"] = ":99"
+
+
 def ensure_patchright_chromium():
     """Install the patchright Chromium browser if not already present."""
     import sys
@@ -227,6 +251,7 @@ def ensure_patchright_chromium():
         _log.debug("patchright not installed, skipping chromium check")
         return
 
+    _ensure_xvfb()
     try:
         _log.debug("Ensuring patchright chromium is installed...")
         _log.info("Installing patchright chromium (this may take a moment)...")
