@@ -1,17 +1,60 @@
 import os
 import re
+import subprocess
+from enum import Enum
 from pathlib import Path
 
+import ffmpeg
+
+from ...autodeps import get_player_path
 from ...config import (
     GLOBAL_SESSION,
     NAMING_TEMPLATE,
+    PROVIDER_HEADERS_D,
+    PROVIDER_HEADERS_W,
     SERIENSTREAM_EPISODE_PATTERN,
-    Audio,
-    Subtitles,
+    get_video_codec,
     logger,
 )
 from ...extractors import provider_functions
 from ..common import check_downloaded
+
+
+# -----------------------------
+# Language Stuff (s.to only)
+# -----------------------------
+class Audio(Enum):
+    """
+    Available audio language options (s.to only):
+        - GERMAN:  German dub
+        - ENGLISH: English dub
+    """
+
+    GERMAN = "German"
+    ENGLISH = "English"
+
+
+class Subtitles(Enum):
+    """
+    Available subtitle options (s.to only):
+        - NONE: no subtitles
+    """
+
+    NONE = "None"
+
+
+# Map UI labels to enum tuples (s.to labels)
+LANG_LABEL_TO_ENUM = {
+    "Deutsch": (Audio.GERMAN, Subtitles.NONE),
+    "Englisch": (Audio.ENGLISH, Subtitles.NONE),
+}
+
+# ISO language codes for media players (IINA/mpv)
+LANG_CODE_MAP = {
+    Audio.ENGLISH: "eng",
+    Audio.GERMAN: "deu",
+    Subtitles.NONE: None,
+}
 
 
 class SerienstreamEpisode:
@@ -44,9 +87,9 @@ class SerienstreamEpisode:
         selected_language:      "German Dub"
         selected_provider:      "VOE"
 
-        redirect_url:           "TODO"
-        provider_url:           "TODO"
-        stream_url:             "TODO"
+        redirect_url:           https://serienstream.to/r?t=eyJpdiI6IlNvVkFWOURJTklBT05wTiszQkF5VVE9PSIsInZhbHVlIjoiUCtoM3JETHQxbUZVMThkY1RuT2p6TTd1aXdnYW9LNzNOb2t3QU5DV2RzUGxJWFA0WUxBaUpZd0Y4dGhJazhrRjFzT1dWVTlISFRpWTE5N0t2dWFtUEE9PSIsIm1hYyI6IjhiMzIxOTljMThlN2ZiYmZlNjJmMjYxYmE5YjhhMjY1NjI0YzM4NThhYzUzMTg3YzdiZjg5Y2U0ZmRhYjU5YmYiLCJ0YWciOiIifQ%3D%3D
+        provider_url:           https://voe.sx/e/2gevxuvhffzd
+        stream_url:             https://cdn-ybrlgbugcqvfwfxm.edgeon-bandwidth.com/engine/hls2-c/01/12274/32xqoasasgio_,n,.urlset/master.m3u8?t=AyZvb2TAsfUJASynb8yS1VVvV9VLR4L6iELp5QnC5NY&s=1769786403&e=14400&f=69846104&node=5oVG/75jdb0Y5X40bYOVrWQ5Z8VHd1xf5E7nxyia+5E=&i=185.213&sp=2500&asn=39351&q=n&rq=pSN9X93FqA34kNMYDUcS0wTzZ2nLYuaQH60wgnXd
 
         self._base_folder:      Downloads/American Horror Story (2011) [imdbid-tt1844624]
         self._folder_path:      Downloads/American Horror Story (2011) [imdbid-tt1844624]/Season 1
@@ -455,10 +498,202 @@ class SerienstreamEpisode:
     # -----------------------------
 
     def download(self):
-        print(f"Downloading episode from {self.url}...")
+        """
+        Download required audio/video streams for this episode.
+
+        Supports:
+        - Full preset download if neither audio nor video exists.
+        - Partial download if only one stream is missing.
+        - Reuses streams when possible to avoid duplicate downloads.
+        """
+
+        # ---------------------------------------------------------
+        # 1) Check existing streams
+        # ---------------------------------------------------------
+        check = check_downloaded(self._episode_path)
+
+        # ---------------------------------------------------------
+        # 2) Prepare HTTP headers
+        # ---------------------------------------------------------
+        headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
+        input_kwargs = {}
+        if headers:
+            header_list = [f"{k}: {v}" for k, v in headers.items()]
+            input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
+
+        # ---------------------------------------------------------
+        # 3) Resolve user language selection
+        # ---------------------------------------------------------
+        language = self._normalize_language(self.selected_language)
+        audio_enum, sub_enum = language
+
+        audio_code = LANG_CODE_MAP[audio_enum]
+        wants_clean_video = sub_enum == Subtitles.NONE
+        sub_video_code = None
+
+        # ---------------------------------------------------------
+        # 4) Determine missing streams
+        # ---------------------------------------------------------
+        has_video = bool(check["video_langs"])
+        has_audio = audio_code in check["audio_langs"]
+
+        need_audio = not has_audio
+        if not has_video:
+            need_video = True
+        elif not wants_clean_video:
+            need_video = sub_video_code not in check["video_langs"]
+        else:
+            need_video = False
+
+        # ---------------------------------------------------------
+        # 5) Skip if nothing is missing
+        # ---------------------------------------------------------
+        if not need_audio and not need_video:
+            logger.debug(f"[SKIPPED] {self._file_name}")
+            return
+
+        os.makedirs(self._folder_path, exist_ok=True)
+
+        # ---------------------------------------------------------
+        # 6) Decide if we can download a single full stream
+        # ---------------------------------------------------------
+        # Download single stream when both audio and video needed (includes all language configs)
+        full_stream_needed = need_audio and need_video
+
+        temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
+        temp_video = self._episode_path.with_suffix(".temp_video.mkv")
+        temp_full = self._episode_path.with_suffix(".temp_full.mkv")
+
+        if full_stream_needed:
+            logger.debug("[DOWNLOADING] full preset (audio + video together)")
+
+            # Prepare per-stream metadata
+            stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
+            if not wants_clean_video:
+                stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
+
+            # Download full stream
+            video_codec = get_video_codec()
+            ffmpeg.input(self.stream_url, **input_kwargs).output(
+                str(temp_full),
+                vcodec=video_codec,
+                acodec=video_codec,
+                **stream_metadata,
+            ).run()
+
+            # Mux into final file (or just move if file didn't exist before)
+            if self._episode_path.exists():
+                inputs = [
+                    ffmpeg.input(str(self._episode_path)),
+                    ffmpeg.input(str(temp_full)),
+                ]
+                output_path = self._episode_path.with_suffix(".new.mkv")
+                ffmpeg.output(*inputs, str(output_path), c="copy").run()
+                os.replace(output_path, self._episode_path)
+            else:
+                # First file, just move
+                os.replace(temp_full, self._episode_path)
+
+            # Cleanup
+            if temp_full.exists():
+                temp_full.unlink()
+            return
+
+            # ---------------------------------------------------------
+        # 7) Partial downloads
+        # ---------------------------------------------------------
+        if need_audio:
+            logger.debug("[DOWNLOADING] audio stream")
+            video_codec = get_video_codec()
+            ffmpeg.input(self.stream_url, **input_kwargs).output(
+                str(temp_audio),
+                acodec=video_codec,
+                map="0:a:0?",
+                **{"metadata:s:a:0": f"language={audio_code}"},
+            ).run()
+
+        if need_video:
+            logger.debug("[DOWNLOADING] video stream")
+            video_codec = get_video_codec()
+            ffmpeg.input(self.stream_url, **input_kwargs).output(
+                str(temp_video),
+                vcodec=video_codec,
+                map="0:v:0?",
+                **(
+                    {}
+                    if wants_clean_video
+                    else {"metadata:s:v:0": f"language={sub_video_code}"}
+                ),
+            ).run()
+
+        # ---------------------------------------------------------
+        # 8) Mux downloaded streams with existing file
+        # ---------------------------------------------------------
+        logger.debug("[MUXING] combining streams")
+        inputs = (
+            [ffmpeg.input(str(self._episode_path))]
+            if self._episode_path.exists()
+            else []
+        )
+
+        if need_audio:
+            inputs.append(ffmpeg.input(str(temp_audio)))
+        if need_video:
+            inputs.append(ffmpeg.input(str(temp_video)))
+
+        output_path = self._episode_path.with_suffix(".new.mkv")
+        ffmpeg.output(*inputs, str(output_path), c="copy").run()
+        os.replace(output_path, self._episode_path)
+
+        # ---------------------------------------------------------
+        # 9) Cleanup temporary files
+        # ---------------------------------------------------------
+        for f in (temp_audio, temp_video):
+            if f.exists():
+                f.unlink()
 
     def watch(self):
-        print(f"Watching episode from {self.url}...")
+        """Watch the current episode with provider headers."""
+        print(f"[WATCHING] {self._file_name}")
 
+        # Get headers for the selected provider
+        headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
+
+        # Build command as list to avoid shell injection issues
+        cmd = [str(get_player_path()), self.stream_url]
+
+        # Check if aniskip is enabled
+        aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
+        logger.debug(f"[ANISKIP ENABLED]: {aniskip_enabled}")
+
+        skip_times = self.skip_times if aniskip_enabled else None
+
+        if skip_times:
+            from ...aniskip import build_mpv_flags, setup_aniskip
+
+            setup_aniskip()
+
+            skip_flags = build_mpv_flags(skip_times).split()
+            cmd.extend(skip_flags)
+            logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
+
+        # Add mpv options
+        cmd.extend(
+            ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
+        )
+
+        # Add headers if present
+        if headers:
+            # Build header arguments properly escaped
+            header_args = [f"{k}: {v}" for k, v in headers.items()]
+            cmd.append("--http-header-fields=" + ",".join(header_args))
+
+        # Print the command for reference
+        print(" ".join(cmd))
+
+        # Run the command using argument list (no shell)
+        subprocess.run(cmd)
+
+    # TODO: implement Syncplay
     def syncplay(self):
-        print(f"Syncplaying episode from {self.url}...")
+        self.watch()

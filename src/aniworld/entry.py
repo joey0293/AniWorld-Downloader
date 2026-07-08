@@ -81,7 +81,18 @@ def aniworld():
 
         # If provider is NOT AniWorld -> bypass menu
         if provider.name != "AniWorld":
-            obj = provider.episode_cls(url=url)
+            if provider.series_pattern and provider.series_pattern.fullmatch(url):
+                obj = provider.series_cls(url=url)
+
+            elif provider.season_pattern and provider.season_pattern.fullmatch(url):
+                obj = provider.season_cls(url=url)
+
+            elif provider.episode_pattern and provider.episode_pattern.fullmatch(url):
+                obj = provider.episode_cls(url=url)
+
+            else:
+                raise ValueError(f"Invalid URL for provider: {url}")
+
             run_action(obj, action)
             return 0
 
