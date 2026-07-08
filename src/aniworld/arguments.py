@@ -203,6 +203,53 @@ def parse_args():
     )
 
     # =========================
+    # WebUI
+    # =========================
+    webui = parser.add_argument_group("WebUI Options")
+    webui.add_argument(
+        "-w", "--web-ui",
+        action="store_true",
+        help="Start the web UI",
+    )
+
+    webui.add_argument(
+        "-wP", "--web-port",
+        type=int,
+        default=5000,
+        help="Port for the web UI (default: 5000)",
+    )
+
+    webui.add_argument(
+        "-wN", "--no-browser",
+        action="store_true",
+        help="Don't open the browser automatically when starting the web UI",
+    )
+
+    webui.add_argument(
+        "-wE", "--web-expose",
+        action="store_true",
+        help="Bind the web UI to all interfaces (0.0.0.0) instead of localhost only",
+    )
+
+    webui.add_argument(
+        "-wA", "--web-auth",
+        action="store_true",
+        help="Enable local authentication for the web UI",
+    )
+
+    webui.add_argument(
+        "-wS", "--web-sso",
+        action="store_true",
+        help="Enable SSO (OIDC) login for the web UI",
+    )
+
+    webui.add_argument(
+        "-wFS", "--web-force-sso",
+        action="store_true",
+        help="Force SSO-only authentication (implies --web-auth and --web-sso)",
+    )
+
+    # =========================
     # Syncplay (only meaningful with --action Syncplay)
     # =========================
     syncplay = parser.add_argument_group(

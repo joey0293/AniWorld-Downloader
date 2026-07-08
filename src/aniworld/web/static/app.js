@@ -4,6 +4,8 @@ const searchSpinner = document.getElementById('searchSpinner');
 const resultsDiv = document.getElementById('results');
 const overlay = document.getElementById('overlay');
 const seasonSelect = document.getElementById('seasonSelect');
+const languageSelect = document.getElementById('languageSelect');
+const providerSelect = document.getElementById('providerSelect');
 const episodeList = document.getElementById('episodeList');
 const episodeSpinner = document.getElementById('episodeSpinner');
 const selectAllCb = document.getElementById('selectAll');
@@ -14,8 +16,13 @@ const downloadBtn = document.getElementById('downloadBtn');
 let currentSeasons = [];
 let currentDownloadId = null;
 let pollTimer = null;
+// Provider data per language label, e.g. {"German Dub": ["VOE","Vidmoly"], ...}
+let availableProviders = null;
+// Static list of providers rendered into the template (working extractors only)
+const staticProviders = Array.from(providerSelect.options).map(o => o.value);
 
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+languageSelect.addEventListener('change', updateProviderDropdown);
 
 async function doSearch() {
   const keyword = searchInput.value.trim();
@@ -73,6 +80,8 @@ async function openSeries(url) {
   seasonSelect.innerHTML = '';
   episodeList.innerHTML = '';
   statusBar.classList.remove('active');
+  availableProviders = null;
+  resetProviderDropdown();
 
   try {
     const [seriesResp, seasonsResp] = await Promise.all([
@@ -111,6 +120,8 @@ async function loadEpisodes() {
   episodeList.innerHTML = '';
   episodeSpinner.style.display = 'block';
   selectAllCb.checked = false;
+  availableProviders = null;
+  resetProviderDropdown();
 
   try {
     const resp = await fetch('/api/episodes?url=' + encodeURIComponent(season.url));
@@ -125,10 +136,75 @@ async function loadEpisodes() {
       div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}"><span class="ep-num">E${ep.episode_number}</span><span class="ep-title">${esc(title)}</span>`;
       episodeList.appendChild(div);
     });
+
+    // Fetch available providers using the first episode as a sample
+    if (episodes.length) {
+      fetchProviders(episodes[0].url);
+    }
   } catch (e) {
     episodeList.innerHTML = '<div style="padding:12px;color:#888">Failed to load episodes.</div>';
   } finally {
     episodeSpinner.style.display = 'none';
+  }
+}
+
+async function fetchProviders(episodeUrl) {
+  try {
+    const resp = await fetch('/api/providers?url=' + encodeURIComponent(episodeUrl));
+    const data = await resp.json();
+    if (data.providers) {
+      availableProviders = data.providers;
+      updateProviderDropdown();
+    }
+  } catch (e) {
+    // If provider fetch fails, keep the static list
+  }
+}
+
+function resetProviderDropdown() {
+  providerSelect.innerHTML = '';
+  staticProviders.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    providerSelect.appendChild(opt);
+  });
+  selectDefaultProvider();
+}
+
+function updateProviderDropdown() {
+  if (!availableProviders) return;
+
+  const lang = languageSelect.value;
+  const providers = availableProviders[lang];
+
+  providerSelect.innerHTML = '';
+  if (providers && providers.length) {
+    providers.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      providerSelect.appendChild(opt);
+    });
+  } else {
+    // Fallback to the static working providers list
+    staticProviders.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      opt.textContent = p;
+      providerSelect.appendChild(opt);
+    });
+  }
+  selectDefaultProvider();
+}
+
+function selectDefaultProvider() {
+  // Prefer VOE as default since it's the most common working provider
+  for (const opt of providerSelect.options) {
+    if (opt.value === 'VOE') {
+      providerSelect.value = 'VOE';
+      return;
+    }
   }
 }
 
@@ -142,8 +218,8 @@ async function startDownload() {
   const episodes = Array.from(checkboxes).map(cb => cb.value);
   if (!episodes.length) { showToast('No episodes selected.'); return; }
 
-  const language = document.getElementById('languageSelect').value;
-  const provider = document.getElementById('providerSelect').value;
+  const language = languageSelect.value;
+  const provider = providerSelect.value;
 
   downloadBtn.disabled = true;
   try {
@@ -177,9 +253,16 @@ function pollStatus() {
       if (data.status === 'completed') {
         clearInterval(pollTimer);
         pollTimer = null;
-        statusText.textContent = `Done! ${data.total} episode(s) downloaded.`;
-        if (data.errors && data.errors.length) {
-          statusText.textContent += ` (${data.errors.length} error(s))`;
+        const errorCount = data.errors ? data.errors.length : 0;
+        const successCount = data.total - errorCount;
+        if (errorCount === 0) {
+          statusText.textContent = `Done! ${data.total} episode(s) downloaded.`;
+        } else {
+          const lastError = data.errors[data.errors.length - 1];
+          statusText.textContent = `Done: ${successCount}/${data.total} downloaded, ${errorCount} failed.`;
+          if (lastError) {
+            showToast(`Download error: ${lastError.error}`);
+          }
         }
         downloadBtn.disabled = false;
         currentDownloadId = null;
