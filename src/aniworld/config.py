@@ -20,6 +20,29 @@ NAMING_TEMPLATE = os.getenv(
     "{title} ({year}) [imdbid-{imdbid}]/Season {season}/{title} S{season}E{episode}.mkv",
 )
 
+# Video codec configuration
+VIDEO_CODEC = os.getenv("ANIWORLD_VIDEO_CODEC", "copy")
+
+# Simple codec mapping using ffmpeg defaults
+VIDEO_CODEC_MAP = {
+    "copy": "copy",
+    "h264": "libx264",
+    "h265": "libx265",
+    "av1": "libsvtav1",
+}
+
+
+def get_video_codec():
+    """Get and validate video codec from environment variable."""
+    codec = VIDEO_CODEC
+    if codec not in VIDEO_CODEC_MAP:
+        logger.warning(
+            f"Invalid video codec '{codec}', falling back to 'copy'. Valid options: {list(VIDEO_CODEC_MAP.keys())}"
+        )
+        return "copy"
+    return VIDEO_CODEC_MAP[codec]
+
+
 # NIQUESTS
 
 # DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone16,2; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Resorts/4.7.5"

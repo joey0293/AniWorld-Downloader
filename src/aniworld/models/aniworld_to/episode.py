@@ -21,6 +21,7 @@ from ...config import (
     PROVIDER_HEADERS_W,
     Audio,
     Subtitles,
+    get_video_codec,
     logger,
 )
 from ...extractors import provider_functions
@@ -618,8 +619,12 @@ class AniworldEpisode:
                 stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
 
             # Download full stream
+            video_codec = get_video_codec()
             ffmpeg.input(self.stream_url, **input_kwargs).output(
-                str(temp_full), c="copy", **stream_metadata
+                str(temp_full),
+                vcodec=video_codec,
+                acodec=video_codec,
+                **stream_metadata,
             ).run()
 
             # Mux into final file (or just move if file didn't exist before)
@@ -645,18 +650,20 @@ class AniworldEpisode:
         # ---------------------------------------------------------
         if need_audio:
             logger.warning("[DOWNLOADING] audio stream")
+            video_codec = get_video_codec()
             ffmpeg.input(self.stream_url, **input_kwargs).output(
                 str(temp_audio),
-                c="copy",
+                acodec=video_codec,
                 map="0:a:0?",
                 **{"metadata:s:a:0": f"language={audio_code}"},
             ).run()
 
         if need_video:
             logger.warning("[DOWNLOADING] video stream")
+            video_codec = get_video_codec()
             ffmpeg.input(self.stream_url, **input_kwargs).output(
                 str(temp_video),
-                c="copy",
+                vcodec=video_codec,
                 map="0:v:0?",
                 **(
                     {}
