@@ -187,6 +187,7 @@ class AniworldEpisode:
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
+                language=self.selected_language,
             )
             self.__base_folder = Path(self.selected_path) / folder_str
         return self.__base_folder
@@ -204,6 +205,7 @@ class AniworldEpisode:
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
+                language=self.selected_language,
             )
             self.__folder_path = self._base_folder / folder_str
         return self.__folder_path

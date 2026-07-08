@@ -291,6 +291,7 @@ class SerienstreamEpisode:
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
+                language=self.selected_language,
             )
             self.__base_folder = Path(self.selected_path) / folder_str
         return self.__base_folder
@@ -308,6 +309,7 @@ class SerienstreamEpisode:
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
+                language=self.selected_language,
             )
             self.__folder_path = self._base_folder / folder_str
         return self.__folder_path
@@ -330,6 +332,7 @@ class SerienstreamEpisode:
             file_template = file_template.replace("%imdbid%", "{imdbid}")
             file_template = file_template.replace("%season%", "{season}")
             file_template = file_template.replace("%episode%", "{episode}")
+            file_template = file_template.replace("%language%", "{language}")
 
             self.__file_name = file_template.format(
                 title=self.series.title_cleaned,
@@ -337,6 +340,7 @@ class SerienstreamEpisode:
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
+                language=self.selected_language,
             )
         return self.__file_name
 
