@@ -7,6 +7,18 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+{% if auth_enabled and current_user %}
+<div class="top-bar">
+  <div class="top-bar-left">AniWorld Downloader</div>
+  <div class="top-bar-right">
+    {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('auth.admin_dashboard') }}" class="top-bar-link">Manage</a>
+    {% endif %}
+    <span class="top-bar-user">{{ current_user.username }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="top-bar-link">Logout</a>
+  </div>
+</div>
+{% endif %}
 <div class="container">
   <h1>AniWorld Downloader</h1>
   <div class="search-bar">
