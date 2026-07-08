@@ -393,8 +393,14 @@ function showToast(msg) {
   setTimeout(() => t.style.display = 'none', 4000);
 }
 
+function unesc(s) {
+  const d = document.createElement('textarea');
+  d.innerHTML = s || '';
+  return d.value;
+}
+
 function esc(s) {
   const d = document.createElement('div');
-  d.textContent = s || '';
+  d.textContent = unesc(s);
   return d.innerHTML;
 }
