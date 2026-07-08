@@ -90,6 +90,11 @@ deps = {
     },
     "iina": {"Darwin": {"package": "iina"}},
     "7z": {"Windows": {"url": "https://7-zip.org/a/7zr.exe"}},
+    "ffmpeg": {
+        "Windows": {"package": "Gyan.FFmpeg", "url": None},
+        "Linux": {"package": "ffmpeg"},
+        "Darwin": {"package": "ffmpeg"},
+    },
 }
 
 

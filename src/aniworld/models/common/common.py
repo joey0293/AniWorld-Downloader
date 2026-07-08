@@ -1,12 +1,15 @@
 import getpass
 import hashlib
 import os
+import platform
 import re
 import shlex
 import subprocess
 from typing import Tuple
 
 import ffmpeg
+
+from ...autodeps import DependencyManager
 
 try:
     from ...autodeps import get_player_path, get_syncplay_path
@@ -139,6 +142,9 @@ def _remove_empty_dirs(folder_path, base_folder):
 
 def download(self):
     """Download required audio/video streams for an episode (AniWorld + s.to) with retry logic."""
+    if platform.system() == "Windows":
+        manager = DependencyManager()
+        manager.fetch_binary("ffmpeg")
 
     max_retries = 3
     attempt = 0
