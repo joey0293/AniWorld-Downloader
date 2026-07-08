@@ -218,9 +218,13 @@ class SerienstreamEpisode:
     @property
     def selected_path(self):
         if self.__selected_path is None:
-            self.__selected_path = self.__selected_path_param or os.getenv(
+            raw_path = self.__selected_path_param or os.getenv(
                 "ANIWORLD_DOWNLOAD_PATH", str(Path.home() / "Downloads")
             )
+            path = Path(raw_path).expanduser()
+            if not path.is_absolute():
+                path = Path.home() / path
+            self.__selected_path = str(path)
         return self.__selected_path
 
     @property
@@ -275,8 +279,8 @@ class SerienstreamEpisode:
                 title=self.series.title_cleaned,
                 year=self.series.release_year,
                 imdbid=self.series.imdb,
-                season=f"{self.season.season_number}",
-                episode=f"{self.episode_number}",
+                season=f"{self.season.season_number:02d}",
+                episode=f"{self.episode_number:02d}",
             )
             self.__base_folder = Path(self.selected_path) / folder_str
         return self.__base_folder
@@ -292,8 +296,8 @@ class SerienstreamEpisode:
                 title=self.series.title_cleaned,
                 year=self.series.release_year,
                 imdbid=self.series.imdb,
-                season=f"{self.season.season_number}",
-                episode=f"{self.episode_number}",
+                season=f"{self.season.season_number:02d}",
+                episode=f"{self.episode_number:02d}",
             )
             self.__folder_path = self._base_folder / folder_str
         return self.__folder_path
@@ -321,8 +325,8 @@ class SerienstreamEpisode:
                 title=self.series.title_cleaned,
                 year=self.series.release_year,
                 imdbid=self.series.imdb,
-                season=f"{self.season.season_number}",
-                episode=f"{self.episode_number}",
+                season=f"{self.season.season_number:02d}",
+                episode=f"{self.episode_number:02d}",
             )
         return self.__file_name
 
