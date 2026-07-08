@@ -81,11 +81,11 @@ function renderJobs(jobs) {
             '<td>' + dlPath + '</td>' +
             '<td><span class="queue-status ' + statusClass + '">' + statusLabel + '</span></td>' +
             '<td>' + addedBy + '</td>' +
-            '<td class="autosync-actions">' +
+            '<td><div class="autosync-actions">' +
             '<button class="btn-autosync-action btn-edit" onclick="openEditModal(' + job.id + ')" title="Edit">✎</button>' +
             '<button class="btn-autosync-action btn-sync" onclick="syncNow(' + job.id + ')" title="Sync Now">⟳</button>' +
             '<button class="btn-autosync-action btn-del" onclick="removeJob(' + job.id + ')" title="Remove">✕</button>' +
-            '</td>' +
+            '</div></td>' +
             '</tr>';
     }
     html += '</tbody></table>';
