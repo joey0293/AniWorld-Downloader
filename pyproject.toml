@@ -16,6 +16,7 @@ dependencies = [
     'npyscreen',
     'ffmpeg-python',
     'python-dotenv',
+    'fake-useragent',  # maybe replaced in future
     'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"',  # needed for npyscreen on windows
 ]
 classifiers = [
