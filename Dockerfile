@@ -2,9 +2,10 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install ffmpeg and system dependencies required by Chromium (patchright)
+# Install ffmpeg, Xvfb and system dependencies required by Chromium (patchright)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    xvfb \
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -40,6 +41,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Default download directory used by the application
 ENV ANIWORLD_DOWNLOAD_PATH=/app/Downloads
 
+# Virtual display for headless Chromium (patchright) — headed mode works via Xvfb
+ENV DISPLAY=:99
+
 # Copy packaging metadata first to maximize Docker layer cache hits for dependency installs
 COPY pyproject.toml /app/
 COPY README.md LICENSE MANIFEST.in /app/
@@ -65,5 +69,5 @@ USER aniworld
 # Expose the web UI port
 EXPOSE 8080
 
-# Run the web UI, exposed on all interfaces with no browser
-CMD ["aniworld", "--web-ui", "--web-expose", "--no-browser", "--web-port", "8080"]
+# Start Xvfb virtual display on :99, then launch the web UI
+CMD Xvfb :99 -screen 0 1280x720x24 -nolisten tcp & sleep 1 && exec aniworld --web-ui --web-expose --no-browser --web-port 8080

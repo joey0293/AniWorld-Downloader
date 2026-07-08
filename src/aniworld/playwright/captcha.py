@@ -1,9 +1,18 @@
+import os as _os
+import platform as _platform
 import threading as _threading
 import queue as _queue_module
 import time as _time
 
 
 _local = _threading.local()
+
+
+def _has_display() -> bool:
+    """Return True if a graphical display is available."""
+    if _platform.system() in ("Windows", "Darwin"):
+        return True
+    return bool(_os.environ.get("DISPLAY") or _os.environ.get("WAYLAND_DISPLAY"))
 
 # Active captcha sessions keyed by queue_id
 _active_sessions = {}
@@ -93,12 +102,16 @@ def _solve_captcha_cli(url: str) -> bool:
         with _captcha_state_lock:
             _captcha_state = {"url": url, "started_at": _time.time(), "solved": False}
 
-        logger.warning(f"CAPTCHA erkannt für {url} — Browser wird für manuelle Lösung geöffnet")
+        headless = not _has_display()
+        if headless:
+            logger.warning(f"CAPTCHA erkannt für {url} — kein Display gefunden, starte Chromium headless (patchright)")
+        else:
+            logger.warning(f"CAPTCHA erkannt für {url} — Browser wird für manuelle Lösung geöffnet")
 
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch(
-                    headless=False,
+                    headless=headless,
                     args=["--disable-blink-features=AutomationControlled"],
                 )
                 context = browser.new_context(
@@ -196,12 +209,12 @@ def _solve_captcha_interactive(url: str, queue_id: int) -> bool:
 
     global _captcha_state
     try:
+        headless = not _has_display()
+        launch_args = ["--window-position=-32000,-32000", "--window-size=1280,720"] if not headless else []
         with sync_playwright() as p:
-            # headless=False required for Cloudflare/Turnstile to work.
-            # Window pushed off-screen to avoid visible popup on server desktops.
             browser = p.chromium.launch(
-                headless=False,
-                args=["--window-position=-32000,-32000", "--window-size=1280,720"],
+                headless=headless,
+                args=launch_args,
             )
             context = browser.new_context(viewport={"width": 1280, "height": 720})
             page = context.new_page()
