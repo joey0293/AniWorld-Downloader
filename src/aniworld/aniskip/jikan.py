@@ -130,4 +130,4 @@ def get_all_seasons_by_query(query="love is war"):
 
 
 if __name__ == "__main__":
-    get_all_seasons_by_query()
+    print(get_all_seasons_by_query())
