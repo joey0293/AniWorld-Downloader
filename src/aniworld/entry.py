@@ -11,7 +11,7 @@ from .providers import resolve_provider
 from .search import search
 
 merge_env(
-    Path(__file__).resolve().parents[2] / ".env.example",
+    Path(__file__).resolve().parent / ".env.example",
     ANIWORLD_CONFIG_DIR / ".env",
 )
 
