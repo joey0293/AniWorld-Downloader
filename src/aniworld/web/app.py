@@ -14,11 +14,13 @@ from ..search import fetch_new_animes, fetch_popular_animes, random_anime
 from ..search import query as aniworld_query
 from .db import (
     add_to_queue,
+    cancel_queue_item,
     clear_completed,
     get_next_queued,
     get_queue,
     get_running,
     init_queue_db,
+    is_queue_cancelled,
     remove_from_queue,
     set_queue_status,
     update_queue_errors,
@@ -72,26 +74,65 @@ def _queue_worker():
             episodes = json.loads(item["episodes"])
             errors = []
 
+            # Language separation: compute subfolder path if enabled
+            import os
+
+            lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+            selected_path = None
+            if lang_sep:
+                from pathlib import Path
+
+                lang_folder_map = {
+                    "German Dub": "german-dub",
+                    "English Sub": "english-sub",
+                    "German Sub": "german-sub",
+                    "English Dub": "english-dub",
+                }
+                lang_folder = lang_folder_map.get(
+                    item["language"], item["language"].lower().replace(" ", "-")
+                )
+                raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+                if raw:
+                    base = Path(raw).expanduser()
+                    if not base.is_absolute():
+                        base = Path.home() / base
+                else:
+                    base = Path.home() / "Downloads"
+                selected_path = str(base / lang_folder)
+
             for i, ep_url in enumerate(episodes):
                 update_queue_progress(item["id"], i, ep_url)
                 try:
                     prov = resolve_provider(ep_url)
-                    episode = prov.episode_cls(
-                        url=ep_url,
-                        selected_language=item["language"],
-                        selected_provider=item["provider"],
-                    )
+                    ep_kwargs = {
+                        "url": ep_url,
+                        "selected_language": item["language"],
+                        "selected_provider": item["provider"],
+                    }
+                    if selected_path:
+                        ep_kwargs["selected_path"] = selected_path
+                    episode = prov.episode_cls(**ep_kwargs)
                     episode.download()
                 except Exception as e:
                     logger.error(f"Download failed for {ep_url}: {e}")
                     errors.append({"url": ep_url, "error": str(e)})
                     update_queue_errors(item["id"], json.dumps(errors))
 
-            update_queue_progress(item["id"], len(episodes), "")
-            status = (
-                "failed" if errors and len(errors) == len(episodes) else "completed"
-            )
-            set_queue_status(item["id"], status)
+                # Check for cancellation after each episode
+                if is_queue_cancelled(item["id"]):
+                    logger.info(f"Download cancelled for queue item {item['id']}")
+                    update_queue_progress(item["id"], i + 1, "")
+                    break
+
+            # Only set final status if not already cancelled
+            if not is_queue_cancelled(item["id"]):
+                update_queue_progress(item["id"], len(episodes), "")
+                status = (
+                    "failed"
+                    if errors and len(errors) == len(episodes)
+                    else "completed"
+                )
+                set_queue_status(item["id"], status)
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
             time.sleep(3)
@@ -417,6 +458,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return jsonify({"error": err}), 400
         return jsonify({"ok": True})
 
+    @app.route("/api/queue/<int:queue_id>/cancel", methods=["POST"])
+    def api_queue_cancel(queue_id):
+        ok, err = cancel_queue_item(queue_id)
+        if not ok:
+            return jsonify({"error": err}), 400
+        return jsonify({"ok": True})
+
     @app.route("/api/queue/completed", methods=["DELETE"])
     def api_queue_clear():
         clear_completed()
@@ -447,6 +495,28 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             return jsonify({"error": "Failed to fetch popular animes"}), 500
         return jsonify({"results": results})
 
+    @app.route("/api/downloaded-folders")
+    def api_downloaded_folders():
+        from pathlib import Path
+
+        raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+        if raw:
+            p = Path(raw).expanduser()
+            if not p.is_absolute():
+                p = Path.home() / p
+            dl_path = p
+        else:
+            dl_path = Path.home() / "Downloads"
+
+        folders = []
+        if dl_path.is_dir():
+            folders = [
+                entry.name
+                for entry in dl_path.iterdir()
+                if entry.is_dir()
+            ]
+        return jsonify({"folders": folders})
+
     @app.route("/api/settings", methods=["GET"])
     def api_settings():
         from pathlib import Path
@@ -459,9 +529,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             resolved = str(p)
         else:
             resolved = str(Path.home() / "Downloads")
+        lang_separation = os.environ.get("ANIWORLD_LANG_SEPARATION", "0")
         return jsonify(
             {
                 "download_path": resolved,
+                "lang_separation": lang_separation,
             }
         )
 
@@ -470,6 +542,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         data = request.get_json(silent=True) or {}
         download_path = data.get("download_path", "").strip()
         os.environ["ANIWORLD_DOWNLOAD_PATH"] = download_path
+        if "lang_separation" in data:
+            os.environ["ANIWORLD_LANG_SEPARATION"] = (
+                "1" if data["lang_separation"] else "0"
+            )
         return jsonify({"ok": True})
 
     if auth_enabled:

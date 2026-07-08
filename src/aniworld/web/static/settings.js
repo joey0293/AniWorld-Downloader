@@ -1,13 +1,33 @@
 // Download path settings
 const downloadPathInput = document.getElementById('downloadPath');
+const langSeparationCb = document.getElementById('langSeparation');
 
 async function loadSettings() {
   try {
     const resp = await fetch('/api/settings');
     const data = await resp.json();
     downloadPathInput.value = data.download_path || '';
+    if (langSeparationCb) langSeparationCb.checked = data.lang_separation === '1';
   } catch (e) {
     showToast('Failed to load settings: ' + e.message);
+  }
+}
+
+async function saveLangSeparation() {
+  try {
+    const resp = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        download_path: downloadPathInput.value.trim(),
+        lang_separation: langSeparationCb.checked
+      })
+    });
+    const data = await resp.json();
+    if (data.error) { showToast(data.error); return; }
+    showToast('Language separation ' + (langSeparationCb.checked ? 'enabled' : 'disabled'));
+  } catch (e) {
+    showToast('Failed to save setting: ' + e.message);
   }
 }
 

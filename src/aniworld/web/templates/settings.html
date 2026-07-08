@@ -11,6 +11,11 @@
       <button onclick="saveDownloadPath()">Save</button>
     </div>
     <div class="settings-hint">Changes take effect immediately for new downloads</div>
+    <label class="settings-checkbox" style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;color:#c8cad0;cursor:pointer">
+      <input type="checkbox" id="langSeparation" onchange="saveLangSeparation()" style="accent-color:#2563eb;cursor:pointer">
+      Separate languages into folders
+    </label>
+    <div class="settings-hint">When enabled, downloads are organized into subfolders by language (e.g. german-dub/, english-sub/)</div>
   </div>
 
   {% if auth_enabled %}
