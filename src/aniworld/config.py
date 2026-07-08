@@ -31,8 +31,9 @@ GLOBAL_SESSION = Session(
 
 logger.debug("Config initialized successfully")
 
-### PROVIDER
-
+# -----------------------------
+# Provider Stuff
+# -----------------------------
 SUPPORTED_PROVIDERS = (
     "Filemoon",
     "Vidmoly",
@@ -73,9 +74,10 @@ PROVIDER_HEADERS_W = {
     "Filemoon": {"User-Agent": RANDOM_USER_AGENT, "Referer": "https://filemoon.to"},
 }
 
-# LANGUAGE
 
-
+# -----------------------------
+# Language Stuff
+# -----------------------------
 class Audio(Enum):
     """
     Available audio language options:

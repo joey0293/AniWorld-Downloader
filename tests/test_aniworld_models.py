@@ -1,6 +1,6 @@
 import json
 
-from ..src.aniworld.models import (
+from aniworld.models import (
     AniworldEpisode,
     AniworldSeason,
     AniworldSeries,
