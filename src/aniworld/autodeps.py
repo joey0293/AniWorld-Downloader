@@ -1,80 +1,76 @@
 import os
-import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import List
 
 PLATFORM = "Windows"  # override platform.system() for development/testing
 
 try:
+    from .common import fetch_github_asset_urls
     from .config import GLOBAL_SESSION
     from .logger import get_logger
+
 except ImportError:
+    from aniworld.common import fetch_github_asset_urls
     from aniworld.config import GLOBAL_SESSION
     from aniworld.logger import get_logger
 
 
 # -----------------------------
-# Helpers
-# -----------------------------
-def _find_github_asset_url(assets, pattern):
-    """Helper to find the first asset URL matching the given regex pattern"""
-    for asset in assets:
-        url = asset.get("browser_download_url")
-        if url and pattern.search(url):
-            return url
-    return None
-
-
-def _get_github_release_assets(api_url):
-    """Fetch release assets from a GitHub API URL"""
-    resp = GLOBAL_SESSION.get(api_url)
-    resp.raise_for_status()
-    return resp.json().get("assets", [])
-
-
-# -----------------------------
 # MPV
 # -----------------------------
-def get_mpv_release_urls():
-    """Fetch URLs for the latest Windows MPV releases (v3 and non-v3)."""
-    api_url = (
-        "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest"
-    )
-    assets = _get_github_release_assets(api_url)
+def get_mpv_release_urls() -> dict[str, list[str]]:
+    """
+    Fetch all Windows MPV release URLs, separated into v3 and non-v3 builds.
 
-    v3_pattern = re.compile(r"mpv-x86_64-v3-\d{8}-git-[a-f0-9]+\.7z$", re.IGNORECASE)
-    non_v3_pattern = re.compile(
-        r"mpv-x86_64-(?!v3-)\d{8}-git-[a-f0-9]+\.7z$", re.IGNORECASE
-    )
+    Returns:
+        {
+            "v3": [...],      # all v3 release URLs
+            "non_v3": [...]   # all non-v3 release URLs
+        }
+    """
+    repo = "shinchiro/mpv-winbuild-cmake"
 
-    return _find_github_asset_url(assets, v3_pattern), _find_github_asset_url(
-        assets, non_v3_pattern
-    )
+    patterns = {
+        "v3": r"mpv-x86_64-v3-\d{8}-git-[a-f0-9]+\.7z$",
+        "non_v3": r"mpv-x86_64-(?!v3-)\d{8}-git-[a-f0-9]+\.7z$",
+    }
+
+    urls: dict[str, list[str]] = {}
+
+    for key, pattern in patterns.items():
+        urls[key] = fetch_github_asset_urls(repo, pattern)
+
+    return urls
 
 
-def get_mpv_windows_url():
-    """Get Windows MPV URL (currently non-v3 by default)."""
-    return get_mpv_release_urls()[1]  # TODO: add config to choose v3 vs non-v3
+def get_mpv_windows_url(v3: bool = False) -> str:
+    """
+    Get a single Windows MPV URL.
+
+    Args:
+        v3: whether to get the v3 build (default False → non-v3)
+    """
+    all_urls = get_mpv_release_urls()
+    key = "v3" if v3 else "non_v3"
+    return all_urls.get(key, [None])[0]  # return first match or None
 
 
 # -----------------------------
 # Syncplay
 # -----------------------------
-def get_syncplay_release_url():
-    """Fetch the URL for the latest Windows Syncplay portable ZIP release."""
-    api_url = "https://api.github.com/repos/Syncplay/syncplay/releases/latest"
-    assets = _get_github_release_assets(api_url)
-
-    portable_pattern = re.compile(
-        r"Syncplay[_-]\d+(?:\.\d+)*_Portable\.zip$", re.IGNORECASE
-    )
-    return _find_github_asset_url(assets, portable_pattern)
+def get_syncplay_release_url() -> List[str]:
+    """Fetch the URLs for the latest Windows Syncplay portable ZIP release."""
+    repo = "Syncplay/syncplay"
+    portable_pattern = r"Syncplay[_-]\d+(?:\.\d+)*_Portable\.zip$"
+    return fetch_github_asset_urls(repo, portable_pattern)
 
 
-def get_syncplay_windows_url():
-    """Get Windows Syncplay URL"""
-    return get_syncplay_release_url()
+def get_syncplay_windows_url() -> str:
+    """Get Windows Syncplay URL (first match)."""
+    urls = get_syncplay_release_url()
+    return urls[0] if urls else None
 
 
 # -----------------------------
@@ -99,8 +95,6 @@ deps = {
 # -----------------------------
 # Dependency Manager
 # -----------------------------
-# TODO: I dont like this
-# - currently only downloads 7z
 class DependencyManager:
     """Manage binaries with system package manager or direct download."""
 
@@ -108,44 +102,38 @@ class DependencyManager:
         self.deps = deps
         self.install_folder = Path(
             install_folder
-            or os.getenv(
-                "ANIWORLD_INSTALL_FOLDER", Path.home() / ".aniworld"
-            )  # TODO: .aniworld/<package_name>/<package_name>.exe
+            or os.getenv("ANIWORLD_INSTALL_FOLDER", Path.home() / ".aniworld")
         )
         self.install_folder.mkdir(parents=True, exist_ok=True)
-
         self.logger = get_logger(__name__)
         self.logger.debug(f"Dependency folder: {self.install_folder}")
 
-    def fetch_binary(self, name):
-        """Fetch binary: system-wide -> local folder -> package manager -> download"""
+    def fetch_binary(self, name: str) -> Path:
         dep_info = self.deps.get(name, {}).get(PLATFORM, {})
         url = dep_info.get("url")
 
         # Lazy resolution for MPV Windows URL
         if name == "mpv" and PLATFORM == "Windows" and not url:
             url = get_mpv_windows_url()
-            dep_info["url"] = url  # cache it
+            dep_info["url"] = url
 
         if not url:
             raise RuntimeError(f"Cannot locate or install {name} for {PLATFORM}.")
 
-        # Derive filename from URL extension instead of hardcoding
-        file_name = Path(url).name
-        local_path = self.install_folder / file_name
+        local_path = self.install_folder / Path(url).name
 
-        # Check system-wide install (only for known binaries with standard names)
+        # System-wide
         sys_path = shutil.which(name)
         if sys_path:
             self.logger.debug(f"{name} found system-wide at {sys_path}")
             return Path(sys_path)
 
-        # Check local folder
+        # Local folder
         if local_path.exists():
             self.logger.debug(f"{name} found in {self.install_folder}")
             return local_path
 
-        # Try package manager
+        # Package manager
         if self._install_with_package_manager(name):
             if local_path.exists():
                 return local_path
@@ -157,7 +145,6 @@ class DependencyManager:
         self.logger.debug(f"Downloading {name} for {PLATFORM} from {url}...")
         resp = GLOBAL_SESSION.get(url, stream=True)
         resp.raise_for_status()
-
         with open(local_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
                 f.write(chunk)
@@ -168,8 +155,7 @@ class DependencyManager:
         self.logger.debug(f"{name} downloaded to {local_path}")
         return local_path
 
-    def _install_with_package_manager(self, name):
-        """Install binary via system package manager if available."""
+    def _install_with_package_manager(self, name: str) -> bool:
         dep_info = self.deps.get(name, {}).get(PLATFORM, {})
         pkg_name = dep_info.get("package")
         if not pkg_name:
@@ -201,7 +187,10 @@ class DependencyManager:
             return False
 
 
-def get_player_path():
+# -----------------------------
+# Player paths
+# -----------------------------
+def get_player_path() -> Path:
     manager = DependencyManager()
     use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
     use_aniskip = os.getenv("ANIWORLD_USE_ANISKIP") == "1"
@@ -212,8 +201,7 @@ def get_player_path():
     return manager.fetch_binary("mpv")
 
 
-# TODO: implement syncplay instead of mpv
-def get_syncplay_path():
+def get_syncplay_path() -> Path:
     manager = DependencyManager()
     return manager.fetch_binary("mpv")
 
