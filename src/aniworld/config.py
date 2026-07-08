@@ -183,8 +183,9 @@ def get_player_path():
     deps_manager = DependencyManager(deps=deps)
 
     use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
+    use_aniskip = os.getenv("ANIWORLD_USE_ANISKIP") == "1"
 
-    if platform.system() == "Darwin" and use_iina:
+    if platform.system() == "Darwin" and use_iina and not use_aniskip:
         return deps_manager.fetch_binary("iina")
 
     return deps_manager.fetch_binary("mpv")
