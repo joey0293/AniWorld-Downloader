@@ -4,7 +4,7 @@ import os
 import sys
 
 from .anime4k import anime4k
-from .config import VERSION
+from .config import LANG_LABELS, SUPPORTED_PROVIDERS, VERSION
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -17,6 +17,20 @@ def parse_args():
         "--action",
         choices=["Download", "Watch", "Syncplay"],
         help="Choose what to do: Download, Watch, or Syncplay",
+    )
+
+    parser.add_argument(
+        "--language",
+        choices=LANG_LABELS.values(),
+        help="Choose language: "
+        + ", ".join(f"'{value}'" for value in LANG_LABELS.values()),
+    )
+
+    parser.add_argument(
+        "--provider",
+        choices=SUPPORTED_PROVIDERS,
+        help="Choose provider: "
+        + ", ".join(f"'{value}'" for value in SUPPORTED_PROVIDERS),
     )
 
     parser.add_argument(
@@ -52,6 +66,12 @@ def parse_args():
     )
 
     args = parser.parse_args()
+
+    if args.language:
+        os.environ["ANIWORLD_LANGUAGE"] = args.language
+
+    if args.provider:
+        os.environ["ANIWORLD_PROVIDER"] = args.provider
 
     if args.random_anime:
         os.environ["ANIWORLD_RANDOM_ANIME"] = "1"
