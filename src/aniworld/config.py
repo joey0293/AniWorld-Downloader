@@ -58,12 +58,12 @@ def get_video_codec():
 
 # NIQUESTS
 
-# DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone16,2; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Resorts/4.7.5"
 try:
     DEFAULT_USER_AGENT = str(
         fake_useragent.UserAgent(os=["Windows", "Mac OS X"]).random
     )
 except fake_useragent.errors.FakeUserAgentError:
+    # TODO: fix - currently happens on nuitka builds
     DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
 
 LULUVDO_USER_AGENT = (
