@@ -152,8 +152,8 @@ def get_preview_image_link_from_voe(embeded_voe_link, headers=None):
 
 
 if __name__ == "__main__":
-    # Tested on 2026/01 -> WORKING
-    # Example: https://voe.sx/e/brrfb6svahr0
+    # Tested on 2026/01/27 -> WORKING
+    # Example: https://voe.sx/e/oa16zsjaqohr
 
     # logging.basicConfig(level=logging.DEBUG)
 
