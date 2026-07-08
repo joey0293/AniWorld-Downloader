@@ -40,14 +40,6 @@ for i, season in enumerate(series.seasons, 1):
 
 """
 
-"""
-
-TODO:
-- Copy provider extractors from next
-- Add .watch() .download() and .syncplay() function
-
-"""
-
 series = AniworldSeries("https://aniworld.to/anime/stream/highschool-dxd")
 
 episode = series.seasons[0].episodes[0]

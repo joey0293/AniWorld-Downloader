@@ -100,7 +100,7 @@ deps = {
 # Dependency Manager
 # -----------------------------
 # TODO: I dont like this
-# TODO: currently only downloads 7z
+# - currently only downloads 7z
 class DependencyManager:
     """Manage binaries with system package manager or direct download."""
 

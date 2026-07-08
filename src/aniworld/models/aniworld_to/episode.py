@@ -216,7 +216,6 @@ class AniworldEpisode:
                 )
         return self.__stream_url
 
-    # TODO: fix those lol
     @property
     def _base_folder(self):
         if self.__base_folder is None:
