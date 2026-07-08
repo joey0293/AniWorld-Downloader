@@ -522,7 +522,10 @@ class AniworldEpisode:
         return LANG_KEY_MAP[key]
 
     def download(self):
-        # TODO: check if already downloaded
+        if os.path.exists(self._episode_path):
+            print(f"[SKIPPED] {self._file_name}")
+            return
+
         print(f"[DOWNLOADING] {self._file_name}")
 
         # Create folder if it doesn't exist
