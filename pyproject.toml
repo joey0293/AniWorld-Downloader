@@ -22,6 +22,7 @@ dependencies = [
   "waitress",
   "packaging",
   "cryptography",
+  "patchright",
   'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"', # npyscreen on Windows
 ]
 
