@@ -138,143 +138,155 @@ def _remove_empty_dirs(folder_path, base_folder):
 
 
 def download(self):
-    """Download required audio/video streams for an episode (AniWorld + s.to)."""
+    """Download required audio/video streams for an episode (AniWorld + s.to) with retry logic."""
 
-    check = check_downloaded(self._episode_path)
+    max_retries = 3
+    attempt = 0
 
-    headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
-    input_kwargs = {}
-    if headers:
-        header_list = [f"{k}: {v}" for k, v in headers.items()]
-        input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
+    while attempt < max_retries:
+        try:
+            attempt += 1
+            check = check_downloaded(self._episode_path)
 
-    url = (getattr(self, "url", "") or "").lower()
-    is_serienstream = ("serienstream.to" in url) or ("s.to" in url)
+            headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
+            input_kwargs = {}
+            if headers:
+                header_list = [f"{k}: {v}" for k, v in headers.items()]
+                input_kwargs["headers"] = "\r\n".join(header_list) + "\r\n"
 
-    if is_serienstream and hasattr(self, "_normalize_language"):
-        # s.to: only audio selection (no subtitle variants)
-        audio_enum, sub_enum = self._normalize_language(self.selected_language)
-        audio_code = {"German": "deu", "English": "eng"}.get(
-            getattr(audio_enum, "value", None)
-        )
-        if not audio_code:
-            raise ValueError(
-                f"Unsupported audio language for serienstream.to: {audio_enum}"
-            )
-        wants_clean_video = True
-        sub_video_code = None
-    else:
-        # aniworld.to
-        selected_key = INVERSE_LANG_LABELS[self.selected_language]
-        audio_enum, sub_enum = LANG_KEY_MAP[selected_key]
+            url = (getattr(self, "url", "") or "").lower()
+            is_serienstream = ("serienstream.to" in url) or ("s.to" in url)
 
-        audio_code = LANG_CODE_MAP[audio_enum]
-        wants_clean_video = sub_enum == Subtitles.NONE
-        sub_video_code = None if wants_clean_video else LANG_CODE_MAP[sub_enum]
-
-    has_video = bool(check["video_langs"])
-    has_audio = audio_code in check["audio_langs"]
-
-    need_audio = not has_audio
-    if not has_video:
-        need_video = True
-    elif not wants_clean_video:
-        need_video = sub_video_code not in check["video_langs"]
-    else:
-        need_video = False
-
-    if not need_audio and not need_video:
-        logger.debug(f"[SKIPPED] {self._file_name}")
-        return
-
-    os.makedirs(self._folder_path, exist_ok=True)
-
-    try:
-        full_stream_needed = need_audio and need_video
-
-        temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
-        temp_video = self._episode_path.with_suffix(".temp_video.mkv")
-        temp_full = self._episode_path.with_suffix(".temp_full.mkv")
-
-        if full_stream_needed:
-            logger.debug("[DOWNLOADING] full preset (audio + video together)")
-
-            stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
-            if (not wants_clean_video) and sub_video_code:
-                stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
-
-            video_codec = get_video_codec()
-            ffmpeg.input(self.stream_url, **input_kwargs).output(
-                str(temp_full),
-                vcodec=video_codec,
-                acodec=video_codec,
-                **stream_metadata,
-            ).run(overwrite_output=True)
-
-            if self._episode_path.exists():
-                inputs = [
-                    ffmpeg.input(str(self._episode_path)),
-                    ffmpeg.input(str(temp_full)),
-                ]
-                output_path = self._episode_path.with_suffix(".new.mkv")
-                ffmpeg.output(*inputs, str(output_path), c="copy").run(
-                    overwrite_output=True
+            if is_serienstream and hasattr(self, "_normalize_language"):
+                audio_enum, sub_enum = self._normalize_language(self.selected_language)
+                audio_code = {"German": "deu", "English": "eng"}.get(
+                    getattr(audio_enum, "value", None)
                 )
-                os.replace(output_path, self._episode_path)
+                if not audio_code:
+                    raise ValueError(
+                        f"Unsupported audio language for serienstream.to: {audio_enum}"
+                    )
+                wants_clean_video = True
+                sub_video_code = None
             else:
-                os.replace(temp_full, self._episode_path)
+                selected_key = INVERSE_LANG_LABELS[self.selected_language]
+                audio_enum, sub_enum = LANG_KEY_MAP[selected_key]
 
-            if temp_full.exists():
-                temp_full.unlink()
-            return
+                audio_code = LANG_CODE_MAP[audio_enum]
+                wants_clean_video = sub_enum == Subtitles.NONE
+                sub_video_code = None if wants_clean_video else LANG_CODE_MAP[sub_enum]
 
-        if need_audio:
-            logger.debug("[DOWNLOADING] audio stream")
-            video_codec = get_video_codec()
-            ffmpeg.input(self.stream_url, **input_kwargs).output(
-                str(temp_audio),
-                acodec=video_codec,
-                map="0:a:0?",
-                **{"metadata:s:a:0": f"language={audio_code}"},
-            ).run(overwrite_output=True)
+            has_video = bool(check["video_langs"])
+            has_audio = audio_code in check["audio_langs"]
 
-        if need_video:
-            logger.debug("[DOWNLOADING] video stream")
-            video_codec = get_video_codec()
-            ffmpeg.input(self.stream_url, **input_kwargs).output(
-                str(temp_video),
-                vcodec=video_codec,
-                map="0:v:0?",
-                **(
-                    {}
-                    if wants_clean_video
-                    else {"metadata:s:v:0": f"language={sub_video_code}"}
-                ),
-            ).run(overwrite_output=True)
+            need_audio = not has_audio
+            if not has_video:
+                need_video = True
+            elif not wants_clean_video:
+                need_video = sub_video_code not in check["video_langs"]
+            else:
+                need_video = False
 
-        logger.debug("[MUXING] combining streams")
-        inputs = (
-            [ffmpeg.input(str(self._episode_path))]
-            if self._episode_path.exists()
-            else []
-        )
+            if not need_audio and not need_video:
+                logger.debug(f"[SKIPPED] {self._file_name}")
+                return
 
-        if need_audio:
-            inputs.append(ffmpeg.input(str(temp_audio)))
-        if need_video:
-            inputs.append(ffmpeg.input(str(temp_video)))
+            os.makedirs(self._folder_path, exist_ok=True)
 
-        output_path = self._episode_path.with_suffix(".new.mkv")
-        ffmpeg.output(*inputs, str(output_path), c="copy").run(overwrite_output=True)
-        os.replace(output_path, self._episode_path)
+            full_stream_needed = need_audio and need_video
 
-        for f in (temp_audio, temp_video):
-            if f.exists():
-                f.unlink()
-    except Exception:
-        # Clean up empty directories left behind by a failed download
-        _remove_empty_dirs(self._folder_path, self._base_folder)
-        raise
+            temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
+            temp_video = self._episode_path.with_suffix(".temp_video.mkv")
+            temp_full = self._episode_path.with_suffix(".temp_full.mkv")
+
+            if full_stream_needed:
+                logger.debug("[DOWNLOADING] full preset (audio + video together)")
+
+                stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
+                if (not wants_clean_video) and sub_video_code:
+                    stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
+
+                video_codec = get_video_codec()
+                ffmpeg.input(self.stream_url, **input_kwargs).output(
+                    str(temp_full),
+                    vcodec=video_codec,
+                    acodec=video_codec,
+                    **stream_metadata,
+                ).run(overwrite_output=True)
+
+                if self._episode_path.exists():
+                    inputs = [
+                        ffmpeg.input(str(self._episode_path)),
+                        ffmpeg.input(str(temp_full)),
+                    ]
+                    output_path = self._episode_path.with_suffix(".new.mkv")
+                    ffmpeg.output(*inputs, str(output_path), c="copy").run(
+                        overwrite_output=True
+                    )
+                    os.replace(output_path, self._episode_path)
+                else:
+                    os.replace(temp_full, self._episode_path)
+
+                if temp_full.exists():
+                    temp_full.unlink()
+                return
+
+            if need_audio:
+                logger.debug("[DOWNLOADING] audio stream")
+                video_codec = get_video_codec()
+                ffmpeg.input(self.stream_url, **input_kwargs).output(
+                    str(temp_audio),
+                    acodec=video_codec,
+                    map="0:a:0?",
+                    **{"metadata:s:a:0": f"language={audio_code}"},
+                ).run(overwrite_output=True)
+
+            if need_video:
+                logger.debug("[DOWNLOADING] video stream")
+                video_codec = get_video_codec()
+                ffmpeg.input(self.stream_url, **input_kwargs).output(
+                    str(temp_video),
+                    vcodec=video_codec,
+                    map="0:v:0?",
+                    **(
+                        {}
+                        if wants_clean_video
+                        else {"metadata:s:v:0": f"language={sub_video_code}"}
+                    ),
+                ).run(overwrite_output=True)
+
+            logger.debug("[MUXING] combining streams")
+            inputs = (
+                [ffmpeg.input(str(self._episode_path))]
+                if self._episode_path.exists()
+                else []
+            )
+
+            if need_audio:
+                inputs.append(ffmpeg.input(str(temp_audio)))
+            if need_video:
+                inputs.append(ffmpeg.input(str(temp_video)))
+
+            output_path = self._episode_path.with_suffix(".new.mkv")
+            ffmpeg.output(*inputs, str(output_path), c="copy").run(
+                overwrite_output=True
+            )
+            os.replace(output_path, self._episode_path)
+
+            for f in (temp_audio, temp_video):
+                if f.exists():
+                    f.unlink()
+
+            # If download succeeds, exit loop
+            break
+
+        except Exception as e:
+            logger.warning(f"Download attempt {attempt} failed: {e}")
+            if attempt >= max_retries:
+                _remove_empty_dirs(self._folder_path, self._base_folder)
+                raise
+            else:
+                logger.debug("Retrying download...")
 
 
 def watch(self):

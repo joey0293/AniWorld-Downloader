@@ -128,9 +128,7 @@ def _queue_worker():
             if not is_queue_cancelled(item["id"]):
                 update_queue_progress(item["id"], len(episodes), "")
                 status = (
-                    "failed"
-                    if errors and len(errors) == len(episodes)
-                    else "completed"
+                    "failed" if errors and len(errors) == len(episodes) else "completed"
                 )
                 set_queue_status(item["id"], status)
         except Exception as e:
