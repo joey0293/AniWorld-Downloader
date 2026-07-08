@@ -1,60 +1,19 @@
 import os
 import re
 from collections import defaultdict
-from enum import Enum
 from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
 
 # import time
-from ...config import GLOBAL_SESSION, logger
-
-
-class Audio(Enum):
-    """
-    Available audio language options:
-
-        - JAPANESE: Japanese dubbed audio
-        - GERMAN:   German dubbed audio
-        - ENGLISH:  English dubbed audio
-
-    Required source for each option:
-
-        Japanese Dub -> Source: German Sub, English Sub
-        German Dub   -> Source: German Dub
-        English Dub  -> Source: English Dub
-    """
-
-    JAPANESE = "Japanese"
-    GERMAN = "German"
-    ENGLISH = "English"
-
-
-class Subtitles(Enum):
-    """
-    Available subtitle language options:
-
-        - NONE:    No subtitles
-        - GERMAN:  German subtitles
-        - ENGLISH: English subtitles
-
-    Required source for each option:
-
-        German Sub   -> Source: German Sub
-        English Sub  -> Source: English Sub
-    """
-
-    NONE = "None"
-    GERMAN = "German"
-    ENGLISH = "English"
-
-
-# Map site-specific language keys to semantic meaning
-LANG_KEY_MAP = {
-    "1": (Audio.GERMAN, Subtitles.NONE),  # German Dub
-    "2": (Audio.JAPANESE, Subtitles.ENGLISH),  # English Sub
-    "3": (Audio.JAPANESE, Subtitles.GERMAN),  # German Sub
-}
+from ...config import (
+    GLOBAL_SESSION,
+    LANG_KEY_MAP,
+    LANG_LABELS,
+    Audio,
+    Subtitles,
+    logger,
+)
 
 
 class ProviderData:
@@ -443,17 +402,30 @@ class AniworldEpisode:
 
         return provider_dict.get(provider)
 
+    def __get_language(self):
+        # Look up the key in LANG_LABELS by value
+        key = next(
+            (k for k, v in LANG_LABELS.items() if v == self.selected_language), None
+        )
+        if key is None:
+            return "Unknown"
+        return LANG_KEY_MAP[key]
+
     def download(self):
         print(f"[DOWNLOADING] {self._file_name}")
 
         # Create folder if it doesn't exist
         os.makedirs(self._folder_path, exist_ok=True)
 
-        stream_url = GLOBAL_SESSION.get(
-            self.provider_link((Audio.JAPANESE, Subtitles.GERMAN), "Filemoon")
-        ).url
+        # print(self.selected_language)  # "German Dub"
+        # print(self.__get_language())
+        # print(self.selected_provider)
 
-        logger.debug(stream_url)
+        redirect_url = self.provider_link(self.__get_language(), "Filemoon")
+        provider_url = GLOBAL_SESSION.get(redirect_url).url
+
+        print(redirect_url)
+        print(provider_url)
 
         # Downloading
         logger.debug(f"Downloading {self._episode_path}...")

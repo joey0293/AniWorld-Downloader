@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 import niquests
 from urllib3.exceptions import InsecureRequestWarning
 
-from aniworld.config import RANDOM_USER_AGENT
+from ...config import RANDOM_USER_AGENT
 
 warnings.simplefilter("ignore", InsecureRequestWarning)
 

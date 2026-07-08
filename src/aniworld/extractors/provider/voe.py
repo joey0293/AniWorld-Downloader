@@ -6,7 +6,7 @@ import re
 import niquests
 from bs4 import BeautifulSoup
 
-from aniworld.config import GLOBAL_SESSION, PROVIDER_HEADERS_D, RANDOM_USER_AGENT
+from ...config import GLOBAL_SESSION, PROVIDER_HEADERS_D, RANDOM_USER_AGENT
 
 # -----------------------------
 # Precompiled regex patterns
