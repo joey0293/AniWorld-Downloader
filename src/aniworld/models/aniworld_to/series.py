@@ -13,23 +13,28 @@ class AniworldSeries:
                 e.g. https://aniworld.to/anime/stream/highschool-dxd
 
     Attributes (Example):
-        url:            https://aniworld.to/anime/stream/highschool-dxd
-        title:          Highschool DxD
-        title_cleaned:  Highschool DxD
-        description:    Oberschüler Issei Hyodo findet einfach keine Freundin [...]
-        genres:         ['Actionkomödie', 'Action', 'Ecchi', 'EngSub', 'Ger', 'GerSub', 'Harem', 'Komödie', 'Romanze']
-        release_year:   2012-2018
-        poster_url:     https://aniworld.to/public/img/cover/highschool-dxd-stream-cover-iepoc76t56fF6faMuE6yOo3f4RrvQW3a_220x330.jpg
-        directors:      ['Tetsuya Yanagisawa']
-        actors:         'Yūki Kaji', 'Ayana Taketatsu', 'Shizuka Itō', 'Yoko Hikasa', 'Azumi Asakura', ...]
-        producer:       TNK
-        country:        Japan
-        age_rating:     16
-        rating:         4/5
-        has_movies:     True
-        seasons:        [<AniworldSeason.AniworldSeason object at 0x10dc15be0>, ...]
+        url:            "https://aniworld.to/anime/stream/highschool-dxd"
+        title:          "Highschool DxD"
+        title_cleaned:  "Highschool DxD"
+        description:    "Oberschüler Issei Hyodo findet einfach keine Freundin [...]"
+        genres:         ["Actionkomödie", "Action", "Ecchi", "EngSub", "Ger", "GerSub", "Harem", "Komödie", "Romanze"]
+        release_year:   "2012-2018"
+        poster_url:     "https://aniworld.to/public/img/cover/highschool-dxd-stream-cover-iepoc76t56fF6faMuE6yOo3f4RrvQW3a_220x330.jpg"
+        directors:      ["Tetsuya Yanagisawa"]
+        actors:         ["Yūki Kaji", "Ayana Taketatsu", "Shizuka Itō", "Yoko Hikasa", "Azumi Asakura", "Fumihiko Tachiki", "Saori Seto", "Risa Taneda"]
+        producer:       "TNK"
+        country:        "Japan"
+        age_rating:     "16"
+        rating:         "4/5"
+        has_movies:     true
+        seasons:        [<aniworld.models.aniworld_to.season.AniworldSeason object at 0x10afe5fd0>, [...]]
         season_count:   4
-        _html:          <!doctype html> ...
+        _html:          "<!doctype html>[...]"
+
+    Methods:
+        download()
+        watch()
+        syncplay()
     """
 
     def __init__(self, url: str):

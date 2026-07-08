@@ -9,26 +9,34 @@ class AniworldSeason:
     Represents a single season (or a movie collection) of an AniWorld anime series.
 
     Parameters:
-        series:     Parent series object.
         url:        Required. The AniWorld URL for this season, e.g.
                     https://aniworld.to/anime/stream/highschool-dxd/staffel-1
+                    or
+                    https://aniworld.to/anime/stream/highschool-dxd/filme
+        series:     <Parent series object>
 
     Attributes (Example):
         series:         <AniworldSeries object>
-        url:            https://aniworld.to/anime/stream/highschool-dxd/staffel-1
-        are_movies:     False
+        url:            "https://aniworld.to/anime/stream/highschool-dxd/staffel-1"
+        are_movies:     false
         season_number:  1
         episode_count:  12
-        episodes:       [<AniworldEpisode object>, <AniworldEpisode object>, ...]
-        _html:          <!doctype html> ...
+        episodes:       [<aniworld.models.aniworld_to.episode.AniworldEpisode object at 0x10b2023c0>, [...]]
+        _html:          "<!doctype html>[...]"
+
+    Methods:
+        download()
+        watch()
+        syncplay()
     """
 
     def __init__(self, url, series=None):
         if not self.is_valid_aniworld_season_url(url):
             raise ValueError(f"Invalid AniWorld season URL: {url}")
 
-        self._series = series
         self.url = url
+
+        self._series = series
 
         self.__are_movies = None
         self.__season_number = None
