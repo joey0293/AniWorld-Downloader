@@ -1,6 +1,6 @@
 import re
 
-from ...config import GLOBAL_SESSION, logger
+from ...config import ANIWORLD_SERIES_PATTERN, GLOBAL_SESSION, logger
 from .season import AniworldSeason
 
 
@@ -78,9 +78,7 @@ class AniworldSeries:
         Checks if the URL is a valid AniWorld series URL.
         """
 
-        # https://aniworld.to/anime/stream/highschool-dxd
-        pattern = r"^https?://(www\.)?aniworld\.to/anime/stream/[a-zA-Z0-9\-]+/?$"
-        return bool(re.match(pattern, url, re.IGNORECASE))
+        return bool(ANIWORLD_SERIES_PATTERN.match(url))
 
     # -----------------------------
     # PUBLIC PROPERTIES (lazy load)
