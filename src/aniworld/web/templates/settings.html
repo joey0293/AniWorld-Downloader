@@ -197,6 +197,27 @@ endblock %} {% block content %}
       be downloaded
     </div>
   </div>
+
+  <div class="settings-section">
+    <h2>IP Check</h2>
+    <h3 class="settings-subtitle">Container Public IP</h3>
+    <div class="settings-ip-card">
+      <div>
+        <div class="settings-ip-label">Current public IP</div>
+        <div class="settings-ip-value" id="publicIpValue">Loading...</div>
+        <div class="settings-ip-meta" id="publicIpMeta">
+          Querying the current outbound IP address
+        </div>
+      </div>
+      <button type="button" id="refreshPublicIpBtn" onclick="refreshPublicIp()">
+        Refresh IP
+      </button>
+    </div>
+    <div class="settings-hint">
+      Refresh this after connecting or disconnecting your VPN to confirm the
+      container is using the expected public IP.
+    </div>
+  </div>
 </div>
 {% endblock %} {% block scripts %}
 <script src="{{ url_for('static', filename='settings.js') }}"></script>

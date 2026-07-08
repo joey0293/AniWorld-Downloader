@@ -5,6 +5,9 @@ const disableEnglishSubCb = document.getElementById("disableEnglishSub");
 const syncScheduleSelect = document.getElementById("syncSchedule");
 const syncLanguageSelect = document.getElementById("syncLanguage");
 const syncProviderSelect = document.getElementById("syncProvider");
+const publicIpValue = document.getElementById("publicIpValue");
+const publicIpMeta = document.getElementById("publicIpMeta");
+const refreshPublicIpBtn = document.getElementById("refreshPublicIpBtn");
 
 async function loadSettings() {
   try {
@@ -127,6 +130,32 @@ async function saveDownloadPath() {
 }
 
 loadSettings();
+refreshPublicIp();
+
+async function refreshPublicIp() {
+  if (!publicIpValue || !publicIpMeta || !refreshPublicIpBtn) return;
+  refreshPublicIpBtn.disabled = true;
+  publicIpValue.textContent = "Loading...";
+  publicIpValue.classList.remove("is-error");
+  publicIpMeta.textContent = "Checking current outbound IP address...";
+  try {
+    const resp = await fetch("/api/settings/public-ip", { cache: "no-store" });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok || !data.ip) {
+      throw new Error(data.error || "Failed to fetch public IP");
+    }
+    publicIpValue.textContent = data.ip;
+    publicIpMeta.textContent =
+      "Updated at " + new Date().toLocaleTimeString([], { timeStyle: "medium" });
+  } catch (e) {
+    publicIpValue.textContent = "Unavailable";
+    publicIpValue.classList.add("is-error");
+    publicIpMeta.textContent = e.message;
+    showToast("Failed to fetch public IP: " + e.message);
+  } finally {
+    refreshPublicIpBtn.disabled = false;
+  }
+}
 
 async function saveSyncSchedule() {
   if (!syncScheduleSelect) return;
