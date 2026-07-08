@@ -331,10 +331,12 @@ function buildAccordion(seasons) {
         : `Season ${season.season_number} (${episodes.length} episodes)`;
 
       // Header
+      const allDownloaded = episodes.length > 0 && episodes.every(ep => ep.downloaded);
+      const seasonDlIcon = allDownloaded ? '<span class="season-downloaded" title="All episodes downloaded">&#10003;</span>' : '';
       const header = document.createElement('div');
       header.className = 'season-header' + (index === 0 ? ' expanded' : '');
       header.innerHTML =
-        `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}</div>` +
+        `<div class="season-label"><span class="season-arrow">&#9654;</span> ${esc(label)}${seasonDlIcon}</div>` +
         `<label class="season-all-label" onclick="event.stopPropagation()"><input type="checkbox" onchange="toggleSeasonAll(this, ${index})"> All</label>`;
       header.addEventListener('click', () => toggleSeason(index));
 
@@ -347,7 +349,8 @@ function buildAccordion(seasons) {
         const div = document.createElement('div');
         div.className = 'episode-item';
         const title = ep.title_en || ep.title_de || '';
-        div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span><span class="ep-title">${esc(title)}</span>`;
+        const dlIcon = ep.downloaded ? '<span class="ep-downloaded" title="Downloaded">&#10003;</span>' : '';
+        div.innerHTML = `<input type="checkbox" value="${esc(ep.url)}" data-season="${index}"><span class="ep-num">E${ep.episode_number}</span>${dlIcon}<span class="ep-title">${esc(title)}</span>`;
         body.appendChild(div);
       });
 

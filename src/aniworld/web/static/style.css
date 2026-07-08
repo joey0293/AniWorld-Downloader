@@ -227,6 +227,8 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
 .episode-item:hover{background:rgba(255,255,255,.03)}
 .episode-item input{margin-right:12px;flex-shrink:0;accent-color:#2563eb}
 .episode-item .ep-num{color:#6ea8fe;width:50px;flex-shrink:0;font-weight:600;font-size:.8rem}
+.episode-item .ep-downloaded{color:#22c55e;font-size:.85rem;margin:0 6px}
+.season-label .season-downloaded{color:#22c55e;font-size:.8rem;margin-left:8px}
 .episode-item .ep-title{color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Status bar */
