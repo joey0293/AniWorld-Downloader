@@ -16,6 +16,7 @@
     </div>
   </div>
 
+  {% if not force_sso %}
   <div class="add-user-form">
     <h3>Add User</h3>
     <div class="add-user-row">
@@ -28,6 +29,7 @@
       <button id="addUserBtn" onclick="addUser()">Add</button>
     </div>
   </div>
+  {% endif %}
 
   <table class="user-table">
     <thead>
@@ -35,6 +37,7 @@
         <th>ID</th>
         <th>Username</th>
         <th>Role</th>
+        <th>Auth</th>
         <th>Created</th>
         <th>Actions</th>
       </tr>

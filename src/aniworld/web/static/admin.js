@@ -18,6 +18,10 @@ function renderUsers(users) {
   users.forEach(u => {
     const isLastAdmin = u.role === 'admin' && adminCount <= 1;
     const tr = document.createElement('tr');
+    const authMethod = u.auth_method || 'local';
+    const authBadge = authMethod === 'oidc'
+      ? '<span class="auth-badge auth-sso">SSO</span>'
+      : '<span class="auth-badge auth-local">Local</span>';
     tr.innerHTML =
       `<td>${u.id}</td>` +
       `<td>${esc(u.username)}</td>` +
@@ -27,6 +31,7 @@ function renderUsers(users) {
           <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
         </select>
       </td>` +
+      `<td>${authBadge}</td>` +
       `<td>${esc(u.created_at)}</td>` +
       `<td>${isLastAdmin
         ? '<span style="color:#555">protected</span>'

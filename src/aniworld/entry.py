@@ -48,11 +48,38 @@ def aniworld():
             host = "0.0.0.0" if args.web_expose else "127.0.0.1"
             port = args.web_port
             open_browser = not args.no_browser
+            force_sso = args.web_force_sso
+            sso_enabled = args.web_sso or force_sso
+            auth_enabled = args.web_auth or force_sso
+
+            if sso_enabled:
+                oidc_vars = [
+                    "ANIWORLD_OIDC_ISSUER_URL",
+                    "ANIWORLD_OIDC_CLIENT_ID",
+                    "ANIWORLD_OIDC_CLIENT_SECRET",
+                ]
+                missing = [v for v in oidc_vars if not os.environ.get(v, "").strip()]
+                if missing:
+                    if force_sso:
+                        print(
+                            f"Error: --web-force-sso requires OIDC env vars: {', '.join(missing)}",
+                            file=sys.stderr,
+                        )
+                        return 1
+                    print(
+                        f"Warning: --web-sso enabled but OIDC env vars not set: {', '.join(missing)}\n"
+                        "SSO login will not be available. Set the variables in your .env file.",
+                        file=sys.stderr,
+                    )
+                    sso_enabled = False
+
             start_web_ui(
                 host=host,
                 port=port,
                 open_browser=open_browser,
-                auth_enabled=args.web_auth,
+                auth_enabled=auth_enabled,
+                sso_enabled=sso_enabled,
+                force_sso=force_sso,
             )
             return 0
 

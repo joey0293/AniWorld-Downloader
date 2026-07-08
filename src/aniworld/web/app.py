@@ -50,16 +50,51 @@ def _run_download(download_id, episodes, language, provider):
         _downloads[download_id]["current"] = total
 
 
-def create_app(auth_enabled=False):
+def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
+    import os
+
     app = Flask(__name__)
 
+    base_url = os.environ.get("ANIWORLD_WEB_BASE_URL", "").strip().rstrip("/")
+    if base_url:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(base_url)
+        scheme = parsed.scheme or "https"
+        host = parsed.netloc
+
+        # WSGI middleware that overrides scheme/host before Flask sees the request
+        _inner_wsgi = app.wsgi_app
+
+        def _proxy_wsgi(environ, start_response):
+            environ["wsgi.url_scheme"] = scheme
+            if host:
+                environ["HTTP_HOST"] = host
+            return _inner_wsgi(environ, start_response)
+
+        app.wsgi_app = _proxy_wsgi
+
     if auth_enabled:
-        from .auth import auth_bp, get_current_user, get_or_create_secret_key, login_required
+        from .auth import (
+            auth_bp,
+            get_current_user,
+            get_or_create_secret_key,
+            init_oidc,
+            login_required,
+        )
         from .db import has_any_admin, init_db
 
         app.secret_key = get_or_create_secret_key()
         init_db()
         app.register_blueprint(auth_bp)
+
+        if sso_enabled:
+            init_oidc(app, force_sso=force_sso)
+        else:
+            app.config["OIDC_ENABLED"] = False
+            app.config["OIDC_DISPLAY_NAME"] = "SSO"
+            app.config["OIDC_ADMIN_USER"] = None
+            app.config["FORCE_SSO"] = False
 
         @app.before_request
         def _check_setup():
@@ -67,18 +102,30 @@ def create_app(auth_enabled=False):
                 return None
             if request.endpoint == "static":
                 return None
-            if not has_any_admin():
+            if not app.config.get("FORCE_SSO", False) and not has_any_admin():
                 return redirect(url_for("auth.setup"))
             return None
 
         @app.context_processor
         def _inject_auth():
-            return {"current_user": get_current_user(), "auth_enabled": True}
+            return {
+                "current_user": get_current_user(),
+                "auth_enabled": True,
+                "oidc_enabled": app.config.get("OIDC_ENABLED", False),
+                "oidc_display_name": app.config.get("OIDC_DISPLAY_NAME", "SSO"),
+                "force_sso": app.config.get("FORCE_SSO", False),
+            }
     else:
 
         @app.context_processor
         def _inject_no_auth():
-            return {"current_user": None, "auth_enabled": False}
+            return {
+                "current_user": None,
+                "auth_enabled": False,
+                "oidc_enabled": False,
+                "oidc_display_name": "SSO",
+                "force_sso": False,
+            }
 
     @app.route("/")
     def index():
@@ -258,7 +305,10 @@ def create_app(auth_enabled=False):
 
     if auth_enabled:
         # Wrap all non-auth, non-static view functions with login_required
-        _exempt = {"static", "auth.login", "auth.logout", "auth.setup"}
+        _exempt = {
+            "static", "auth.login", "auth.logout", "auth.setup",
+            "auth.oidc_login", "auth.oidc_callback",
+        }
         for endpoint, view_func in list(app.view_functions.items()):
             if endpoint not in _exempt:
                 app.view_functions[endpoint] = login_required(view_func)
@@ -266,12 +316,13 @@ def create_app(auth_enabled=False):
     return app
 
 
-def start_web_ui(host="127.0.0.1", port=5000, open_browser=True, auth_enabled=False):
+def start_web_ui(host="127.0.0.1", port=5000, open_browser=True,
+                 auth_enabled=False, sso_enabled=False, force_sso=False):
     """Start the Flask web UI server."""
     import threading
     import webbrowser
 
-    app = create_app(auth_enabled=auth_enabled)
+    app = create_app(auth_enabled=auth_enabled, sso_enabled=sso_enabled, force_sso=force_sso)
     url = f"http://{'localhost' if host in ('0.0.0.0', '127.0.0.1') else host}:{port}"
     print(f"Starting AniWorld Web UI on {url}")
 

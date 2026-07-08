@@ -16,8 +16,17 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user' CHECK(role IN ('admin', 'user')),
+    auth_method TEXT NOT NULL DEFAULT 'local',
+    sso_subject TEXT,
+    sso_issuer TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+"""
+
+_CREATE_SSO_INDEX = """\
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sso_identity
+ON users (sso_issuer, sso_subject)
+WHERE sso_issuer IS NOT NULL AND sso_subject IS NOT NULL;
 """
 
 
@@ -28,11 +37,30 @@ def get_db():
     return conn
 
 
+def _migrate_db(conn):
+    rows = conn.execute("PRAGMA table_info(users)").fetchall()
+    columns = {r["name"] for r in rows}
+
+    if "auth_method" not in columns:
+        conn.execute(
+            "ALTER TABLE users ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'local'"
+        )
+    if "sso_subject" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN sso_subject TEXT")
+    if "sso_issuer" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN sso_issuer TEXT")
+
+    conn.execute(_CREATE_SSO_INDEX)
+    conn.commit()
+
+
 def init_db():
     conn = get_db()
     try:
         conn.execute(_CREATE_TABLE)
+        conn.execute(_CREATE_SSO_INDEX)
         conn.commit()
+        _migrate_db(conn)
     finally:
         conn.close()
 
@@ -72,12 +100,54 @@ def verify_user(username, password):
     conn = get_db()
     try:
         row = conn.execute(
-            "SELECT id, username, password_hash, role FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, role, auth_method FROM users WHERE username = ?",
             (username,),
         ).fetchone()
-        if row and check_password_hash(row["password_hash"], password):
-            return {"id": row["id"], "username": row["username"], "role": row["role"]}
-        return None
+        if not row:
+            return None, "Invalid username or password."
+        if row["auth_method"] != "local":
+            return None, "This account uses SSO. Please use the SSO login button."
+        if check_password_hash(row["password_hash"], password):
+            return {"id": row["id"], "username": row["username"], "role": row["role"]}, None
+        return None, "Invalid username or password."
+    finally:
+        conn.close()
+
+
+def find_or_create_sso_user(issuer, subject, username, admin_username=None):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, username, role FROM users WHERE sso_issuer = ? AND sso_subject = ?",
+            (issuer, subject),
+        ).fetchone()
+
+        if row:
+            user = {"id": row["id"], "username": row["username"], "role": row["role"]}
+            if admin_username and username == admin_username and row["role"] != "admin":
+                conn.execute("UPDATE users SET role = 'admin' WHERE id = ?", (row["id"],))
+                conn.commit()
+                user["role"] = "admin"
+            return user
+
+        # Check for username conflict with local users
+        existing = conn.execute(
+            "SELECT id, auth_method FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+        if existing:
+            raise ValueError(
+                f"Username '{username}' is already taken by a local account."
+            )
+
+        role = "admin" if (admin_username and username == admin_username) else "user"
+        cur = conn.execute(
+            "INSERT INTO users (username, password_hash, role, auth_method, sso_subject, sso_issuer) "
+            "VALUES (?, ?, ?, 'oidc', ?, ?)",
+            (username, "", role, subject, issuer),
+        )
+        conn.commit()
+        return {"id": cur.lastrowid, "username": username, "role": role}
     finally:
         conn.close()
 
@@ -86,7 +156,7 @@ def list_users():
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT id, username, role, created_at FROM users ORDER BY id"
+            "SELECT id, username, role, auth_method, created_at FROM users ORDER BY id"
         ).fetchall()
         return [dict(r) for r in rows]
     finally:
