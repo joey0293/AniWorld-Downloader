@@ -33,7 +33,7 @@ aniworld
 
 ## Still in Development from v3
 
-- [ ] Implement arguments: aniskip and keep-watching
+- [ ] Implement argument: keep-watching
 - [ ] README -> add sections from v3
 - [ ] Nuitka -> fix build crash
 - [ ] Remove empty lines below action when running on docker run -it

@@ -1,10 +1,9 @@
 import os
+import platform
 import shutil
 import subprocess
 from pathlib import Path
 from typing import List
-
-import platform
 
 PLATFORM = platform.system()
 
@@ -193,7 +192,7 @@ class DependencyManager:
 def get_player_path() -> Path:
     manager = DependencyManager()
     use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
-    use_aniskip = os.getenv("ANIWORLD_USE_ANISKIP") == "1"
+    use_aniskip = os.getenv("ANIWORLD_ANISKIP") == "1"
 
     if PLATFORM == "Darwin" and use_iina and not use_aniskip:
         return manager.fetch_binary("iina")

@@ -266,7 +266,7 @@ def watch(self):
     cmd = [str(get_player_path()), self.stream_url]
 
     # AniSkip: AniWorld only; ignore for s.to
-    aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
+    aniskip_enabled = os.getenv("ANIWORLD_ANISKIP", "0") == "1"
     if aniskip_enabled and hasattr(self, "skip_times"):
         skip_times = self.skip_times
     else:
@@ -352,7 +352,7 @@ def syncplay(self):
     # MPV flags come after this
     cmd.append("--")
 
-    aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
+    aniskip_enabled = os.getenv("ANIWORLD_ANISKIP", "0") == "1"
     skip_times = self.skip_times if aniskip_enabled else None
 
     if skip_times:
