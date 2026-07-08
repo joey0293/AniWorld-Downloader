@@ -17,7 +17,7 @@ from ...config import (
     PROVIDER_HEADERS_W,
     Audio,
     Subtitles,
-    get_mpv_path,
+    get_player_path,
     get_syncplay_path,
     logger,
 )
@@ -546,17 +546,17 @@ class AniworldEpisode:
         ).run()
 
     def watch(self):
-        """Watch the current episode using mpv with provider headers."""
+        """Watch the current episode with provider headers."""
         print(f"[WATCHING] {self._file_name}")
 
         # Get headers for the selected provider
         headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
 
-        # Build --http-header-fields arguments for mpv
+        # Build --http-header-fields arguments
         header_args = [f'{k}: "{v}"' for k, v in headers.items()]
 
         # Build the full command as a string for the shell
-        cmd_parts = [f'{get_mpv_path()} "{self.stream_url}"']
+        cmd_parts = [f'{get_player_path()} "{self.stream_url}"']
         if header_args:
             cmd_parts.append("--http-header-fields=" + ",".join(header_args))
 
@@ -570,13 +570,13 @@ class AniworldEpisode:
 
     # TODO: implement Syncplay
     def syncplay(self):
-        """Play the current episode via mpv (for Syncplay) with provider headers."""
+        """Play the current episode with provider headers."""
         print(f"[SYNCPLAYING] {self._file_name}")
 
         # Get headers for the selected provider
         headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
 
-        # Build --http-header-fields arguments for mpv
+        # Build --http-header-fields arguments
         header_args = [f'{k}: "{v}"' for k, v in headers.items()]
 
         # Build the full command as a string for the shell

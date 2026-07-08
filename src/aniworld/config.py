@@ -1,4 +1,5 @@
 import os
+import platform
 from enum import Enum
 
 from niquests import Session
@@ -169,11 +170,23 @@ deps = {
             "url": "<>",
         },
     },
+    "iina": {
+        "Darwin": {
+            "package": "iina",
+            "url": "<>",
+        },
+    },
 }
 
 
-def get_mpv_path():
+def get_player_path():
     deps_manager = DependencyManager(deps=deps)
+
+    use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
+
+    if platform.system() == "Darwin" and use_iina:
+        return deps_manager.fetch_binary("iina")
+
     return deps_manager.fetch_binary("mpv")
 
 

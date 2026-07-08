@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument(
         "--random-anime",
         action="store_true",
-        help="<TODO>",
+        help="Select a random anime",
     )
 
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
