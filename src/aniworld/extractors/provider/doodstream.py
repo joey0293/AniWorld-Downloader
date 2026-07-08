@@ -8,7 +8,10 @@ from urllib.parse import urljoin
 import niquests
 from urllib3.exceptions import InsecureRequestWarning
 
-from ...config import RANDOM_USER_AGENT
+try:
+    from ...config import DEFAULT_USER_AGENT
+except ImportError:
+    from aniworld.config import DEFAULT_USER_AGENT
 
 warnings.simplefilter("ignore", InsecureRequestWarning)
 
@@ -27,7 +30,7 @@ TOKEN_PATTERN = r"token=([a-zA-Z0-9]+)"
 def _get_headers(referer=None):
     """Return headers for Doodstream requests."""
     return {
-        "User-Agent": RANDOM_USER_AGENT,
+        "User-Agent": DEFAULT_USER_AGENT,
         "Referer": referer or f"{DOODSTREAM_BASE_URL}/",
     }
 

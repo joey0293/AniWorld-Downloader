@@ -6,7 +6,10 @@ import re
 import niquests
 from bs4 import BeautifulSoup
 
-from ...config import GLOBAL_SESSION, PROVIDER_HEADERS_D, RANDOM_USER_AGENT
+try:
+    from ...config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
+except ImportError:
+    from aniworld.config import DEFAULT_USER_AGENT, GLOBAL_SESSION, PROVIDER_HEADERS_D
 
 # -----------------------------
 # Precompiled regex patterns
@@ -83,7 +86,7 @@ def get_direct_link_from_voe(embeded_voe_link, headers=None):
     """Get direct VOE video URL."""
     try:
         if headers is None:
-            headers = PROVIDER_HEADERS_D.get("VOE", {"User-Agent": RANDOM_USER_AGENT})
+            headers = PROVIDER_HEADERS_D.get("VOE", {"User-Agent": DEFAULT_USER_AGENT})
 
         resp = GLOBAL_SESSION.get(embeded_voe_link, headers=headers)
         resp.raise_for_status()
@@ -110,7 +113,7 @@ def get_preview_image_link_from_voe(embeded_voe_link, headers=None):
     """Get VOE preview image URL."""
     try:
         if headers is None:
-            headers = PROVIDER_HEADERS_D.get("VOE", {"User-Agent": RANDOM_USER_AGENT})
+            headers = PROVIDER_HEADERS_D.get("VOE", {"User-Agent": DEFAULT_USER_AGENT})
 
         resp = GLOBAL_SESSION.get(embeded_voe_link, headers=headers)
         resp.raise_for_status()
@@ -157,7 +160,7 @@ if __name__ == "__main__":
         print("=" * 25)
 
         print(
-            f'mpv --http-header-fields=User-Agent: "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0" "{direct_link}"'
+            f'mpv "{direct_link}" --http-header-fields=User-Agent: "{DEFAULT_USER_AGENT}"'
         )
 
         print("=" * 25)

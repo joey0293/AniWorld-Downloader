@@ -1,3 +1,4 @@
+import shutil
 from enum import Enum
 
 from niquests import Session
@@ -10,7 +11,7 @@ VERSION = "4.0.0"
 
 # NIQUESTS
 
-RANDOM_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Safari/605.1.15"
+DEFAULT_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Safari/605.1.15"
 
 LULUVDO_USER_AGENT = (
     "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
@@ -24,7 +25,7 @@ GLOBAL_SESSION = Session(
         "Sec-Fetch-Dest": "document",
         "Accept-Language": "en-US,en;q=0.9",
         "Sec-Fetch-Mode": "navigate",
-        "User-Agent": RANDOM_USER_AGENT,
+        "User-Agent": DEFAULT_USER_AGENT,
         "Accept-Encoding": "gzip, deflate, br",
         "Referer": "https://aniworld.to/search",
         "Priority": "u=0, i",
@@ -51,9 +52,9 @@ SUPPORTED_PROVIDERS = (
 PROVIDER_HEADERS_D = {
     "Vidmoly": {"Referer": "https://vidmoly.net"},
     "Doodstream": {"Referer": "https://dood.li/"},
-    "VOE": {"User-Agent": RANDOM_USER_AGENT},
+    "VOE": {"User-Agent": DEFAULT_USER_AGENT},
     "LoadX": {"Accept": "*/*"},
-    "Filemoon": {"User-Agent": RANDOM_USER_AGENT, "Referer": "https://filemoon.to"},
+    "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
     "Luluvdo": {
         "User-Agent": LULUVDO_USER_AGENT,
         "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -65,9 +66,9 @@ PROVIDER_HEADERS_D = {
 PROVIDER_HEADERS_W = {
     "Vidmoly": {"Referer": "https://vidmoly.net"},
     "Doodstream": {"Referer": "https://dood.li/"},
-    "VOE": {"User-Agent": RANDOM_USER_AGENT},
+    "VOE": {"User-Agent": DEFAULT_USER_AGENT},
     "Luluvdo": {"User-Agent": LULUVDO_USER_AGENT},
-    "Filemoon": {"User-Agent": RANDOM_USER_AGENT, "Referer": "https://filemoon.to"},
+    "Filemoon": {"User-Agent": DEFAULT_USER_AGENT, "Referer": "https://filemoon.to"},
 }
 
 
@@ -127,3 +128,9 @@ LANG_LABELS = {
 }
 
 INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}
+
+# -----------------------------
+# Executables
+# -----------------------------
+SYNCPLAY_PATH = shutil.which("mpv")
+MPV_PATH = shutil.which("mpv")
