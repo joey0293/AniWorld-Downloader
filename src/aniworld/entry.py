@@ -136,7 +136,7 @@ def aniworld():
         provider = resolve_provider(url)
 
         # If provider is NOT AniWorld -> bypass menu
-        if provider.name != "AniWorld":
+        if provider.name != "AniWorld" and provider.name != "SerienStream":
             if provider.series_pattern and provider.series_pattern.fullmatch(url):
                 obj = provider.series_cls(url=url)
 

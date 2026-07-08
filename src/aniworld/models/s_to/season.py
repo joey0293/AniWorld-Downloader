@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urljoin
 
 from ...config import GLOBAL_SESSION, SERIENSTREAM_SEASON_PATTERN, logger
 
@@ -112,8 +113,9 @@ class SerienstreamSeason:
                     [...]
         """
 
+        # Support both absolute and relative links.
         pattern = (
-            r'<a href="https://(?:serienstream|s)\.to/serie/.+/staffel-'
+            r'<a\s+href="(?:https?://(?:serienstream|s)\.to)?/serie/.+/staffel-'
             + str(self.season_number)
             + r'/episode-\d+"'
         )
@@ -132,7 +134,7 @@ class SerienstreamSeason:
         from .episode import SerienstreamEpisode
 
         pattern = (
-            r'<a href="(https://(?:serienstream|s)\.to/serie/.+/staffel-'
+            r'<a\s+href="(?P<href>(?:https?://(?:serienstream|s)\.to)?/serie/.+/staffel-'
             + str(self.season_number)
             + r'/episode-\d+)"'
         )
@@ -140,8 +142,15 @@ class SerienstreamSeason:
         matches = re.findall(pattern, self._html)
         episode_list = []
 
+        seen = set()
         for match in matches:
-            episode_list.append(SerienstreamEpisode(match))
+            full_url = urljoin(self.url, match)
+            if full_url in seen:
+                continue
+            seen.add(full_url)
+            episode_list.append(
+                SerienstreamEpisode(full_url, season=self, series=self.series)
+            )
 
         return episode_list
 

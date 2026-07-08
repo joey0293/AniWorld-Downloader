@@ -9,7 +9,53 @@ from pathlib import Path
 import npyscreen
 
 from .config import INVERSE_LANG_KEY_MAP, LANG_LABELS, VERSION, logger
-from .models import AniworldSeries
+from .providers import resolve_provider
+
+
+def _extract_menu_languages(provider_name: str, provider_data: dict) -> list[str]:
+    languages: list[str] = []
+
+    if provider_name == "AniWorld":
+        for key in provider_data.keys():
+            site_key = INVERSE_LANG_KEY_MAP.get(key)
+            if site_key is None:
+                continue
+            label = LANG_LABELS.get(site_key)
+            if label and label not in languages:
+                languages.append(label)
+        return languages
+
+    if provider_name == "SerienStream":
+        # SerienStream provider_data keys are usually tuples of Enums like
+        # (Audio.GERMAN, Subtitles.NONE) or (Audio.ENGLISH, Subtitles.NONE).
+        for key in provider_data.keys():
+            if not (isinstance(key, tuple) and len(key) == 2):
+                continue
+            audio = getattr(key[0], "value", str(key[0]))
+            audio_lower = str(audio).lower()
+            if audio_lower == "german":
+                label = "German Dub"
+            elif audio_lower == "english":
+                label = "English Dub"
+            else:
+                continue
+
+            if label not in languages:
+                languages.append(label)
+        return languages
+
+    return languages
+
+
+def _extract_menu_providers(provider_data: dict) -> list[str]:
+    provider_names: set[str] = set()
+
+    for providers_map in provider_data.values():
+        if isinstance(providers_map, dict):
+            provider_names.update(str(p) for p in providers_map.keys())
+
+    return sorted(provider_names)
+
 
 # ============================================================
 # Patch: Fix for Python 3.14+ buffer overflow in npyscreen
@@ -122,7 +168,8 @@ class MenuApp(npyscreen.NPSApp):
         # ============================================================
 
         # Load series
-        series = AniworldSeries(self.url)
+        provider_meta = resolve_provider(self.url)
+        series = provider_meta.series_cls(self.url)
 
         languages = []
         providers = []
@@ -137,16 +184,23 @@ class MenuApp(npyscreen.NPSApp):
             for episode in season.episodes:
                 episodes.append(episode.url)
 
-        # Extract provider names from first episode
-        first_provider_dict = next(iter(first_episode.provider_data._data.values()))
-        providers = tuple(first_provider_dict.keys())
+        # Extract language/provider options from provider_data
+        provider_data_dict = (
+            first_episode.provider_data._data
+            if hasattr(first_episode.provider_data, "_data")
+            else first_episode.provider_data
+        )
 
-        # Extract language labels from first episode
-        for key in first_episode.provider_data._data.keys():
-            site_key = INVERSE_LANG_KEY_MAP[key]
-            label = LANG_LABELS[site_key]
-            if label not in languages:
-                languages.append(label)
+        languages = _extract_menu_languages(provider_meta.name, provider_data_dict)
+        providers = _extract_menu_providers(provider_data_dict)
+
+        if not languages:
+            # Fallback to something sensible so the UI stays usable.
+            # The episode model will validate on use.
+            languages = [os.getenv("ANIWORLD_LANGUAGE", "German Dub")]
+
+        if not providers:
+            providers = [os.getenv("ANIWORLD_PROVIDER", "VOE")]
 
         # Track vertical position
         y = 2  # leave space for form title
