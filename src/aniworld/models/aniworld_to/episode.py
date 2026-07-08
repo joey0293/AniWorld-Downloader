@@ -209,9 +209,14 @@ class AniworldEpisode:
     @property
     def stream_url(self):
         if self.__stream_url is None:
-            self.__stream_url = provider_functions[
-                f"get_direct_link_from_{self.selected_provider.lower()}"
-            ](self.provider_url)
+            try:
+                self.__stream_url = provider_functions[
+                    f"get_direct_link_from_{self.selected_provider.lower()}"
+                ](self.provider_url)
+            except KeyError:
+                raise ValueError(
+                    f"The provider '{self.selected_provider}' is not yet implemented."
+                )
         return self.__stream_url
 
     @property

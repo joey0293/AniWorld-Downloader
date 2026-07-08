@@ -67,5 +67,5 @@ print(episode._file_extension)
 print(episode._episode_path)
 """
 
-episode.download()
+episode.watch()
 # print(episode.is_downloaded)
