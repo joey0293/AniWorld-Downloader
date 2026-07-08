@@ -280,6 +280,9 @@ class MenuApp(npyscreen.NPSApp):
             action.get_selected_objects()[0] if action.get_selected_objects() else None
         )
         selected_path = path.value
+
+        aniskip_enabled = aniskip.value == [0]
+
         selected_language = (
             language.get_selected_objects()[0]
             if language.get_selected_objects()
@@ -303,6 +306,7 @@ class MenuApp(npyscreen.NPSApp):
             "language": selected_language,
             "provider": selected_provider,
             "episodes": selected_episodes,
+            "aniskip": aniskip_enabled,
         }
 
 

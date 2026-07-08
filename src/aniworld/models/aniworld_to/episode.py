@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 import ffmpeg
 
-from ...autodeps import get_player_path, get_syncplay_path
+from ...autodeps import get_player_path
 from ...config import (
     ANIWORLD_EPISODE_PATTERN,
     GLOBAL_SESSION,
@@ -718,6 +718,21 @@ class AniworldEpisode:
         # Build command as list to avoid shell injection issues
         cmd = [str(get_player_path()), self.stream_url]
 
+        # Check if aniskip is enabled
+        aniskip_enabled = os.getenv("ANIWORLD_USE_ANISKIP", "0") == "1"
+        logger.debug(f"[ANISKIP ENABLED]: {aniskip_enabled}")
+
+        skip_times = self.skip_times if aniskip_enabled else None
+
+        if skip_times:
+            from ...aniskip import build_mpv_flags, setup_aniskip
+
+            setup_aniskip()
+
+            skip_flags = build_mpv_flags(skip_times).split()
+            cmd.extend(skip_flags)
+            logger.debug(f"[SKIP TIMES FOUND]: {skip_flags}")
+
         # Add mpv options
         cmd.extend(
             ["--no-ytdl", "--fs", "--quiet", f"--force-media-title={self._file_name}"]
@@ -737,27 +752,7 @@ class AniworldEpisode:
 
     # TODO: implement Syncplay
     def syncplay(self):
-        """Play the current episode with provider headers."""
-        print(f"[SYNCPLAYING] {self._file_name}")
-
-        # Get headers for the selected provider
-        headers = PROVIDER_HEADERS_W.get(self.selected_provider, {})
-
-        # Build --http-header-fields arguments
-        header_args = [f'{k}: "{v}"' for k, v in headers.items()]
-
-        # Build the full command as a string for the shell
-        cmd_parts = [f'{get_syncplay_path()} "{self.stream_url}"']
-        if header_args:
-            cmd_parts.append("--no-ytdl --http-header-fields=" + ",".join(header_args))
-
-        cmd_str = " ".join(cmd_parts)
-
-        # Print the shell-safe command for reference
-        print(cmd_str)
-
-        # Run the command using the shell
-        subprocess.run(cmd_str, shell=True)
+        self.watch()
 
     # -----------------------------
     # Extraction helpers
