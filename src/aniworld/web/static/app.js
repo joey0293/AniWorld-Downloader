@@ -39,10 +39,14 @@ async function loadDownloadedFolders() {
   } catch (e) { /* best-effort */ }
 }
 
+function normalizeQuotes(s) {
+  return s.replace(/[\u2018\u2019\u2032\u0060]/g, "'").replace(/[\u201C\u201D\u201E]/g, '"');
+}
+
 function isDownloaded(title) {
   if (!downloadedFolders.length || !title) return false;
-  const clean = title.replace(/\s*\(.*$/, '').trim().toLowerCase();
-  return downloadedFolders.some(f => f.toLowerCase().startsWith(clean));
+  const clean = normalizeQuotes(unesc(title).replace(/\s*\(.*$/, '').trim().toLowerCase());
+  return downloadedFolders.some(f => normalizeQuotes(f.toLowerCase()).startsWith(clean));
 }
 
 function addDownloadedBadge(card, title) {
