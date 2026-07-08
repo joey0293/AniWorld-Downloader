@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
 
+import ffmpeg
+
 from ...config import (
     GLOBAL_SESSION,
     LANG_KEY_MAP,
@@ -442,13 +444,9 @@ class AniworldEpisode:
         # Create folder if it doesn't exist
         os.makedirs(self._folder_path, exist_ok=True)
 
-        print(self.redirect_url)
-        print(self.provider_url)
-        print(self.stream_url)
-
         # Downloading
         logger.debug(f"Downloading {self._episode_path}...")
-        # (ffmpeg.input(stream_url).output(self._episode_path, c="copy").run())
+        (ffmpeg.input(self.stream_url).output(self._episode_path, c="copy").run())
 
     def watch(self):
         print(f"[WATCHING] {self._file_name}")

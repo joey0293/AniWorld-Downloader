@@ -10,6 +10,12 @@ VERSION = "4.0.0"
 
 # NIQUESTS
 
+RANDOM_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Safari/605.1.15"
+
+LULUVDO_USER_AGENT = (
+    "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
+)
+
 GLOBAL_SESSION = Session(
     resolver=["doh+google://"],
     headers={
@@ -18,11 +24,7 @@ GLOBAL_SESSION = Session(
         "Sec-Fetch-Dest": "document",
         "Accept-Language": "en-US,en;q=0.9",
         "Sec-Fetch-Mode": "navigate",
-        "User-Agent": (
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-            "Version/26.2 Safari/605.1.15"
-        ),
+        "User-Agent": RANDOM_USER_AGENT,
         "Accept-Encoding": "gzip, deflate, br",
         "Referer": "https://aniworld.to/search",
         "Priority": "u=0, i",
@@ -44,12 +46,6 @@ SUPPORTED_PROVIDERS = (
     "SpeedFiles",
     "Streamtape",
     "Vidoza",
-)
-
-RANDOM_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.2 Safari/605.1.15"
-
-LULUVDO_USER_AGENT = (
-    "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
 )
 
 PROVIDER_HEADERS_D = {

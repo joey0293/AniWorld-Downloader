@@ -1,5 +1,5 @@
-import sys
 import logging
+import sys
 
 from .config import VERSION
 from .entry import aniworld
@@ -16,7 +16,7 @@ def main():
         aniworld()
 
     except KeyboardInterrupt:
-        print("\nOperation cancelled by user.", file=sys.stderr)
+        print("\nQuitting.", file=sys.stderr)
         sys.exit(130)
 
     except Exception as err:
