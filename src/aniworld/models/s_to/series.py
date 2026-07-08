@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
 from ...config import GLOBAL_SESSION, SERIENSTREAM_SERIES_PATTERN, logger
 from ..common import clean_title
@@ -293,19 +293,15 @@ class SerienstreamSeries:
         """
 
         # s.to uses both src= and data-src= depending on page version.
+        slug = self.url.rstrip("/").split("/")[-1]
         pattern = re.compile(
-            r'(?:data-)?src="(?P<url>(?:https?://(?:serienstream|s)\.to)?/media/images/channel/[^"]+)"'
+            r'(?:data-)?src="((?:https://(?:serienstream|s)\.to)?/media/images/channel/desktop/'
+            + re.escape(slug)
+            + r'[^"]*)"'
         )
         match = pattern.search(self._html)
         if match:
-            raw_url = urljoin(self.url, match.group("url").strip())
-            parsed = urlparse(raw_url)
-            path = parsed.path
-            if parsed.query:
-                query = f"?{parsed.query}" 
-            else:
-                query = ""
-            return f"http://186.2.175.5{path}" + query
+            return match.group(1).strip()
 
         return None
 
