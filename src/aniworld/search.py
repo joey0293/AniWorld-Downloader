@@ -16,6 +16,7 @@ NEW_EPISODES_URL = "https://aniworld.to/neue-episoden"
 HOME_URL = "https://aniworld.to"
 
 _homepage_cache = None
+_series_html_content = None
 
 
 def random_anime():
@@ -233,6 +234,57 @@ def fetch_popular_animes():
     return _extract_cover_list(html, "Derzeit beliebt")
 
 
+def _fetch_series_homepage():
+    global _series_html_content
+    if _series_html_content is None:
+        request = GLOBAL_SESSION.get("https://s.to/beliebte-serien")
+        request.raise_for_status()
+        _series_html_content = request.text
+    return _series_html_content
+
+
+def fetch_new_series():
+    results = []
+
+    html_content = _series_html_content or _fetch_series_homepage()
+
+    # broken - 🥰 Neue Staffeln diese Woche
+    new_series_pattern = re.compile()
+
+    matches = new_series_pattern.finditer(html_content)
+    for match in matches:
+        results.append(
+            {
+                "title": None,
+                "url": None,
+                "poster_url": None,
+            }
+        )
+
+    return results
+
+
+def fetch_popular_series(html_content):
+    results = []
+
+    html_content = html_content or _fetch_series_homepage()
+
+    # broken - 🔥 Meistgesehen gerade
+    popular_series_pattern = re.compile()
+
+    matches = popular_series_pattern.finditer(html_content)
+    for match in matches:
+        results.append(
+            {
+                "title": None,
+                "url": None,
+                "poster_url": None,
+            }
+        )
+
+    return results
+
+
 def _curses_menu(stdscr, options):
     """Display a simple curses menu to select an option with scrolling support."""
     curses.curs_set(0)
@@ -403,5 +455,5 @@ def search(is_aniworld=None):
 
 
 if __name__ == "__main__":
-    os.environ["ANIWORLD_USE_STO_SEARCH"] = "0"
-    print(search())
+    print(fetch_new_series())
+    print(fetch_popular_series())
