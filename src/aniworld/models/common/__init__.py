@@ -3,7 +3,6 @@ from .common import (
     check_downloaded,
     clean_title,
     download,
-    download_hanime,
     syncplay,
     watch,
 )
@@ -13,7 +12,6 @@ __all__ = [
     "check_downloaded",
     "clean_title",
     "download",
-    "download_hanime",
     "syncplay",
     "watch",
 ]
