@@ -2,12 +2,15 @@
 
 # AniWorld Downloader v4
 
-AniWorld Downloader is a cross-platform tool for streaming and downloading anime from aniworld.to, as well as movies and series from s.to. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
+AniWorld Downloader is a cross-platform tool for streaming and downloading anime from aniworld.to, as well as series from s.to. It runs on Windows, macOS, and Linux, providing a seamless experience for offline viewing or instant playback.
 
+![GitHub Release](https://img.shields.io/github/v/release/phoenixthrush/AniWorld-Downloader)
 [![PyPI Downloads](https://static.pepy.tech/badge/aniworld)](https://pepy.tech/projects/aniworld)
-![PyPI Downloads](https://img.shields.io/pypi/dm/aniworld?label=downloads&color=blue)
-![License](https://img.shields.io/pypi/l/aniworld?label=License&color=blue)
-![GitHub stars](https://img.shields.io/github/stars/phoenixthrush/Aniworld-Downloader?style=social)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/aniworld)
+![GitHub License](https://img.shields.io/github/license/phoenixthrush/AniWorld-Downloader)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/phoenixthrush/AniWorld-Downloader)
+![GitHub Repo stars](https://img.shields.io/github/stars/phoenixthrush/AniWorld-Downloader)
+![GitHub forks](https://img.shields.io/github/forks/phoenixthrush/AniWorld-Downloader)
 
 ![AniWorld Downloader - Demo](https://github.com/phoenixthrush/AniWorld-Downloader/blob/next/.github/assets/demo.png?raw=true)
 
@@ -16,18 +19,24 @@ AniWorld Downloader is a cross-platform tool for streaming and downloading anime
 ## TL;DR - Quick Start
 
 ```text
+# Installation
 pip install --upgrade git+https://github.com/phoenixthrush/AniWorld-Downloader.git@models#egg=aniworld
 
+# Usage
 aniworld
 ```
+
+> **Note:**
+> The above command installs the latest development version instead of the stable release. If you want to install the latest stable version, simply run `pip install -U aniworld`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Still in Development from v3
 
+- [ ] README
+- [ ] Episode File and Provider Link
 - [ ] Syncplay
 - [ ] Nuitka
-- [ ] Docker
 - [ ] WebUI
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -49,7 +58,10 @@ aniworld
 
 ## Working Providers
 
-They are currently extremely unstable...
+> They are currently extremely unstable and will be worked on.
+> The focus currently lies on
+> aniworld: VOE, Filemoon, Vidmoly
+> serienstream: VOE, Vidoza
 
 - [x] Doodstream
 - [ ] Filemoon
@@ -61,6 +73,56 @@ They are currently extremely unstable...
 - [x] Vidoza
 - [x] Vidmoly
 - [x] VOE
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Docker
+
+```bash
+docker build -t aniworld .
+```
+
+- **macOS/Linux (bash/zsh):**
+
+  ```bash
+  docker run -it --rm \
+    -v "${PWD}/Downloads:/app/Downloads" \
+    -e ANIWORLD_DOCKER=1 \
+    -e ANIWORLD_DOWNLOAD_PATH="/app/Downloads" \
+    aniworld python -m aniworld
+  ```
+
+- **Windows (PowerShell):**
+
+  ```powershell
+  docker run -it --rm `
+    -v "${PWD}\Downloads:/app/Downloads" `
+    -e ANIWORLD_DOCKER=1 `
+    -e ANIWORLD_DOWNLOAD_PATH="/app/Downloads" `
+    aniworld python -m aniworld
+  ```
+
+- **Windows (CMD):**
+
+  ```cmd
+  docker run -it --rm ^
+    -v "%cd%\Downloads:/app/Downloads" ^
+    -e ANIWORLD_DOCKER=1 ^
+    -e ANIWORLD_DOWNLOAD_PATH="/app/Downloads" ^
+    aniworld python -m aniworld
+  ```
+
+> **Note:**
+> Set `ANIWORLD_DOCKER=1` and `ANIWORLD_DOWNLOAD_PATH="/app/Downloads"` when running in Docker to ensure downloads are placed in the mounted folder. If you do not mount the Downloads directory, files created in the container will not persist on your host system.
+> Environment variables will be replaced by a config file internally in the future.
+
+### Docker Compose
+
+```bash
+docker-compose up -d --build
+```
+
+> This currently just serves the Downloads folder over HTTP on port 8080 until the real web UI is implemented. You can access it at <http://localhost:8080>.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
