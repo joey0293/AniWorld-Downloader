@@ -281,11 +281,21 @@ def download(self):
             break
 
         except Exception as e:
+            # Clean up temp files from failed attempt
+            for suffix in (".temp_full.mkv", ".temp_audio.mkv", ".temp_video.mkv"):
+                temp = self._episode_path.with_suffix(suffix)
+                if temp.exists():
+                    temp.unlink()
+
             logger.warning(f"Download attempt {attempt} failed: {e}")
             if attempt >= max_retries:
                 _remove_empty_dirs(self._folder_path, self._base_folder)
                 raise
             else:
+                # Reset cached URL properties so retry resolves fresh URLs
+                for attr in list(vars(self)):
+                    if attr.endswith("__redirect_url") or attr.endswith("__provider_url"):
+                        setattr(self, attr, None)
                 logger.debug("Retrying download...")
 
 

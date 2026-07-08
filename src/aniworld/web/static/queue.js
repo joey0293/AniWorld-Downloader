@@ -94,7 +94,9 @@ function renderQueue(items) {
         const errId = 'qerr-' + item.id;
         let details = '';
         errors.forEach(function(err) {
-          details += '<div class="queue-error-detail">' + escQ(err.error || '') + '</div>';
+          var ep = err.url ? parseSeasonEpisode(err.url) : '';
+          var label = ep ? ep + ': ' : '';
+          details += '<div class="queue-error-detail">' + escQ(label + (err.error || '')) + '</div>';
         });
         errorsHtml =
           '<div class="queue-errors queue-errors-expandable" onclick="this.classList.toggle(\'expanded\');document.getElementById(\'' + errId + '\').classList.toggle(\'expanded\')">' +
@@ -146,6 +148,8 @@ function renderQueue(items) {
 function parseSeasonEpisode(url) {
   const m = url.match(/staffel-(\d+)\/episode-(\d+)/i);
   if (m) return 'S' + m[1] + 'E' + m[2];
+  const f = url.match(/filme\/film-(\d+)/i);
+  if (f) return 'Film ' + f[1];
   return '';
 }
 
