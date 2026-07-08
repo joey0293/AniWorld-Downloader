@@ -648,6 +648,12 @@ h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight
   transition:color .2s;line-height:1;
 }
 .queue-remove:hover{color:#f87171}
+.queue-move{
+  background:none;border:none;color:#6b7280;
+  font-size:.7rem;cursor:pointer;padding:0 3px;
+  transition:color .2s;line-height:1;
+}
+.queue-move:hover{color:#6ea8fe}
 .queue-cancel{
   background:none;border:1px solid rgba(251,191,36,.3);
   color:#fbbf24;font-size:.72rem;font-weight:600;

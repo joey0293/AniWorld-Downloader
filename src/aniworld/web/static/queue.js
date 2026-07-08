@@ -41,8 +41,8 @@ function renderQueue(items) {
   const list = document.getElementById('queueList');
 
   // Show active items on top, then last 3 finished (newest first)
-  const running = items.filter(i => i.status === 'running').sort((a, b) => a.id - b.id);
-  const queued = items.filter(i => i.status === 'queued').sort((a, b) => a.id - b.id);
+  const running = items.filter(i => i.status === 'running');
+  const queued = items.filter(i => i.status === 'queued');
   const done = items.filter(i => i.status === 'completed' || i.status === 'failed' || i.status === 'cancelled').slice(-3).reverse();
   const visible = running.concat(queued, done);
 
@@ -117,7 +117,10 @@ function renderQueue(items) {
 
     let actionBtn = '';
     if (item.status === 'queued') {
-      actionBtn = '<button class="queue-remove" onclick="removeQueueItem(' + item.id + ')" title="Remove">&times;</button>';
+      actionBtn =
+        '<button class="queue-move" onclick="moveQueueItem(' + item.id + ',\'up\')" title="Move up">&#9650;</button>' +
+        '<button class="queue-move" onclick="moveQueueItem(' + item.id + ',\'down\')" title="Move down">&#9660;</button>' +
+        '<button class="queue-remove" onclick="removeQueueItem(' + item.id + ')" title="Remove">&times;</button>';
     } else if (item.status === 'running') {
       actionBtn = '<button class="queue-cancel" onclick="cancelQueueItem(' + item.id + ')" title="Cancel after current episode">Cancel</button>';
     }
@@ -171,6 +174,19 @@ async function cancelQueueItem(id) {
     } else {
       if (typeof showToast === 'function') showToast('Cancelling after current episode...');
     }
+    loadQueue();
+  } catch (e) { /* ignore */ }
+}
+
+async function moveQueueItem(id, direction) {
+  try {
+    const resp = await fetch('/api/queue/' + id + '/move', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({direction})
+    });
+    const data = await resp.json();
+    if (data.error && typeof showToast === 'function') showToast(data.error);
     loadQueue();
   } catch (e) { /* ignore */ }
 }

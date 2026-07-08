@@ -246,6 +246,17 @@ def init_queue_db():
     conn = get_db()
     try:
         conn.execute(_CREATE_QUEUE_TABLE)
+        # Add position column for queue reordering (migration for existing DBs)
+        try:
+            conn.execute(
+                "ALTER TABLE download_queue ADD COLUMN position INTEGER NOT NULL DEFAULT 0"
+            )
+            # Backfill: set position = id for existing rows
+            conn.execute(
+                "UPDATE download_queue SET position = id WHERE position = 0"
+            )
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
@@ -269,8 +280,12 @@ def add_to_queue(title, series_url, episodes, language, provider, username=None)
                 username,
             ),
         )
+        row_id = cur.lastrowid
+        conn.execute(
+            "UPDATE download_queue SET position = ? WHERE id = ?", (row_id, row_id)
+        )
         conn.commit()
-        return cur.lastrowid
+        return row_id
     finally:
         conn.close()
 
@@ -278,7 +293,9 @@ def add_to_queue(title, series_url, episodes, language, provider, username=None)
 def get_queue():
     conn = get_db()
     try:
-        rows = conn.execute("SELECT * FROM download_queue ORDER BY id ASC").fetchall()
+        rows = conn.execute(
+            "SELECT * FROM download_queue ORDER BY position ASC, id ASC"
+        ).fetchall()
         return [dict(r) for r in rows]
     finally:
         conn.close()
@@ -288,9 +305,54 @@ def get_next_queued():
     conn = get_db()
     try:
         row = conn.execute(
-            "SELECT * FROM download_queue WHERE status = 'queued' ORDER BY id ASC LIMIT 1"
+            "SELECT * FROM download_queue WHERE status = 'queued' "
+            "ORDER BY position ASC, id ASC LIMIT 1"
         ).fetchone()
         return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def move_queue_item(queue_id, direction):
+    """Swap position of a queued item with its neighbor. direction: 'up' or 'down'."""
+    conn = get_db()
+    try:
+        item = conn.execute(
+            "SELECT id, position FROM download_queue WHERE id = ? AND status = 'queued'",
+            (queue_id,),
+        ).fetchone()
+        if not item:
+            return False, "Item not found or not queued"
+
+        if direction == "up":
+            neighbor = conn.execute(
+                "SELECT id, position FROM download_queue "
+                "WHERE status = 'queued' AND position < ? "
+                "ORDER BY position DESC LIMIT 1",
+                (item["position"],),
+            ).fetchone()
+        else:
+            neighbor = conn.execute(
+                "SELECT id, position FROM download_queue "
+                "WHERE status = 'queued' AND position > ? "
+                "ORDER BY position ASC LIMIT 1",
+                (item["position"],),
+            ).fetchone()
+
+        if not neighbor:
+            return False, "Already at the edge"
+
+        # Swap positions
+        conn.execute(
+            "UPDATE download_queue SET position = ? WHERE id = ?",
+            (neighbor["position"], item["id"]),
+        )
+        conn.execute(
+            "UPDATE download_queue SET position = ? WHERE id = ?",
+            (item["position"], neighbor["id"]),
+        )
+        conn.commit()
+        return True, None
     finally:
         conn.close()
 
