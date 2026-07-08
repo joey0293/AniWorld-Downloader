@@ -827,6 +827,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
         lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
         ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
+        video_exts = {".mkv", ".mp4", ".avi", ".webm", ".flv", ".mov", ".wmv", ".m4v", ".ts"}
 
         # Build list of (label, custom_path_id, base_path) to scan
         scan_targets = [("Default", None, dl_base)]
@@ -859,6 +860,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         continue
                     snum = int(m.group(1))
                     enum = int(m.group(2))
+                    is_video = f.suffix.lower() in video_exts
                     try:
                         fsize = f.stat().st_size
                     except OSError:
@@ -871,7 +873,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                         for e in entry["seasons"][skey]
                     ):
                         entry["seasons"][skey].append(
-                            {"episode": enum, "file": f.name, "size": fsize}
+                            {"episode": enum, "file": f.name, "size": fsize, "is_video": is_video}
                         )
                         entry["total_size"] += fsize
 
@@ -879,7 +881,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             for entry in sorted(titles.values(), key=lambda x: x["folder"].lower()):
                 if not any(entry["seasons"].values()):
                     continue
-                total_eps = sum(len(eps) for eps in entry["seasons"].values())
+                total_eps = sum(
+                    sum(1 for e in eps if e.get("is_video", True))
+                    for eps in entry["seasons"].values()
+                )
                 for skey in entry["seasons"]:
                     entry["seasons"][skey].sort(key=lambda e: e["episode"])
                 result.append(

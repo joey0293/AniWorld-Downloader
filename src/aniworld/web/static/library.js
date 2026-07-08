@@ -163,7 +163,8 @@ function renderTitles(html, titles, idPrefix, padLeft, locIndex, langFolder) {
       html.push('<div class="library-season-header" onclick="toggleLibrarySeason(\'' + sid + '\')" style="padding-left:' + seasonPad + 'px">');
       html.push('<div class="library-season-left">');
       html.push('<span class="library-arrow" id="' + sid + 'Arrow">&#9654;</span>');
-      html.push('<span>Season ' + skey + ' (' + eps.length + ' ep)</span>');
+      var seasonEpCount = eps.filter(function(e) { return e.is_video !== false; }).length;
+      html.push('<span>Season ' + skey + ' (' + seasonEpCount + ' ep)</span>');
       html.push('</div>');
       html.push('<div class="library-season-right">');
       html.push('<span class="library-meta library-meta-size">' + formatSize(seasonSize) + '</span>');
