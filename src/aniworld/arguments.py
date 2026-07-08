@@ -52,6 +52,11 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--episode-file",
+        help="Path to a text file containing episode URLs (one URL per line)",
+    )
+
+    parser.add_argument(
         "--no-menu",
         action="store_true",
         help="Disable interactive menu",
@@ -100,6 +105,18 @@ def parse_args():
             logging.getLogger(name).setLevel(logging.DEBUG)
 
         logger.debug("Debug mode enabled")
+
+    if args.episode_file:
+        try:
+            with open(args.episode_file, "r") as f:
+                for line in f:
+                    url = line.strip()
+                    if url:
+                        args.url.append(url)
+            logger.debug(f"Loaded {len(args.url)} URLs from {args.episode_file}")
+        except Exception as e:
+            logger.error(f"Failed to read episode file: {e}")
+            sys.exit(1)
 
     if args.version:
         # TODO: add logic
