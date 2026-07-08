@@ -15,7 +15,6 @@ dependencies = [
     'niquests',
     'npyscreen',
     'ffmpeg-python',
-    'beautifulsoup4',  # remove this requirement please, voe extractor depends on it :(
     'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"',  # needed for npyscreen on windows
 ]
 classifiers = [
