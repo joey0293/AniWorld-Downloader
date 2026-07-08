@@ -285,7 +285,25 @@ class SerienstreamEpisode:
     @property
     def provider_url(self):
         if self.__provider_url is None:
-            self.__provider_url = GLOBAL_SESSION.get(self.redirect_url).url
+            from urllib.parse import urlparse
+            from ...playwright.captcha import solve_sto_modal
+
+            # Try plain HTTP first — works when no modal is shown
+            resp = GLOBAL_SESSION.get(self.redirect_url)
+            if urlparse(resp.url).netloc != urlparse(self.redirect_url).netloc:
+                # Redirect left s.to — no modal, plain session worked
+                self.__provider_url = resp.url
+            else:
+                # Still on s.to — modal was shown, need browser
+                _lang_map = {Audio.GERMAN: "Deutsch", Audio.ENGLISH: "Englisch"}
+                lang = self.selected_language
+                audio = lang[0] if isinstance(lang, tuple) else lang
+                language_label = _lang_map.get(audio, "Deutsch")
+
+                result = solve_sto_modal(
+                    self.url, self.selected_provider, language_label
+                )
+                self.__provider_url = result if result else resp.url
         return self.__provider_url
 
     @property
