@@ -9,7 +9,9 @@ except ImportError:
 # Constants
 # -----------------------------
 FILE_LINK_PATTERN = re.compile(r'file\s*:\s*[\'"]([^\'"]+\.m3u8)[\'"]')
-PREVIEW_IMAGE_PATTERN = re.compile(r'image\s*:\s*[\'"]([^\'"]+\.(?:jpg|jpeg|png|webp))[\'"]')
+PREVIEW_IMAGE_PATTERN = re.compile(
+    r'image\s*:\s*[\'"]([^\'"]+\.(?:jpg|jpeg|png|webp))[\'"]'
+)
 
 
 # -----------------------------

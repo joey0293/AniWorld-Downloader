@@ -52,7 +52,6 @@ def aniworld():
             for url in urls:
                 provider = resolve_provider(url)
 
-                # Use provider to select correct class
                 if provider.series_pattern and provider.series_pattern.fullmatch(url):
                     obj = provider.series_cls(url=url)
 
@@ -74,14 +73,27 @@ def aniworld():
         # ===== menu path =====
         url = args.url[0] if args.url else search()
 
-        # If URL is supported but not AniWorld, bypass menu
         provider = resolve_provider(url)
+
+        # If provider is NOT AniWorld -> bypass menu
         if provider.name != "AniWorld":
             obj = provider.episode_cls(url=url)
             run_action(obj, action)
             return 0
 
-        # AniWorld menu path (unchanged behavior)
+        # If AniWorld but URL is episode OR season -> bypass menu too
+        if provider.episode_pattern.fullmatch(url) or provider.season_pattern.fullmatch(
+            url
+        ):
+            obj = (
+                provider.episode_cls(url=url)
+                if provider.episode_pattern.fullmatch(url)
+                else provider.season_cls(url=url)
+            )
+            run_action(obj, action)
+            return 0
+
+        # AniWorld series -> show menu
         result = app(url=url)
         if not result:
             return 130
