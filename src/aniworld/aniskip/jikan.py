@@ -1,4 +1,4 @@
-from typing import List, Set
+import time
 
 try:
     from ..config import GLOBAL_SESSION, logger
@@ -6,85 +6,128 @@ except ImportError:
     from aniworld.config import GLOBAL_SESSION, logger
 
 JIKAN_SEARCH_URL = "https://api.jikan.moe/v4/anime"
+JIKAN_ANIME_URL = "https://api.jikan.moe/v4/anime/{id}"
+JIKAN_RELATIONS_URL = "https://api.jikan.moe/v4/anime/{id}/relations"
+
+# Rate limiting delay
+API_DELAY = 0.8
 
 
-def search_jikan(
-    query: str, sfw: bool = False, page: int = 1, limit: int = 10
-) -> List[dict]:
-    """
-    Search for anime using Jikan API v4, filtering by TV type.
-    Returns a list of anime dictionaries (only type 'TV').
-    """
+def search_jikan(query, sfw=False, limit=5):
+    """Search Jikan API for TV anime."""
     params = {
         "q": query,
         "type": "tv",
         "sfw": str(sfw).lower(),
-        "page": page,
         "limit": limit,
         "order_by": "popularity",
-        "sort": "desc",
+        "sort": "asc",  # earliest / most popular first
     }
-
     try:
+        logger.debug(
+            f"Searching Jikan API URL: {JIKAN_SEARCH_URL} with params: {params}"
+        )
         res = GLOBAL_SESSION.get(JIKAN_SEARCH_URL, params=params)
         res.raise_for_status()
-        data = res.json().get("data", [])
-        # Filter for TV type just in case
-        return [anime for anime in data if anime.get("type") == "TV"]
+        return res.json().get("data", [])
     except Exception as e:
         logger.error(f"Error searching Jikan API for query '{query}': {e}")
         return []
 
 
-def get_anime_full_by_id(mal_id: int) -> dict:
-    """
-    Fetch full anime data from Jikan API for a given MAL ID.
-    Includes all related entries in one request.
-    """
-    url = f"https://api.jikan.moe/v4/anime/{mal_id}/full"
-    res = GLOBAL_SESSION.get(url)
-    res.raise_for_status()
-    return res.json().get("data", {})
+# Caches to avoid repeated API calls
+_type_cache = {}
+_relations_cache = {}
 
 
-def get_all_related_from_full(mal_id: int) -> List[int]:
-    """
-    Extract all related MAL IDs from the full anime data.
-    Only includes relevant anime types (Sequel, Prequel, Side story, Parent story).
-    """
-    anime_data = get_anime_full_by_id(mal_id)
-    relations = anime_data.get("relations", [])
-    all_ids: Set[int] = {mal_id}
+def is_tv_series(mal_id):
+    """Check if an anime is a TV series using caching."""
+    if mal_id in _type_cache:
+        return _type_cache[mal_id]
 
-    for rel in relations:
-        if rel.get("relation") in {"Sequel", "Prequel", "Parent story", "Side story"}:
-            for entry in rel.get("entry", []):
-                if entry.get("type") == "anime":
-                    all_ids.add(entry["mal_id"])
+    try:
+        logger.debug(f"Fetching anime type for MAL ID: {mal_id}")
+        res = GLOBAL_SESSION.get(JIKAN_ANIME_URL.format(id=mal_id))
+        res.raise_for_status()
+        anime_type = res.json().get("data", {}).get("type")
+        is_tv = anime_type == "TV"
+        _type_cache[mal_id] = is_tv
+        logger.debug(f"Waiting to respect Jikan API rate limits... {API_DELAY}s")
+        time.sleep(API_DELAY)
+        return is_tv
+    except Exception as e:
+        logger.error(f"Error checking anime type for MAL ID {mal_id}: {e}")
+        _type_cache[mal_id] = False
+        return False
 
-    return list(all_ids)
+
+def get_anime_relations_cached(mal_id):
+    """Get anime relations with caching."""
+    if mal_id in _relations_cache:
+        return _relations_cache[mal_id]
+
+    try:
+        logger.debug(f"Fetching relations for MAL ID: {mal_id}")
+        res = GLOBAL_SESSION.get(JIKAN_RELATIONS_URL.format(id=mal_id))
+        res.raise_for_status()
+        relations = res.json().get("data", [])
+        _relations_cache[mal_id] = relations
+        logger.debug(f"Waiting to respect Jikan API rate limits... {API_DELAY}s")
+        time.sleep(API_DELAY)
+        return relations
+    except Exception as e:
+        logger.error(f"Error fetching relations for MAL ID {mal_id}: {e}")
+        _relations_cache[mal_id] = []
+        return []
 
 
-def get_all_seasons_by_query(query: str) -> List[int]:
-    """
-    Return a list of all MAL IDs for all anime seasons related to the query.
-    Uses the full endpoint to avoid recursive API calls.
-    """
+def get_all_related_ids(season1_id):
+    """Iteratively fetch all related anime IDs starting from season1_id."""
+    collected = set()
+    stack = [season1_id]
+
+    while stack:
+        mal_id = stack.pop()
+        if mal_id in collected:
+            continue
+        collected.add(mal_id)
+
+        for rel in get_anime_relations_cached(mal_id):
+            if rel.get("relation") in {
+                "Sequel",
+                "Prequel",
+                "Parent story",
+                "Side story",
+            }:
+                for entry in rel.get("entry", []):
+                    anime_id = entry.get("mal_id")
+                    if (
+                        anime_id
+                        and is_tv_series(anime_id)
+                        and anime_id not in collected
+                    ):
+                        stack.append(anime_id)
+
+    return collected
+
+
+def get_all_seasons_by_query(query="love is war"):
+    """Fetch all seasons starting from Season 1 and follow sequels/prequels."""
     seasons = search_jikan(query)
     if not seasons:
         logger.warning(f"No TV seasons found for query: {query}")
         return []
 
-    all_ids: Set[int] = set()
-    for season in seasons:
-        mal_id = season["mal_id"]
-        all_ids.update(get_all_related_from_full(mal_id))
+    # Use the most popular TV series
+    season1_id = next((s["mal_id"] for s in seasons if s.get("type") == "TV"), None)
+    if not season1_id:
+        logger.warning(f"No TV seasons found in search results for query: {query}")
+        return []
 
-    logger.info(f"All season MAL IDs found: {all_ids}")
-    return list(all_ids)
+    all_ids = get_all_related_ids(season1_id)
+    logger.info(f"All related MAL IDs found: {all_ids}")
+    return sorted(all_ids)
 
 
 if __name__ == "__main__":
-    query = "love is war"
-    all_seasons = get_all_seasons_by_query(query)
-    print(all_seasons)
+    get_all_seasons_by_query()

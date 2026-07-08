@@ -2,7 +2,9 @@ import tempfile
 
 try:
     from ..config import GLOBAL_SESSION
+    from .jikan import get_all_seasons_by_query
 except ImportError:
+    from aniworld.aniskip import get_all_seasons_by_query
     from aniworld.config import GLOBAL_SESSION
 
 ANISKIP_API_URL = "https://api.aniskip.com/v1/skip-times/{}/{}?types=op&types=ed"
@@ -21,7 +23,7 @@ def ftoi(seconds: float) -> int:
     return int(round(seconds * 1000))
 
 
-def build_mpv_flags(skip_data: dict) -> str:
+def build_mpv_flags(skip_data) -> str:
     """
     Build MPV command flags based on AniSkip API response.
     Returns a string with --chapters-file and --script-opts options.
@@ -56,13 +58,21 @@ def build_mpv_flags(skip_data: dict) -> str:
 
 
 if __name__ == "__main__":
-    mal_id = 37999  # love is war season 1
-    episode_number = 1
-    skip_times = get_skip_times(mal_id, episode_number)
+    query = "tokyo ghoul"
 
-    try:
-        mpv_flags = build_mpv_flags(skip_times)
-        print("MPV command flags:")
-        print(mpv_flags)
-    except ValueError as e:
-        print(e)
+    mal_ids = get_all_seasons_by_query(query)
+
+    print(f"Found {len(mal_ids)} seasons for '{query}':\n")
+
+    for idx, mal_id in enumerate(mal_ids, start=1):
+        print(f"{idx}. MAL ID: {mal_id}")
+
+        episode_number = 1
+        skip_times = get_skip_times(mal_id, episode_number)
+
+        try:
+            mpv_flags = build_mpv_flags(skip_times)
+            print("  MPV command flags:")
+            print(f"    {mpv_flags}\n")
+        except ValueError as e:
+            print(f"  Error building MPV flags: {e}\n")
