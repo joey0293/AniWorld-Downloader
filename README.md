@@ -33,10 +33,10 @@ aniworld
 
 ## Still in Development from v3
 
-- [ ] README
-- [ ] Episode File and Provider Link
-- [ ] Syncplay
-- [ ] Nuitka
+- [ ] README -> add sections from v3
+- [ ] Syncplay -> fix argument structure crash
+- [ ] Nuitka -> fix build crash
+- [ ] Remove empty lines below action when running on docker run -it
 - [ ] WebUI
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
