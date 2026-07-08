@@ -1,36 +1,7 @@
-import logging
-
 from niquests import Session
+from logger import get_logger
 
-# ANSI color codes
-RESET = "\033[0m"
-COLORS = {
-    logging.DEBUG: "\033[36m",  # Cyan
-    logging.INFO: "\033[32m",  # Green
-    logging.WARNING: "\033[33m",  # Yellow
-    logging.ERROR: "\033[31m",  # Red
-    logging.CRITICAL: "\033[41m",  # Red background
-}
-
-
-class ColorFormatter(logging.Formatter):
-    def format(self, record):
-        color = COLORS.get(record.levelno, RESET)
-        record.levelname = f"{color}{record.levelname}{RESET}"
-        return super().format(record)
-
-
-# Configure logging
-handler = logging.StreamHandler()
-handler.setFormatter(ColorFormatter("%(levelname)s: %(message)s"))
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # logging.DEBUG
-logger.addHandler(handler)
-
-# Silence urllib3
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-
+logger = get_logger(__name__)
 
 GLOBAL_SESSION = Session(
     resolver=["doh+google://"],
@@ -50,3 +21,5 @@ GLOBAL_SESSION = Session(
         "Priority": "u=0, i",
     },
 )
+
+logger.debug("Config initialized successfully")
