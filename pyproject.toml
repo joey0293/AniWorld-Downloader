@@ -1,4 +1,3 @@
-# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#a-full-example
 [project]
 name = "aniworld"
 version = "4.0.0"
@@ -15,8 +14,8 @@ dependencies = [
   'ffmpeg-python',
   'python-dotenv',
   'rich',
-  'fake-useragent',                                                           # maybe replaced in future
-  'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"', # needed for npyscreen on windows
+  'fake-useragent',
+  'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"', # npyscreen
 ]
 classifiers = [
   "Programming Language :: Python :: 3",
@@ -26,8 +25,6 @@ license = "MIT"
 license-files = ["LICENSE"]
 
 [project.urls]
-# https://daniel.feldroy.com/posts/2023-08-pypi-project-urls-cheatsheet
-# https://github.com/pypi/warehouse/blob/70eac9796fa1eae24741525688a112586eab9010/warehouse/templates/packaging/detail.html#L20-L62
 homepage = "https://github.com/phoenixthrush/AniWorld-Downloader"
 changelog = "https://github.com/phoenixthrush/AniWorld-Downloader/commits/models"
 documentation = "https://readthedocs.org"

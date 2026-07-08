@@ -2,31 +2,39 @@ FROM python:3.13-alpine
 
 WORKDIR /app
 
-# Need ffmpeg at runtime (muxing, etc.)
+# Install ffmpeg for runtime media operations (e.g., muxing/transcoding helpers)
 RUN apk add --no-cache ffmpeg
 
-# Don’t run as root. Also make sure the usual dirs exist.
+# Create an unprivileged user and pre-create the app/runtime directories it needs
+# This avoids running the app as root and prevents permission issues at runtime
 RUN adduser -D -h /home/aniworld aniworld \
     && mkdir -p /app/Downloads /home/aniworld/.aniworld \
     && chown -R aniworld:aniworld /app /home/aniworld
 
-# Just nicer defaults in containers (no .pyc spam, logs show up immediately)
+# Container-friendly Python defaults:
+# - Disable .pyc bytecode writes (keeps layers/volumes cleaner)
+# - Unbuffer stdout/stderr so logs appear immediately
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Default download directory used by the application
 ENV ANIWORLD_DOWNLOAD_PATH=/app/Downloads
 
-# Copy the packaging bits first so Docker can cache the install layer
+# Copy packaging metadata first to maximize Docker layer cache hits for dependency installs
 COPY pyproject.toml /app/
 COPY README.md LICENSE MANIFEST.in /app/
 
+# Keep pip current
 RUN pip install --no-cache-dir --upgrade pip
 
-# Actual source code
+# Copy the application source code
 COPY src/ /app/src/
 
-# Install the package
+# Install the project into the image
 RUN pip install --no-cache-dir .
 
+# Drop privileges for runtime
 USER aniworld
+
+# Run the module entrypoint
 CMD ["python", "-m", "aniworld"]

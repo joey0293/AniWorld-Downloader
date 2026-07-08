@@ -2,12 +2,19 @@ services:
   aniworld:
     build: .
     ports:
+      # Expose the container's HTTP port on the host.
       - "8080:8080"
     volumes:
-      # Keep downloads on the host so they don’t disappear when the container is recreated
+      # Persist downloads on the host so they survive container recreation.
       - ./Downloads:/app/Downloads
-    # If you hit permission issues on Linux, uncomment and run with UID/GID set
+
+    # Linux host permission workaround:
+    # If the bind-mounted Downloads directory ends up owned by your host user,
+    # you can run the container with your UID/GID to avoid write permission issues.
     # user: "${UID:-1000}:${GID:-1000}"
-    # For now, just serve the Downloads folder over HTTP (until the real web UI exists)
+
+    # Temporary placeholder: serve the Downloads directory over HTTP until a real web UI exists.
     command: ["python", "-m", "http.server", "8080", "--directory", "/app/Downloads"]
+
+    # Keep the service running across reboots / daemon restarts unless explicitly stopped.
     restart: unless-stopped

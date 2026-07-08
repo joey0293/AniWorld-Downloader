@@ -1,6 +1,8 @@
 name: Build Executable with Nuitka
 
 on:
+  # release:
+  #  types: [published]
   workflow_dispatch:
 
 jobs:

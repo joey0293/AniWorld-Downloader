@@ -5,10 +5,16 @@ season_url = "https://serienstream.to/serie/american-horror-story-die-dunkle-sei
 season = SerienstreamSeason(season_url)
 
 print("=== SEASON INFO ===")
-print(f"Season URL: {season.url}")
-print(f"Series Title: {season.series.title}")
-print(f"Season Number: {season.season_number}")
-print(f"Episode Count: {season.episode_count}")
-print(f"Episodes: {season.episodes}")
+print("URL:", season.url)
+print("Season Number:", season.season_number)
+print("Episode Count:", season.episode_count)
+print("Episodes:", season.episodes)
+print()
 
-season.download()
+print("=== SERIES INFO ===")
+print("Title:", season.series.title)
+print()
+
+# season.download()
+# season.watch()
+# season.syncplay()

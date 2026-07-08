@@ -33,6 +33,7 @@ aniworld
 
 ## Still in Development from v3
 
+- [ ] Fix serienstream attributes
 - [ ] Implement argument: keep-watching
 - [ ] README -> add sections from v3
 - [ ] Nuitka -> fix build crash

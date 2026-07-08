@@ -1,14 +1,13 @@
-from aniworld.models import AniworldEpisode
+from aniworld.models import SerienstreamEpisode
 
-url = "https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1"
+url = "https://s.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-1/episode-1"
 
 # ----------------------------
 # Language variations
 # ----------------------------
 variations = [
     ("German Dub", "VOE"),  # German audio, no subtitles
-    ("English Sub", "VOE"),  # Japanese audio, English subtitles
-    ("German Sub", "VOE"),  # Japanese audio, German subtitles
+    ("English Dub", "VOE"),  # English audio, no subtitles
 ]
 
 print("Downloading all available variations into a single MKV file...")
@@ -16,7 +15,7 @@ print("Downloading all available variations into a single MKV file...")
 for language, provider in variations:
     print(f"Downloading: {language} via {provider}")
 
-    episode = AniworldEpisode(
+    episode = SerienstreamEpisode(
         url=url, selected_language=language, selected_provider=provider
     )
 

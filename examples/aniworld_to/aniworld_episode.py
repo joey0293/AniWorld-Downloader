@@ -1,99 +1,47 @@
-"""
-Example: AniWorld Episode usage
-
-This example prints all available episode values and shows what you can do
-with them.
-
-You can use this file as a reference for:
-- Accessing metadata
-- Accessing provider data
-- Generating provider links
-- Downloading / Watching / Syncplay
-"""
-
 from aniworld.config import Audio, Subtitles
-from aniworld.models import AniworldSeries
+from aniworld.models import AniworldEpisode
 
-# ----------------------------
-# 1. Load the series
-# ----------------------------
-series_url = "https://aniworld.to/anime/stream/highschool-dxd"
-series = AniworldSeries(series_url)
+episode_url = "https://aniworld.to/anime/stream/highschool-dxd/staffel-1/episode-1"
 
-print("=== SERIES INFO ===")
-print("Title:", series.title)
-print("Cleaned Title:", series.title_cleaned)
-print("URL:", series.url)
-print("Description:", series.description)
-print("Genres:", series.genres)
-print("Release year:", series.release_year)
-print("Poster URL:", series.poster_url)
-print("Directors:", series.directors)
-print("Actors:", series.actors)
-print("Producer:", series.producer)
-print("Country:", series.country)
-print("Age rating:", series.age_rating)
-print("Rating:", series.rating)
-print("Number of seasons:", len(series.seasons))
-print("Has movies:", series.has_movies)
-print()
-
-# ----------------------------
-# 2. Select first season and episode
-# ----------------------------
-season = series.seasons[0]
-episode = season.episodes[0]
+episode = AniworldEpisode(episode_url)
 
 print("=== EPISODE INFO ===")
-print("Episode URL:", episode.url)
-print("Episode number:", episode.episode_number)
-print("Title (DE):", episode.title_de)
-print("Title (EN):", episode.title_en)
-print("Is movie:", episode.is_movie)
-print("Is downloaded:", episode.is_downloaded["exists"])
-print("Skip times:", episode.skip_times)
-
-print()
-
-# ----------------------------
-# 3. Provider data
-# ----------------------------
-print("Provider data:", episode.provider_data)
-print()
-
-# ----------------------------
-# 4. Provider link
-# ----------------------------
-# Example: German audio + no subtitles, provider VOE
-lang = (Audio.GERMAN, Subtitles.NONE)
-provider_name = "VOE"
-
-provider_link = episode.provider_link(language=lang, provider=provider_name)
-print("Provider link:", provider_link)
-print()
-
-# ----------------------------
-# 5. URL chain values
-# ----------------------------
-# These are computed from provider link / redirect
+print("URL:", episode.url)
+print("Title DE:", episode.title_de)
+print("Title EN:", episode.title_en)
+print("Episode Number:", episode.episode_number)
+print("Provider Data:", episode.provider_data)
+print("Selected Path:", episode.selected_path)
+print("Selected Language:", episode.selected_language)
+print("Selected Provider:", episode.selected_provider)
 print("Redirect URL:", episode.redirect_url)
 print("Provider URL:", episode.provider_url)
 print("Stream URL:", episode.stream_url)
+print("Base Folder:", episode._base_folder)
+print("Folder Path:", episode._folder_path)
+print("File Name:", episode._file_name)
+print("File Extension:", episode._file_extension)
+print("Episode Path:", episode._episode_path)
+print("Is Movie:", episode.is_movie)
+print("Is Downloaded:", episode.is_downloaded)
+print("Skip Times:", episode.skip_times)
 print()
 
-# ----------------------------
-# 6. File path helpers
-# ----------------------------
-print("Base folder:", episode._base_folder)
-print("Folder path:", episode._folder_path)
-print("File name:", episode._file_name)
-print("File extension:", episode._file_extension)
-print("Full episode path:", episode._episode_path)
+print("=== SERIES INFO ===")
+print("Title:", episode.series.title)
 print()
 
-# ----------------------------
-# 7. Actions
-# ----------------------------
-episode.download()
-episode.watch()
-episode.syncplay()
+print("=== SEASON INFO ===")
+print("Season URL:", episode.season.url)
+print()
+
+print("=== CUSTOM PROVIDER LINK ===")
+language = (Audio.GERMAN, Subtitles.NONE)
+provider = "VOE"
+
+provider_link = episode.provider_link(language=language, provider=provider)
+print("Provider Link:", provider_link)
+
+# episode.download()
+# episode.watch()
+# episode.syncplay()
