@@ -30,11 +30,14 @@ function closeQueueModal() {
   }
 }
 
+let lastFfmpegProgress = {};
+
 async function loadQueue() {
   try {
     const resp = await fetch("/api/queue");
     const data = await resp.json();
     const items = data.items || [];
+    lastFfmpegProgress = data.ffmpeg_progress || {};
     renderQueue(items);
     updateBadge(items);
   } catch (e) {
@@ -114,13 +117,21 @@ function renderQueue(items) {
 
     let progressHtml = "";
     if (isRunning || isCancelling || item.status === "cancelled") {
-      const pct =
+      const epPct =
         item.total_episodes > 0
-          ? Math.round((item.current_episode / item.total_episodes) * 100)
+          ? (item.current_episode / item.total_episodes) * 100
           : 0;
       const seInfo = item.current_url
         ? parseSeasonEpisode(item.current_url)
         : "";
+
+      // Combine episode progress with in-episode ffmpeg progress
+      let ffPct = 0;
+      if (isRunning && lastFfmpegProgress.active && item.total_episodes > 0) {
+        ffPct = (lastFfmpegProgress.percent || 0) / item.total_episodes;
+      }
+      const combinedPct = Math.min(Math.round(epPct + ffPct), 100);
+
       let label;
       if (isCancelling) {
         label =
@@ -135,12 +146,15 @@ function renderQueue(items) {
           item.total_episodes +
           " episodes (stopped)";
       } else {
-        label =
-          item.current_episode +
-          "/" +
-          item.total_episodes +
-          " episodes" +
-          (seInfo ? " - " + seInfo : "");
+        let epDetail = item.current_episode + "/" + item.total_episodes + " episodes";
+        if (seInfo) epDetail += " - " + seInfo;
+        if (lastFfmpegProgress.active && lastFfmpegProgress.percent > 0) {
+          epDetail +=
+            " (" + lastFfmpegProgress.percent + "%" +
+            (lastFfmpegProgress.speed ? " @ " + lastFfmpegProgress.speed : "") +
+            ")";
+        }
+        label = epDetail;
       }
       progressHtml =
         '<div class="queue-progress">' +
@@ -149,11 +163,11 @@ function renderQueue(items) {
         label +
         "</span>" +
         "<span>" +
-        pct +
+        combinedPct +
         "%</span>" +
         "</div>" +
         '<div class="queue-progress-bar"><div class="queue-progress-fill" style="width:' +
-        pct +
+        combinedPct +
         '%"></div></div>' +
         "</div>";
     }

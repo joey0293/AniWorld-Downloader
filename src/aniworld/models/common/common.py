@@ -5,6 +5,8 @@ import platform
 import re
 import shlex
 import subprocess
+import sys
+import threading as _threading
 from typing import Tuple
 
 import ffmpeg
@@ -140,7 +142,42 @@ def _remove_empty_dirs(folder_path, base_folder):
         pass
 
 
-def _run_ffmpeg_with_progress(node, overwrite_output=True):
+# Thread-safe global for current ffmpeg download progress (used by web UI)
+_ffmpeg_progress_lock = _threading.Lock()
+_ffmpeg_progress = {"percent": 0.0, "time": "", "speed": "", "active": False}
+
+
+def get_ffmpeg_progress():
+    """Return a snapshot of the current ffmpeg download progress."""
+    with _ffmpeg_progress_lock:
+        return dict(_ffmpeg_progress)
+
+
+def _parse_ffmpeg_time(time_str):
+    """Parse ffmpeg time string (HH:MM:SS.xx) to seconds."""
+    try:
+        parts = time_str.split(":")
+        if len(parts) == 3:
+            return float(parts[0]) * 3600 + float(parts[1]) * 60 + float(parts[2])
+    except (ValueError, IndexError):
+        pass
+    return 0.0
+
+
+def _print_cli_progress(percent, time_str, speed_str, label=""):
+    """Print a simple CLI progress bar without ANSI colors."""
+    if not sys.stderr.isatty():
+        return
+    bar_width = 30
+    filled = int(bar_width * percent / 100)
+    bar = "#" * filled + "-" * (bar_width - filled)
+    prefix = f"{label} - " if label else ""
+    line = f"\r{prefix}[{bar}] {percent:5.1f}% | {time_str} | {speed_str}  "
+    sys.stderr.write(line)
+    sys.stderr.flush()
+
+
+def _run_ffmpeg_with_progress(node, overwrite_output=True, label=""):
     """Run an ffmpeg node and stream its progress output cleanly.
 
     Includes stall detection: if FFmpeg stops making progress (same frame/time
@@ -153,16 +190,22 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True):
 
     STALL_TIMEOUT = 600  # 10 minutes without progress → kill (must exceed reconnect_delay_max=300)
 
+    debug_mode = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
+    is_tty = sys.stderr.isatty()
+
     # Regex to extract progress indicators from ffmpeg status lines
     _RE_FRAME = re.compile(r"frame=\s*(\d+)")
     _RE_TIME = re.compile(r"time=(\S+)")
+    _RE_SPEED = re.compile(r"speed=\s*(\S+)")
+    _RE_DURATION = re.compile(r"Duration:\s*(\d+:\d+:\d+\.\d+)")
 
-    # Append stats_period to reduce logging freq
+    # Use shorter stats_period for smoother progress (1s in non-debug, 10s in debug)
+    stats_period = "10" if debug_mode else "1"
+
     args = ffmpeg.compile(node, overwrite_output=overwrite_output)
     if "-stats_period" not in args:
-        # Insert before the output file (last arg)
         args.insert(-1, "-stats_period")
-        args.insert(-1, "10")
+        args.insert(-1, stats_period)
 
     process = subprocess.Popen(
         args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, universal_newlines=False
@@ -196,53 +239,98 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True):
     last_frame = None
     last_time = None
     last_change = time.monotonic()
+    total_duration = 0.0
 
-    while True:
-        try:
-            line_str = line_queue.get(timeout=1.0)
-        except queue.Empty:
-            # No new line within 1 s – just check the stall timer
-            if time.monotonic() - last_change > STALL_TIMEOUT:
-                logger.warning(
-                    "[FFmpeg] Stall detected – no progress for "
-                    f"{STALL_TIMEOUT}s. Killing process."
-                )
-                process.kill()
+    with _ffmpeg_progress_lock:
+        _ffmpeg_progress.update(percent=0.0, time="", speed="", active=True)
+
+    try:
+        while True:
+            try:
+                line_str = line_queue.get(timeout=1.0)
+            except queue.Empty:
+                # No new line within 1 s – just check the stall timer
+                if time.monotonic() - last_change > STALL_TIMEOUT:
+                    logger.warning(
+                        "[FFmpeg] Stall detected – no progress for "
+                        f"{STALL_TIMEOUT}s. Killing process."
+                    )
+                    process.kill()
+                    break
+                continue
+
+            if line_str is None:
+                # Reader thread finished (EOF)
                 break
-            continue
 
-        if line_str is None:
-            # Reader thread finished (EOF)
-            break
+            # Log the line
+            if line_str.startswith("frame=") or line_str.startswith("size="):
+                # --- extract progress values ---
+                cur_frame = None
+                cur_time = None
+                cur_time_str = ""
+                cur_speed_str = ""
+                m = _RE_FRAME.search(line_str)
+                if m:
+                    cur_frame = m.group(1)
+                m = _RE_TIME.search(line_str)
+                if m:
+                    cur_time = m.group(1)
+                    cur_time_str = m.group(1)
+                m = _RE_SPEED.search(line_str)
+                if m:
+                    cur_speed_str = m.group(1)
 
-        # Log the line
-        if line_str.startswith("frame=") or line_str.startswith("size="):
-            logger.info(f"[FFmpeg Progress] {line_str}")
+                # Compute percentage
+                percent = 0.0
+                if total_duration > 0 and cur_time_str:
+                    elapsed = _parse_ffmpeg_time(cur_time_str)
+                    percent = min((elapsed / total_duration) * 100, 100.0)
 
-            # --- stall detection: extract progress values ---
-            cur_frame = None
-            cur_time = None
-            m = _RE_FRAME.search(line_str)
-            if m:
-                cur_frame = m.group(1)
-            m = _RE_TIME.search(line_str)
-            if m:
-                cur_time = m.group(1)
+                # Update global progress for web UI
+                with _ffmpeg_progress_lock:
+                    _ffmpeg_progress.update(
+                        percent=round(percent, 1),
+                        time=cur_time_str,
+                        speed=cur_speed_str,
+                        active=True,
+                    )
 
-            if cur_frame != last_frame or cur_time != last_time:
-                last_frame = cur_frame
-                last_time = cur_time
-                last_change = time.monotonic()
-            elif time.monotonic() - last_change > STALL_TIMEOUT:
-                logger.warning(
-                    "[FFmpeg] Stall detected – no progress for "
-                    f"{STALL_TIMEOUT}s. Killing process."
-                )
-                process.kill()
-                break
-        elif line_str:
-            logger.debug(f"[FFmpeg] {line_str}")
-            stderr_lines.append(line_str)
+                if debug_mode:
+                    logger.info(f"[FFmpeg Progress] {line_str}")
+                elif is_tty:
+                    _print_cli_progress(percent, cur_time_str, cur_speed_str, label)
+
+                # --- stall detection ---
+                if cur_frame != last_frame or cur_time != last_time:
+                    last_frame = cur_frame
+                    last_time = cur_time
+                    last_change = time.monotonic()
+                elif time.monotonic() - last_change > STALL_TIMEOUT:
+                    logger.warning(
+                        "[FFmpeg] Stall detected – no progress for "
+                        f"{STALL_TIMEOUT}s. Killing process."
+                    )
+                    process.kill()
+                    break
+            elif line_str:
+                # Try to capture total duration from ffmpeg header
+                if total_duration == 0.0:
+                    dm = _RE_DURATION.search(line_str)
+                    if dm:
+                        total_duration = _parse_ffmpeg_time(dm.group(1))
+
+                logger.debug(f"[FFmpeg] {line_str}")
+                stderr_lines.append(line_str)
+
+        # Clear the progress line in CLI
+        if not debug_mode and is_tty:
+            sys.stderr.write("\r" + " " * 120 + "\r")
+            sys.stderr.flush()
+
+    finally:
+        with _ffmpeg_progress_lock:
+            _ffmpeg_progress.update(percent=0.0, time="", speed="", active=False)
 
     reader_thread.join(timeout=5)
     process.wait()
@@ -315,6 +403,9 @@ def download(self):
 
             os.makedirs(self._folder_path, exist_ok=True)
 
+            # Label for CLI progress bar (e.g. "Title S01E001")
+            ep_label = os.path.splitext(self._file_name)[0] if self._file_name else ""
+
             full_stream_needed = need_audio and need_video
 
             temp_audio = self._episode_path.with_suffix(".temp_audio.mkv")
@@ -335,7 +426,8 @@ def download(self):
                         vcodec=video_codec,
                         acodec=video_codec,
                         **stream_metadata,
-                    )
+                    ),
+                    label=ep_label,
                 )
 
                 if self._episode_path.exists():
@@ -364,7 +456,8 @@ def download(self):
                         acodec=video_codec,
                         map="0:a:0?",
                         **{"metadata:s:a:0": f"language={audio_code}"},
-                    )
+                    ),
+                    label=ep_label,
                 )
 
             if need_video:
@@ -380,7 +473,8 @@ def download(self):
                             if wants_clean_video
                             else {"metadata:s:v:0": f"language={sub_video_code}"}
                         ),
-                    )
+                    ),
+                    label=ep_label,
                 )
 
             logger.debug("[MUXING] combining streams")
