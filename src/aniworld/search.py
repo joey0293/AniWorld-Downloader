@@ -8,6 +8,10 @@ from .config import GLOBAL_SESSION, logger
 
 SEARCH_URL = "https://aniworld.to/ajax/search"
 RANDOM_URL = "https://aniworld.to/ajax/randomGeneratorSeries"
+NEW_EPISODES_URL = "https://aniworld.to/neue-episoden"
+HOME_URL = "https://aniworld.to"
+
+_homepage_cache = None
 
 
 def random_anime():
@@ -44,6 +48,180 @@ def query(keyword):
         return response.json()  # Returns a list of dicts
     except ValueError:
         return None
+
+
+def fetch_new_episodes():
+    """Fetch the latest episodes from aniworld.to/neue-episoden.
+
+    Returns a deduplicated list of episode dicts (grouped by URL, languages merged),
+    or None on error.
+    """
+    try:
+        response = GLOBAL_SESSION.get(NEW_EPISODES_URL)
+        response.raise_for_status()
+        html = response.text
+    except Exception as e:
+        logger.error(f"Failed to fetch new episodes: {e}")
+        return None
+
+    # Try to narrow scope to the newEpisodeList block
+    block_match = re.search(
+        r'class="newEpisodeList">(.*)', html, re.DOTALL
+    )
+    search_html = block_match.group(1) if block_match else html
+
+    # Find all episode links with their surrounding context
+    episode_pattern = re.compile(
+        r'<a\s+href="(/anime/stream/[^"]+/staffel-(\d+)/episode-(\d+))"[^>]*>'
+        r'(.*?)</a>'
+        r'(.*?(?=<a\s+href="/anime/stream/|$))',
+        re.DOTALL,
+    )
+
+    seen = {}
+    ordered_urls = []
+
+    for m in episode_pattern.finditer(search_html):
+        path, season_str, episode_str, inner, after = m.groups()
+        url = f"https://aniworld.to{path}"
+        season = int(season_str)
+        episode = int(episode_str)
+
+        # Extract title from <strong>
+        title_match = re.search(r'<strong>(.*?)</strong>', inner)
+        title = title_match.group(1).strip() if title_match else ""
+
+        # Extract date from elementFloatRight span or last span
+        date_match = re.search(
+            r'<span[^>]*class="[^"]*elementFloatRight[^"]*"[^>]*>(.*?)</span>',
+            inner,
+        )
+        date = date_match.group(1).strip() if date_match else ""
+
+        # Extract language from flag image data-src
+        context = inner + after
+        flag_match = re.search(r'data-src="[^"]*?/(\w[\w-]*)\.svg"', context)
+        language = flag_match.group(1) if flag_match else ""
+
+        if url not in seen:
+            seen[url] = {
+                "title": title,
+                "url": url,
+                "season": season,
+                "episode": episode,
+                "date": date,
+                "languages": [],
+            }
+            ordered_urls.append(url)
+
+        if language and language not in seen[url]["languages"]:
+            seen[url]["languages"].append(language)
+
+    return [seen[url] for url in ordered_urls]
+
+
+def _fetch_homepage():
+    """Fetch the homepage HTML, using a simple module-level cache."""
+    global _homepage_cache
+    if _homepage_cache is not None:
+        return _homepage_cache
+
+    try:
+        response = GLOBAL_SESSION.get(HOME_URL)
+        response.raise_for_status()
+        _homepage_cache = response.text
+        return _homepage_cache
+    except Exception as e:
+        logger.error(f"Failed to fetch homepage: {e}")
+        return None
+
+
+def _extract_cover_list(html, heading):
+    """Extract a list of anime cover items from a homepage section.
+
+    Finds the section identified by the <h2> heading text, then extracts
+    coverListItem entries until the next section.
+    """
+    # Find the heading position
+    heading_pattern = re.compile(
+        rf'<h2>\s*{re.escape(heading)}\s*</h2>', re.IGNORECASE
+    )
+    heading_match = heading_pattern.search(html)
+    if not heading_match:
+        logger.warning(f"Homepage section '{heading}' not found")
+        return []
+
+    # Slice from heading to the next <h2> or end
+    start = heading_match.end()
+    next_h2 = re.search(r'<h2>', html[start:])
+    section_html = html[start:start + next_h2.start()] if next_h2 else html[start:]
+
+    # Extract items — anchor on /anime/stream/ links with cover structure
+    item_pattern = re.compile(
+        r'<a\s+href="(/anime/stream/[^"]+)"[^>]*title="([^"]*)"[^>]*>'
+        r'(.*?)</a>',
+        re.DOTALL,
+    )
+
+    results = []
+    seen_urls = set()
+
+    for m in item_pattern.finditer(section_html):
+        path, link_title, inner = m.groups()
+        url = f"https://aniworld.to{path}"
+
+        if url in seen_urls:
+            continue
+        seen_urls.add(url)
+
+        # Title from <h3> (strip inner tags)
+        h3_match = re.search(r'<h3>(.*?)</h3>', inner, re.DOTALL)
+        title = re.sub(r'<[^>]+>', '', h3_match.group(1)).strip() if h3_match else link_title
+
+        # Genre from <small>
+        small_match = re.search(r'<small>(.*?)</small>', inner, re.DOTALL)
+        genre = re.sub(r'<[^>]+>', '', small_match.group(1)).strip() if small_match else ""
+
+        # Poster from data-src on img
+        img_match = re.search(r'data-src="([^"]+)"', inner)
+        poster_url = ""
+        if img_match:
+            poster_path = img_match.group(1)
+            poster_url = (
+                poster_path if poster_path.startswith("http")
+                else f"https://aniworld.to{poster_path}"
+            )
+
+        results.append({
+            "title": title,
+            "url": url,
+            "genre": genre,
+            "poster_url": poster_url,
+        })
+
+    return results
+
+
+def fetch_new_animes():
+    """Fetch the 'Neue Animes' section from the homepage.
+
+    Returns a list of anime dicts or None on error.
+    """
+    html = _fetch_homepage()
+    if html is None:
+        return None
+    return _extract_cover_list(html, "Neue Animes")
+
+
+def fetch_popular_animes():
+    """Fetch the 'Derzeit beliebt' section from the homepage.
+
+    Returns a list of anime dicts or None on error.
+    """
+    html = _fetch_homepage()
+    if html is None:
+        return None
+    return _extract_cover_list(html, "Derzeit beliebt")
 
 
 def _curses_menu(stdscr, options):

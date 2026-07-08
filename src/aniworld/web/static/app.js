@@ -13,6 +13,9 @@ const statusText = document.getElementById('statusText');
 const downloadAllBtn = document.getElementById('downloadAllBtn');
 const downloadSelectedBtn = document.getElementById('downloadSelectedBtn');
 const randomBtn = document.getElementById('randomBtn');
+const browseDiv = document.getElementById('browse');
+const newAnimesGrid = document.getElementById('newAnimesGrid');
+const popularAnimesGrid = document.getElementById('popularAnimesGrid');
 
 let currentSeasons = [];
 let currentDownloadId = null;
@@ -23,7 +26,42 @@ let availableProviders = null;
 const staticProviders = Array.from(providerSelect.options).map(o => o.value);
 
 searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+searchInput.addEventListener('input', () => {
+  if (!searchInput.value.trim()) {
+    resultsDiv.innerHTML = '';
+    browseDiv.style.display = '';
+  }
+});
 languageSelect.addEventListener('change', updateProviderDropdown);
+
+function renderBrowseCards(grid, items) {
+  grid.innerHTML = '';
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'browse-card';
+    card.onclick = () => openSeries(item.url);
+    card.innerHTML =
+      `<img src="${esc(item.poster_url)}" alt="">` +
+      `<div class="browse-info">` +
+        `<div class="browse-title">${esc(item.title)}</div>` +
+        `<div class="browse-genre">${esc(item.genre)}</div>` +
+      `</div>`;
+    grid.appendChild(card);
+  });
+}
+
+(async function loadBrowse() {
+  try {
+    const [newResp, popResp] = await Promise.all([
+      fetch('/api/new-animes'),
+      fetch('/api/popular-animes')
+    ]);
+    const newData = await newResp.json();
+    const popData = await popResp.json();
+    if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
+    if (popData.results) renderBrowseCards(popularAnimesGrid, popData.results);
+  } catch (e) { /* browse load is best-effort */ }
+})();
 
 async function doSearch() {
   const keyword = searchInput.value.trim();
@@ -31,6 +69,7 @@ async function doSearch() {
   searchBtn.disabled = true;
   searchSpinner.style.display = 'block';
   resultsDiv.innerHTML = '';
+  browseDiv.style.display = 'none';
   try {
     const resp = await fetch('/api/search', {
       method: 'POST',
@@ -64,7 +103,7 @@ async function doRandom() {
 function renderResults(results) {
   resultsDiv.innerHTML = '';
   if (!results.length) {
-    resultsDiv.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#888;padding:40px">No results found.</div>';
+    resultsDiv.innerHTML = '<div style="width:100%;text-align:center;color:#888;padding:40px">No results found.</div>';
     return;
   }
   results.forEach(r => {

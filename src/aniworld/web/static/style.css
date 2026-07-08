@@ -19,8 +19,9 @@ a:hover{color:#93c5fd}
 ::-webkit-scrollbar-thumb:hover{background:#444}
 
 /* ===== Layout ===== */
-.container{max-width:960px;margin:0 auto;padding:32px 20px}
+.container{margin:0 auto;padding:32px 32px}
 h1{text-align:center;margin-bottom:32px;font-size:1.75rem;color:#fff;font-weight:700;letter-spacing:-.02em}
+.search-bar{max-width:960px;margin-left:auto;margin-right:auto}
 
 /* ===== Navbar ===== */
 .top-bar{
@@ -82,8 +83,9 @@ h1{text-align:center;margin-bottom:32px;font-size:1.75rem;color:#fff;font-weight
 .spinner{display:none;text-align:center;padding:24px;color:#6b7280;font-size:.9rem}
 
 /* ===== Results Grid ===== */
-.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px}
+.results{display:flex;flex-wrap:wrap;gap:18px;justify-content:center}
 .card{
+  width:170px;flex-shrink:0;
   background:rgba(255,255,255,.03);
   border-radius:12px;overflow:hidden;cursor:pointer;
   transition:all .25s cubic-bezier(.4,0,.2,1);
@@ -405,6 +407,41 @@ h1{text-align:center;margin-bottom:32px;font-size:1.75rem;color:#fff;font-weight
 .btn-download-selected:disabled{
   background:#1e1e2a;color:#444;cursor:not-allowed;
   border-color:rgba(255,255,255,.04);
+}
+
+/* ===== Browse Sections ===== */
+.browse-section{margin-bottom:48px}
+.browse-heading{
+  font-size:1.4rem;font-weight:700;color:#fff;
+  margin-bottom:18px;letter-spacing:-.02em;text-align:center;
+}
+.browse-grid{
+  display:flex;flex-wrap:wrap;gap:14px;justify-content:center;
+}
+.browse-card{
+  width:170px;flex-shrink:0;
+  background:rgba(255,255,255,.03);
+  border-radius:10px;overflow:hidden;cursor:pointer;
+  transition:all .25s cubic-bezier(.4,0,.2,1);
+  border:1px solid rgba(255,255,255,.06);
+}
+.browse-card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 12px 32px rgba(0,0,0,.4);
+  border-color:rgba(37,99,235,.3);
+}
+.browse-card img{
+  width:100%;aspect-ratio:2/3;object-fit:cover;
+  background:#12121a;display:block;
+}
+.browse-card .browse-info{padding:10px 12px}
+.browse-card .browse-title{
+  font-size:.82rem;font-weight:600;color:#e2e4e9;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.browse-card .browse-genre{
+  font-size:.72rem;color:#6b7280;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 
 /* ===== Random Button ===== */
