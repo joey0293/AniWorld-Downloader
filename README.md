@@ -218,6 +218,14 @@ AniWorld Downloader builds upon the work of several outstanding open-source proj
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+## Other Cool Projects
+
+- **[Jellyfin AniWorld Downloader](https://github.com/SiroxCW/Jellyfin-AniWorld-Downloader)** by **[SiroxCW](https://github.com/SiroxCW)** – A Jellyfin plugin that lets you browse and download anime & series directly from AniWorld, fully integrated into your media server.
+
+- **[AniBridge](https://github.com/Zzackllack/AniBridge)** by **[Zzackllack](https://github.com/Zzackllack)** – A minimal FastAPI service that bridges anime and series streaming catalogues (AniWorld, SerienStream/s.to, MegaKino) with automation tools.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
 ## Support
 
 If you need help with AniWorld Downloader, you have several options:
