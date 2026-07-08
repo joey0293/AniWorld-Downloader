@@ -2,21 +2,19 @@
 
 ## Rework from v3
 
-- [ ] Create full project roadmap
-- [ ] Implement a configuration system (environment‑based or similar)
-- [ ] Port provider extractors from the "next" branch
-- [ ] Syncplay
-- [ ] Aniskip
 - [ ] Anime4K
+- [ ] Aniskip
+- [ ] Syncplay
 
 ## Working Providers
 
+- [x] Doodstream
 - [ ] Filemoon
-- [x] Vidmoly
-- [x] VOE
+- [ ] Hanime
 - [ ] LoadX
 - [ ] Luluvdo
-- [x] Doodstream
 - [ ] SpeedFiles
 - [ ] Streamtape
-- [ ] Vidoza
+- [x] Vidoza
+- [x] Vidmoly
+- [x] VOE
