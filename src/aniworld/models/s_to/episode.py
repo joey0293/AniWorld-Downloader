@@ -284,34 +284,37 @@ class SerienstreamEpisode:
     @property
     def _base_folder(self):
         if self.__base_folder is None:
-            series_folder_template = NAMING_TEMPLATE.split("/")[0]
-            folder_str = series_folder_template.format(
-                title=self.series.title_cleaned,
-                year=self.series.release_year,
-                imdbid=self.series.imdb,
-                season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:03d}",
-                language=self.selected_language,
-            )
-            self.__base_folder = Path(self.selected_path) / folder_str
+            parts = NAMING_TEMPLATE.split("/")
+            if len(parts) <= 1:
+                self.__base_folder = Path(self.selected_path)
+            else:
+                folder_str = parts[0].format(
+                    title=self.series.title_cleaned,
+                    year=self.series.release_year,
+                    imdbid=self.series.imdb,
+                    season=f"{self.season.season_number:02d}",
+                    episode=f"{self.episode_number:03d}",
+                    language=self.selected_language,
+                )
+                self.__base_folder = Path(self.selected_path) / folder_str
         return self.__base_folder
 
     @property
     def _folder_path(self):
         if self.__folder_path is None:
-            try:
-                season_folder_template = NAMING_TEMPLATE.split("/")[1]
-            except IndexError:
-                season_folder_template = f"Season {self.season.season_number:02d}"
-            folder_str = season_folder_template.format(
-                title=self.series.title_cleaned,
-                year=self.series.release_year,
-                imdbid=self.series.imdb,
-                season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:03d}",
-                language=self.selected_language,
-            )
-            self.__folder_path = self._base_folder / folder_str
+            parts = NAMING_TEMPLATE.split("/")
+            if len(parts) <= 2:
+                self.__folder_path = self._base_folder
+            else:
+                folder_str = parts[1].format(
+                    title=self.series.title_cleaned,
+                    year=self.series.release_year,
+                    imdbid=self.series.imdb,
+                    season=f"{self.season.season_number:02d}",
+                    episode=f"{self.episode_number:03d}",
+                    language=self.selected_language,
+                )
+                self.__folder_path = self._base_folder / folder_str
         return self.__folder_path
 
     @property
