@@ -141,7 +141,22 @@ def _remove_empty_dirs(folder_path, base_folder):
 
 
 def _run_ffmpeg_with_progress(node, overwrite_output=True):
-    """Run an ffmpeg node and stream its progress output cleanly."""
+    """Run an ffmpeg node and stream its progress output cleanly.
+
+    Includes stall detection: if FFmpeg stops making progress (same frame/time
+    values) for STALL_TIMEOUT seconds the process is killed so the caller's
+    retry logic can kick in.
+    """
+    import queue
+    import threading
+    import time
+
+    STALL_TIMEOUT = 300  # 5 minutes without progress → kill
+
+    # Regex to extract progress indicators from ffmpeg status lines
+    _RE_FRAME = re.compile(r"frame=\s*(\d+)")
+    _RE_TIME = re.compile(r"time=(\S+)")
+
     # Append stats_period to reduce logging freq
     args = ffmpeg.compile(node, overwrite_output=overwrite_output)
     if "-stats_period" not in args:
@@ -153,32 +168,81 @@ def _run_ffmpeg_with_progress(node, overwrite_output=True):
         args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False
     )
 
-    # Read stderr byte by byte to handle \r without newline
-    line_buf = bytearray()
-    while True:
-        char = process.stderr.read(1)
-        if not char and process.poll() is not None:
-            break
-        if char:
-            if char in (b"\r", b"\n"):
-                if line_buf:
-                    line_str = line_buf.decode("utf-8", errors="replace").strip()
-                    if line_str.startswith("frame=") or line_str.startswith("size="):
-                        logger.info(f"[FFmpeg Progress] {line_str}")
-                    elif line_str:
-                        logger.debug(f"[FFmpeg] {line_str}")
-                line_buf.clear()
-            else:
-                line_buf.extend(char)
+    # --- reader thread: reads stderr byte-by-byte and pushes complete lines ---
+    line_queue = queue.Queue()
 
-    # Make sure we didn't miss the last line
-    if line_buf:
-        line_str = line_buf.decode("utf-8", errors="replace").strip()
+    def _reader():
+        buf = bytearray()
+        while True:
+            char = process.stderr.read(1)
+            if not char:
+                # EOF – push whatever is left
+                if buf:
+                    line_queue.put(buf.decode("utf-8", errors="replace").strip())
+                line_queue.put(None)  # sentinel
+                return
+            if char in (b"\r", b"\n"):
+                if buf:
+                    line_queue.put(buf.decode("utf-8", errors="replace").strip())
+                    buf.clear()
+            else:
+                buf.extend(char)
+
+    reader_thread = threading.Thread(target=_reader, daemon=True)
+    reader_thread.start()
+
+    # --- main loop: consume lines, log them, and watch for stalls ---
+    last_frame = None
+    last_time = None
+    last_change = time.monotonic()
+
+    while True:
+        try:
+            line_str = line_queue.get(timeout=1.0)
+        except queue.Empty:
+            # No new line within 1 s – just check the stall timer
+            if time.monotonic() - last_change > STALL_TIMEOUT:
+                logger.warning(
+                    "[FFmpeg] Stall detected – no progress for "
+                    f"{STALL_TIMEOUT}s. Killing process."
+                )
+                process.kill()
+                break
+            continue
+
+        if line_str is None:
+            # Reader thread finished (EOF)
+            break
+
+        # Log the line
         if line_str.startswith("frame=") or line_str.startswith("size="):
             logger.info(f"[FFmpeg Progress] {line_str}")
+
+            # --- stall detection: extract progress values ---
+            cur_frame = None
+            cur_time = None
+            m = _RE_FRAME.search(line_str)
+            if m:
+                cur_frame = m.group(1)
+            m = _RE_TIME.search(line_str)
+            if m:
+                cur_time = m.group(1)
+
+            if cur_frame != last_frame or cur_time != last_time:
+                last_frame = cur_frame
+                last_time = cur_time
+                last_change = time.monotonic()
+            elif time.monotonic() - last_change > STALL_TIMEOUT:
+                logger.warning(
+                    "[FFmpeg] Stall detected – no progress for "
+                    f"{STALL_TIMEOUT}s. Killing process."
+                )
+                process.kill()
+                break
         elif line_str:
             logger.debug(f"[FFmpeg] {line_str}")
 
+    reader_thread.join(timeout=5)
     process.wait()
     if process.returncode != 0:
         # Re-raise standard ffmpeg error if it failed
