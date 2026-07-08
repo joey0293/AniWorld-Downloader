@@ -33,6 +33,9 @@ class AniworldSeries:
     """
 
     def __init__(self, url: str):
+        if not self.is_valid_aniworld_series_url(url):
+            raise ValueError(f"Invalid AniWorld series URL: {url}")
+
         self.url = url
 
         # Extracted from self.html
@@ -57,6 +60,20 @@ class AniworldSeries:
         self.__html = None
 
         logger.debug(f"Initialized {self.url}")
+
+    # -----------------------------
+    # STATIC METHODS
+    # -----------------------------
+
+    @staticmethod
+    def is_valid_aniworld_series_url(url: str) -> bool:
+        """
+        Checks if the URL is a valid AniWorld series URL.
+        """
+
+        # https://aniworld.to/anime/stream/highschool-dxd
+        pattern = r"^https?://(www\.)?aniworld\.to/anime/stream/[a-zA-Z0-9\-]+/?$"
+        return bool(re.match(pattern, url, re.IGNORECASE))
 
     # -----------------------------
     # PUBLIC PROPERTIES (lazy load)
