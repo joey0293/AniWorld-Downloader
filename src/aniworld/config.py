@@ -3,7 +3,7 @@ import re
 from enum import Enum
 from pathlib import Path
 
-from fake_useragent import UserAgent
+import fake_useragent
 from niquests import Session
 
 from .env import merge_env
@@ -59,7 +59,12 @@ def get_video_codec():
 # NIQUESTS
 
 # DEFAULT_USER_AGENT = "Mozilla/5.0 (iPhone16,2; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Resorts/4.7.5"
-DEFAULT_USER_AGENT = str(UserAgent(os=["Windows", "Mac OS X"]).random)
+try:
+    DEFAULT_USER_AGENT = str(
+        fake_useragent.UserAgent(os=["Windows", "Mac OS X"]).random
+    )
+except fake_useragent.errors.FakeUserAgentError:
+    DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
 
 LULUVDO_USER_AGENT = (
     "Mozilla/5.0 (Android 15; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
