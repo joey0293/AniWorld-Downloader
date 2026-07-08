@@ -1,6 +1,8 @@
 import os
 import sys
 
+from dotenv import load_dotenv
+
 from .arguments import parse_args
 from .config import (
     ANIWORLD_EPISODE_PATTERN,
@@ -12,6 +14,10 @@ from .logger import get_logger
 from .menu import app
 from .models import AniworldEpisode, AniworldSeason, AniworldSeries
 from .search import search
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 logger = get_logger(__name__)
 

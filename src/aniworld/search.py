@@ -1,6 +1,7 @@
 import curses
 import os
 import random
+import re
 
 from .ascii import display_ascii_art
 from .config import GLOBAL_SESSION, logger
@@ -94,7 +95,6 @@ def _curses_menu(stdscr, options):
             return options[selected]
 
 
-# TODO: really filter correctly
 def search():
     """Prompt user for a search keyword and return a single series URL using a curses menu."""
     display_ascii_art()
@@ -130,10 +130,16 @@ def search():
             # random_anime() could return a single URL string
             return results
 
-        # Filter results to only include links containing "/anime/stream/"
+        logger.debug(results)
+
+        # Precompile regex to match only streaming links
+        stream_pattern = re.compile(r"^/anime/stream/[a-zA-Z0-9\-]+/?$", re.IGNORECASE)
+
+        # Filter results
         stream_results = [
-            item for item in results if "/anime/stream/" in item.get("link", "")
+            item for item in results if stream_pattern.match(item.get("link") or "")
         ]
+
         if not stream_results:
             logger.error("No streamable series found. Please try again.")
             continue
