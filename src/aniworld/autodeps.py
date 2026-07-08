@@ -110,6 +110,13 @@ class DependencyManager:
 
     def fetch_binary(self, name: str) -> Path:
         dep_info = self.deps.get(name, {}).get(PLATFORM, {})
+
+        # System-wide first
+        sys_path = shutil.which(name)
+        if sys_path:
+            self.logger.debug(f"{name} found system-wide at {sys_path}")
+            return Path(sys_path)
+
         url = dep_info.get("url")
 
         # Lazy resolution for MPV Windows URL
@@ -117,19 +124,10 @@ class DependencyManager:
             url = get_mpv_windows_url()
             dep_info["url"] = url
 
-        if not url:
-            raise RuntimeError(f"Cannot locate or install {name} for {PLATFORM}.")
-
-        local_path = self.install_folder / Path(url).name
-
-        # System-wide
-        sys_path = shutil.which(name)
-        if sys_path:
-            self.logger.debug(f"{name} found system-wide at {sys_path}")
-            return Path(sys_path)
+        local_path = self.install_folder / Path(url).name if url else None
 
         # Local folder
-        if local_path.exists():
+        if local_path and local_path.exists():
             self.logger.debug(f"{name} found in {self.install_folder}")
             return local_path
 
