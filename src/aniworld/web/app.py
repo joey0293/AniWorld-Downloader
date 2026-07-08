@@ -25,7 +25,6 @@ from .db import (
     add_to_queue,
     cancel_queue_item,
     clear_completed,
-    delete_completed_queue_item,
     find_autosync_by_url,
     get_autosync_job,
     get_autosync_jobs,
