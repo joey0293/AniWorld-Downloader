@@ -8,7 +8,7 @@ from pathlib import Path
 import npyscreen
 
 from .config import VERSION, logger
-from .models import AniworldSeries
+from .models import AniworldEpisode, AniworldSeries
 from .models.aniworld_to.episode import Audio, Subtitles
 
 # ============================================================
@@ -264,3 +264,29 @@ def app(url):
 
     # Log JSON with leading newline
     logger.debug("Menu Selection Output\n" + json.dumps(log_result, indent=4))
+
+    # Map action names to methods
+    action_methods = {
+        "Download": "download",
+        "Watch": "watch",
+        "Syncplay": "syncplay",
+    }
+
+    action = app_instance.result.get("action")
+    episodes = app_instance.result.get("episodes", [])
+    selected_path = app_instance.result.get("path")
+    selected_language = app_instance.result.get("language")
+    selected_provider = app_instance.result.get("provider")
+
+    if action in action_methods:
+        method_name = action_methods[action]
+        for episode_url in episodes:
+            episode = AniworldEpisode(
+                url=episode_url,
+                selected_path=selected_path,
+                selected_language=selected_language,
+                selected_provider=selected_provider,
+            )
+
+            # Call the method dynamically
+            getattr(episode, method_name)()

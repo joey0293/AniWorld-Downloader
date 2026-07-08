@@ -15,6 +15,7 @@ class AniworldSeries:
     Attributes (Example):
         url:            https://aniworld.to/anime/stream/highschool-dxd
         title:          Highschool DxD
+        title_cleaned:  Highschool DxD
         description:    Oberschüler Issei Hyodo findet einfach keine Freundin [...]
         genres:         ['Actionkomödie', 'Action', 'Ecchi', 'EngSub', 'Ger', 'GerSub', 'Harem', 'Komödie', 'Romanze']
         release_year:   2012-2018
@@ -36,6 +37,7 @@ class AniworldSeries:
 
         # Extracted from self.html
         self.__title = None
+        self.__title_cleaned = None
         self.__description = None
         self.__genres = None
         self.__release_year = None
@@ -73,6 +75,19 @@ class AniworldSeries:
         if self.__title is None:
             self.__title = self.__extract_title()
         return self.__title
+
+    @property
+    def title_cleaned(self) -> str:
+        if self.__title_cleaned is None:
+            # Remove only forbidden characters for Windows/macOS/Linux
+            forbidden_chars = r'[<>:"/\\|?*\:]'  # colon included for macOS
+            cleaned = re.sub(forbidden_chars, "_", self.title)
+
+            # Strip leading/trailing whitespace
+            cleaned = cleaned.strip()
+
+            self.__title_cleaned = cleaned
+        return self.__title_cleaned
 
     @property
     def description(self) -> str:
