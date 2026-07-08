@@ -308,12 +308,14 @@ def _extract_series_cards(section_html):
                 break
 
         if title or poster_url:
-            results.append({
-                "title": title,
-                "url": url,
-                "genre": "",
-                "poster_url": poster_url,
-            })
+            results.append(
+                {
+                    "title": title,
+                    "url": url,
+                    "genre": "",
+                    "poster_url": poster_url,
+                }
+            )
 
     return results
 
@@ -329,25 +331,20 @@ def _find_series_section(full_html, heading_hints, fallback_index):
 
     # strat 1: find by heading text inside an <h2> (avoids meta tags)
     for hint in heading_hints:
-        h2_pattern = re.compile(
-            r"<h2[^>]*>[^<]*" + hint, re.IGNORECASE | re.DOTALL
-        )
+        h2_pattern = re.compile(r"<h2[^>]*>[^<]*" + hint, re.IGNORECASE | re.DOTALL)
         match = h2_pattern.search(full_html)
         if match:
             start = match.start()
             # Grab content from the heading to the next mb-5 section or end
             rest = full_html[start:]
-            next_section = re.search(
-                r'<div[^>]*class="[^"]*\bmb-5\b', rest[50:]
-            )
+            next_section = re.search(r'<div[^>]*class="[^"]*\bmb-5\b', rest[50:])
             section_html = rest[: next_section.start() + 50] if next_section else rest
             break
 
     # strat 2: split by mb-5 divs and pick by index
     if section_html is None:
         mb5_starts = [
-            m.start()
-            for m in re.finditer(r'<div[^>]*class="[^"]*\bmb-5\b', full_html)
+            m.start() for m in re.finditer(r'<div[^>]*class="[^"]*\bmb-5\b', full_html)
         ]
         if fallback_index < len(mb5_starts):
             start = mb5_starts[fallback_index]
