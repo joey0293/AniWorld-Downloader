@@ -1,0 +1,147 @@
+let queueModalOpen = false;
+let queuePollTimer = null;
+let badgePollTimer = null;
+
+function openQueueModal() {
+  queueModalOpen = true;
+  document.getElementById('queueOverlay').style.display = 'block';
+  loadQueue();
+  if (queuePollTimer) clearInterval(queuePollTimer);
+  queuePollTimer = setInterval(loadQueue, 2000);
+}
+
+function closeQueueModal() {
+  queueModalOpen = false;
+  document.getElementById('queueOverlay').style.display = 'none';
+  if (queuePollTimer) { clearInterval(queuePollTimer); queuePollTimer = null; }
+}
+
+async function loadQueue() {
+  try {
+    const resp = await fetch('/api/queue');
+    const data = await resp.json();
+    const items = data.items || [];
+    renderQueue(items);
+    updateBadge(items);
+  } catch (e) { /* ignore */ }
+}
+
+function updateBadge(items) {
+  const active = items.filter(i => i.status === 'queued' || i.status === 'running').length;
+  const badge = document.getElementById('queueBadge');
+  if (active > 0) {
+    badge.textContent = active;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderQueue(items) {
+  const list = document.getElementById('queueList');
+
+  // Show all active items + last 3 completed/failed
+  const active = items.filter(i => i.status === 'queued' || i.status === 'running');
+  const done = items.filter(i => i.status === 'completed' || i.status === 'failed').slice(-3);
+  const visible = active.concat(done);
+
+  if (!visible.length) {
+    list.innerHTML = '<div class="queue-empty">Queue is empty</div>';
+    return;
+  }
+
+  let html = '';
+  visible.forEach(item => {
+    const isRunning = item.status === 'running';
+    const cls = isRunning ? 'queue-item queue-item-active' : 'queue-item';
+
+    let statusBadge = '';
+    if (item.status === 'running') statusBadge = '<span class="queue-status queue-status-running">In Progress</span>';
+    else if (item.status === 'queued') statusBadge = '<span class="queue-status queue-status-queued">Queued</span>';
+    else if (item.status === 'completed') statusBadge = '<span class="queue-status queue-status-completed">Completed</span>';
+    else if (item.status === 'failed') statusBadge = '<span class="queue-status queue-status-failed">Failed</span>';
+
+    let progressHtml = '';
+    if (isRunning) {
+      const pct = item.total_episodes > 0 ? Math.round((item.current_episode / item.total_episodes) * 100) : 0;
+      const seInfo = item.current_url ? parseSeasonEpisode(item.current_url) : '';
+      progressHtml =
+        '<div class="queue-progress">' +
+          '<div class="queue-progress-info">' +
+            '<span>' + item.current_episode + '/' + item.total_episodes + ' episodes' + (seInfo ? ' - ' + seInfo : '') + '</span>' +
+            '<span>' + pct + '%</span>' +
+          '</div>' +
+          '<div class="queue-progress-bar"><div class="queue-progress-fill" style="width:' + pct + '%"></div></div>' +
+        '</div>';
+    }
+
+    let errorsHtml = '';
+    if (item.errors) {
+      let errors = [];
+      try { errors = typeof item.errors === 'string' ? JSON.parse(item.errors) : item.errors; } catch(e) {}
+      if (errors.length) {
+        errorsHtml = '<div class="queue-errors">' + errors.length + ' error(s)</div>';
+      }
+    }
+
+    const removeBtn = item.status === 'queued'
+      ? '<button class="queue-remove" onclick="removeQueueItem(' + item.id + ')" title="Remove">&times;</button>'
+      : '';
+
+    const userHtml = item.username ? '<span class="queue-user">' + escQ(item.username) + '</span>' : '';
+
+    html +=
+      '<div class="' + cls + '">' +
+        '<div class="queue-item-header">' +
+          '<div class="queue-item-title">' + escQ(item.title) + '</div>' +
+          '<div class="queue-item-right">' + statusBadge + removeBtn + '</div>' +
+        '</div>' +
+        '<div class="queue-item-meta">' +
+          '<span>' + item.total_episodes + ' episode(s)</span>' +
+          '<span>' + escQ(item.language) + '</span>' +
+          '<span>' + escQ(item.provider) + '</span>' +
+          userHtml +
+        '</div>' +
+        progressHtml +
+        errorsHtml +
+      '</div>';
+  });
+
+  list.innerHTML = html;
+}
+
+function parseSeasonEpisode(url) {
+  const m = url.match(/staffel-(\d+)\/episode-(\d+)/i);
+  if (m) return 'S' + m[1] + 'E' + m[2];
+  return '';
+}
+
+async function removeQueueItem(id) {
+  try {
+    const resp = await fetch('/api/queue/' + id, { method: 'DELETE' });
+    const data = await resp.json();
+    if (data.error) {
+      if (typeof showToast === 'function') showToast(data.error);
+    }
+    loadQueue();
+  } catch (e) { /* ignore */ }
+}
+
+function escQ(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// ESC key closes queue modal
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && queueModalOpen) closeQueueModal();
+});
+
+// Background badge poll every 10s
+(function startBadgePoll() {
+  loadQueue();
+  badgePollTimer = setInterval(function() {
+    if (!queueModalOpen) loadQueue();
+  }, 10000);
+})();

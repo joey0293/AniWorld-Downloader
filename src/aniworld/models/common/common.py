@@ -197,7 +197,7 @@ def download(self):
             vcodec=video_codec,
             acodec=video_codec,
             **stream_metadata,
-        ).run()
+        ).run(overwrite_output=True)
 
         if self._episode_path.exists():
             inputs = [
@@ -205,7 +205,7 @@ def download(self):
                 ffmpeg.input(str(temp_full)),
             ]
             output_path = self._episode_path.with_suffix(".new.mkv")
-            ffmpeg.output(*inputs, str(output_path), c="copy").run()
+            ffmpeg.output(*inputs, str(output_path), c="copy").run(overwrite_output=True)
             os.replace(output_path, self._episode_path)
         else:
             os.replace(temp_full, self._episode_path)
@@ -222,7 +222,7 @@ def download(self):
             acodec=video_codec,
             map="0:a:0?",
             **{"metadata:s:a:0": f"language={audio_code}"},
-        ).run()
+        ).run(overwrite_output=True)
 
     if need_video:
         logger.debug("[DOWNLOADING] video stream")
@@ -236,7 +236,7 @@ def download(self):
                 if wants_clean_video
                 else {"metadata:s:v:0": f"language={sub_video_code}"}
             ),
-        ).run()
+        ).run(overwrite_output=True)
 
     logger.debug("[MUXING] combining streams")
     inputs = (
@@ -249,7 +249,7 @@ def download(self):
         inputs.append(ffmpeg.input(str(temp_video)))
 
     output_path = self._episode_path.with_suffix(".new.mkv")
-    ffmpeg.output(*inputs, str(output_path), c="copy").run()
+    ffmpeg.output(*inputs, str(output_path), c="copy").run(overwrite_output=True)
     os.replace(output_path, self._episode_path)
 
     for f in (temp_audio, temp_video):
