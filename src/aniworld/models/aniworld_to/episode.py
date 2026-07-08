@@ -12,6 +12,8 @@ from ...autodeps import get_player_path, get_syncplay_path
 from ...config import (
     ANIWORLD_EPISODE_PATTERN,
     GLOBAL_SESSION,
+    INVERSE_LANG_LABELS,
+    LANG_CODE_MAP,
     LANG_KEY_MAP,
     LANG_LABELS,
     NAMING_TEMPLATE,
@@ -413,7 +415,8 @@ class AniworldEpisode:
     @property
     def is_downloaded(self):
         if self.__is_downloaded is None:
-            self.__is_downloaded = os.path.isfile(self._episode_path)
+            # TODO: disabled for testing muxing, needs video & audio checking later
+            self.__is_downloaded = False or os.path.isfile(self._episode_path)
         return self.__is_downloaded
 
     def __extract_episode_number(self):
@@ -519,22 +522,41 @@ class AniworldEpisode:
 
         print(f"[DOWNLOADING] {self._file_name}")
 
-        # Create folder if it doesn't exist
         os.makedirs(self._folder_path, exist_ok=True)
 
-        # Get headers for the selected provider only
+        # Prepare headers
         headers = PROVIDER_HEADERS_D.get(self.selected_provider, {})
-
-        # Format headers for ffmpeg (CRLF-separated string)
         input_kwargs = {}
         if headers:
             header_list = [f"{k}: {v}" for k, v in headers.items()]
             input_kwargs["headers"] = "\\r\\n".join(header_list)
 
-        # Run ffmpeg to download the file
-        ffmpeg.input(self.stream_url, **input_kwargs).output(
-            str(self._episode_path), c="copy", threads=4
-        ).run()
+        # Resolve language selection
+        selected_key = INVERSE_LANG_LABELS[self.selected_language]
+        audio_lang_enum, subtitle_lang_enum = LANG_KEY_MAP[selected_key]
+
+        # Convert to ISO codes
+        # Convert to ISO codes
+        audio_code = LANG_CODE_MAP[audio_lang_enum]
+
+        # Determine video language correctly
+        if subtitle_lang_enum == Subtitles.NONE:
+            video_code = "und"  # undefined video language
+        else:
+            video_code = LANG_CODE_MAP[subtitle_lang_enum]
+
+        # Build metadata arguments
+        metadata_args = {
+            "metadata:s:v:0": f"language={video_code}",
+            "metadata:s:a:0": f"language={audio_code}",
+        }
+
+        # Run ffmpeg
+        (
+            ffmpeg.input(self.stream_url, **input_kwargs)
+            .output(str(self._episode_path), c="copy", threads=4, **metadata_args)
+            .run()
+        )
 
     def watch(self):
         """Watch the current episode with provider headers."""
