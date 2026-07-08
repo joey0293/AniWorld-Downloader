@@ -23,6 +23,7 @@ const newSeriesGrid = document.getElementById("newSeriesGrid");
 const popularSeriesGrid = document.getElementById("popularSeriesGrid");
 const newSeriesSection = document.getElementById("newSeriesSection");
 const popularSeriesSection = document.getElementById("popularSeriesSection");
+const BROWSE_REFRESH_MS = 60000;
 
 let currentSeasons = [];
 let currentSeriesTitle = "";
@@ -80,22 +81,29 @@ async function loadDownloadedFolders() {
 }
 
 let stoLoadedAt = 0;
-async function loadStoBrowse() {
-  if (stoLoadedAt && Date.now() - stoLoadedAt < 3600000) return;
+let stoBrowsePromise = null;
+async function loadStoBrowse(force = false) {
+  if (!force && stoLoadedAt && Date.now() - stoLoadedAt < BROWSE_REFRESH_MS) return;
+  if (stoBrowsePromise) return stoBrowsePromise;
   stoLoadedAt = Date.now();
-  try {
-    const [newResp, popResp] = await Promise.all([
-      fetch("/api/new-series"),
-      fetch("/api/popular-series"),
-    ]);
-    await loadDownloadedFolders();
-    const newData = await newResp.json();
-    const popData = await popResp.json();
-    if (newData.results) renderBrowseCards(newSeriesGrid, newData.results);
-    if (popData.results) renderBrowseCards(popularSeriesGrid, popData.results);
-  } catch (e) {
-    stoLoadedAt = 0;
-  }
+  stoBrowsePromise = (async () => {
+    try {
+      const [newResp, popResp] = await Promise.all([
+        fetch("/api/new-series"),
+        fetch("/api/popular-series"),
+      ]);
+      await loadDownloadedFolders();
+      const newData = await newResp.json();
+      const popData = await popResp.json();
+      if (newData.results) renderBrowseCards(newSeriesGrid, newData.results);
+      if (popData.results) renderBrowseCards(popularSeriesGrid, popData.results);
+    } catch (e) {
+      stoLoadedAt = 0;
+    } finally {
+      stoBrowsePromise = null;
+    }
+  })();
+  return stoBrowsePromise;
 }
 
 function showBrowseSections() {
@@ -247,23 +255,53 @@ function renderBrowseCards(grid, items) {
 }
 
 let aniLoadedAt = 0;
-async function loadAniworldBrowse() {
-  if (aniLoadedAt && Date.now() - aniLoadedAt < 3600000) return;
+let aniBrowsePromise = null;
+async function loadAniworldBrowse(force = false) {
+  if (!force && aniLoadedAt && Date.now() - aniLoadedAt < BROWSE_REFRESH_MS) return;
+  if (aniBrowsePromise) return aniBrowsePromise;
   aniLoadedAt = Date.now();
-  try {
-    const [newResp, popResp] = await Promise.all([
-      fetch("/api/new-animes"),
-      fetch("/api/popular-animes"),
-    ]);
-    await loadDownloadedFolders();
-    const newData = await newResp.json();
-    const popData = await popResp.json();
-    if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
-    if (popData.results) renderBrowseCards(popularAnimesGrid, popData.results);
-  } catch (e) {
-    aniLoadedAt = 0;
-  }
+  aniBrowsePromise = (async () => {
+    try {
+      const [newResp, popResp] = await Promise.all([
+        fetch("/api/new-animes"),
+        fetch("/api/popular-animes"),
+      ]);
+      await loadDownloadedFolders();
+      const newData = await newResp.json();
+      const popData = await popResp.json();
+      if (newData.results) renderBrowseCards(newAnimesGrid, newData.results);
+      if (popData.results) renderBrowseCards(popularAnimesGrid, popData.results);
+    } catch (e) {
+      aniLoadedAt = 0;
+    } finally {
+      aniBrowsePromise = null;
+    }
+  })();
+  return aniBrowsePromise;
 }
+
+function isBrowseVisible() {
+  return browseDiv.style.display !== "none" && !searchInput.value.trim();
+}
+
+function refreshVisibleBrowse(force = false) {
+  if (!isBrowseVisible()) return;
+  if (currentSite === "aniworld") loadAniworldBrowse(force);
+  else loadStoBrowse(force);
+}
+
+setInterval(() => {
+  refreshVisibleBrowse(true);
+}, BROWSE_REFRESH_MS);
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshVisibleBrowse(true);
+});
+
+window.addEventListener("focus", () => {
+  refreshVisibleBrowse(true);
+});
+
 showBrowseSections();
 
 async function doSearch() {
