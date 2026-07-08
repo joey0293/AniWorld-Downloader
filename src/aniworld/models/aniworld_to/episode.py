@@ -925,9 +925,12 @@ class AniworldEpisode:
         return re.match(pattern, self.url) is not None
 
     def __extract_skip_times(self):
+        if self.is_movie:
+            return None
+
         from ...aniskip import get_skip_times
 
-        mal_id = self._series.mal_id
+        mal_id = self.series.mal_id
         logger.debug(f"Fetching MAL IDs for series: {mal_id}")
 
         season_number = self.season.season_number - 1

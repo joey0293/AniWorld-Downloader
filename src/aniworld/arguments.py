@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 
+from .anime4k import anime4k
 from .config import VERSION
 from .logger import get_logger
 
@@ -39,6 +40,12 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--anime4k",
+        choices=["High", "Low", "Remove"],
+        help="Set Anime4K upscaling: High, Low, or Remove",
+    )
+
+    parser.add_argument(
         "url",
         nargs="*",
         help="Series or Episode URL(s)",
@@ -51,6 +58,11 @@ def parse_args():
 
     if args.no_menu:
         os.environ["ANIWORLD_NO_MENU"] = "1"
+
+    if args.anime4k:
+        mode = args.anime4k.lower()
+        logger.debug(f"Anime4K upscaling set to: {mode}")
+        anime4k(mode)
 
     if args.debug:
         # Set environment variable for debug mode
