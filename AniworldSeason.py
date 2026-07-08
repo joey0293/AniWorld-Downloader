@@ -31,7 +31,7 @@ class AniworldSeason:
         self.__are_movies = None
         self.__season_number = None
         self.__episode_count = None
-        self.__episodes = None  # TODO IMPORTANT: episode objects are not being created for movies so fix this please
+        self.__episodes = None
 
         self.__html = None
 
@@ -98,7 +98,6 @@ class AniworldSeason:
             return int(match.group(1))
         return None
 
-    # TODO: fix movies not creating episode objects
     def __extract_episodes(self):
         """
             <tbody id="season1">
@@ -149,40 +148,90 @@ class AniworldSeason:
 
             tr_html = html[tr_start:tr_end]
 
-            # Episode number
+            # Episode number - different extraction for movies vs episodes
             ep_num = None
-            meta_pos = tr_html.find('itemprop="episodeNumber"')
-            if meta_pos != -1:
-                c_start = tr_html.find('content="', meta_pos) + 9
-                c_end = tr_html.find('"', c_start)
-                ep_num = int(tr_html[c_start:c_end])
+            if self.are_movies:
+                # For movies, extract from data-episode-season-id or film-X URL
+                data_season_id_pos = tr_html.find("data-episode-season-id")
+                if data_season_id_pos != -1:
+                    id_start = tr_html.find('"', data_season_id_pos) + 1
+                    id_end = tr_html.find('"', id_start)
+                    try:
+                        ep_num = int(tr_html[id_start:id_end])
+                    except ValueError:
+                        pass
 
-            # Episode URL
+                # Fallback: extract from film-X in URL
+                if ep_num is None:
+                    href_pos = tr_html.find("film-")
+                    if href_pos != -1:
+                        num_start = href_pos + 5  # after 'film-'
+                        num_end = tr_html.find('"', num_start)
+                        if num_end == -1:
+                            num_end = tr_html.find("<", num_start)
+                        try:
+                            ep_num = int(tr_html[num_start:num_end])
+                        except ValueError:
+                            pass
+            else:
+                # For regular episodes, extract from meta tag
+                meta_pos = tr_html.find('itemprop="episodeNumber"')
+                if meta_pos != -1:
+                    c_start = tr_html.find('content="', meta_pos) + 9
+                    c_end = tr_html.find('"', c_start)
+                    ep_num = int(tr_html[c_start:c_end])
+
+            # Episode URL - different extraction for movies vs episodes
             ep_url = None
-            url_pos = tr_html.find('itemprop="url"')
-            if url_pos != -1:
-                h_start = tr_html.find('href="', url_pos) + 6
-                h_end = tr_html.find('"', h_start)
-                ep_url = tr_html[h_start:h_end]
-                if ep_url.startswith("/"):
-                    ep_url = "https://aniworld.to" + ep_url
+            if self.are_movies:
+                # For movies, look for any href containing "film-"
+                href_pos = tr_html.find("film-")
+                if href_pos != -1:
+                    h_start = tr_html.rfind('href="', 0, href_pos) + 6
+                    h_end = tr_html.find('"', h_start)
+                    ep_url = tr_html[h_start:h_end]
+                    if ep_url.startswith("/"):
+                        ep_url = "https://aniworld.to" + ep_url
+            else:
+                # For regular episodes, look for itemprop="url"
+                url_pos = tr_html.find('itemprop="url"')
+                if url_pos != -1:
+                    h_start = tr_html.find('href="', url_pos) + 6
+                    h_end = tr_html.find('"', h_start)
+                    ep_url = tr_html[h_start:h_end]
+                    if ep_url.startswith("/"):
+                        ep_url = "https://aniworld.to" + ep_url
 
-            # Titles
+            # Titles - different handling for movies vs episodes
             title_de = None
-            s_start = tr_html.find("<strong>")
-            if s_start != -1:
-                s_start += 8
-                s_end = tr_html.find("</strong>", s_start)
-                title_de = tr_html[s_start:s_end].strip()
-
             title_en = None
-            span_start = tr_html.find("<span>")
-            if span_start != -1:
-                span_start += 6
-                span_end = tr_html.find("</span>", span_start)
-                title_en = tr_html[span_start:span_end].strip()
 
-            if ep_url and ep_num:
+            if self.are_movies:
+                # For movies, title is usually in span, strong tag is empty
+                span_start = tr_html.find("<span>")
+                if span_start != -1:
+                    span_start += 6
+                    span_end = tr_html.find("</span>", span_start)
+                    title_en = tr_html[span_start:span_end].strip()
+                    # For movies, use English title as German title since strong is empty
+                    title_de = title_en
+            else:
+                # For regular episodes, German title is in strong, English in span
+                s_start = tr_html.find("<strong>")
+                if s_start != -1:
+                    s_start += 8
+                    s_end = tr_html.find("</strong>", s_start)
+                    title_de = tr_html[s_start:s_end].strip()
+
+                span_start = tr_html.find("<span>")
+                if span_start != -1:
+                    span_start += 6
+                    span_end = tr_html.find("</span>", span_start)
+                    title_en = tr_html[span_start:span_end].strip()
+
+            if ep_url:
+                # For movies, ep_num might be None, but we can still create the episode object
+                # The AniworldEpisode class should handle None episode_number appropriately
                 episodes.append(
                     AniworldEpisode(
                         series=self.series,
