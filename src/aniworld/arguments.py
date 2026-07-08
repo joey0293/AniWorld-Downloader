@@ -154,6 +154,11 @@ def parse_args():
         action="store_true",
         help="Automatically continue with the next episode",
     )
+    playback.add_argument(
+        "-P",
+        "--paths",
+        help="Output file path",
+    )
 
     # =========================
     # Discovery / Random
@@ -321,6 +326,11 @@ def parse_args():
 
     if args.use_sto_search:
         os.environ["ANIWORLD_USE_STO_SEARCH"] = "1"
+
+    if args.paths:
+        os.environ["ANIWORLD_DOWNLOAD_PATH"] = (
+            os.path.abspath(args.paths) if not os.path.isabs(args.paths) else args.paths
+        )
 
     if args.anime4k:
         mode = args.anime4k.lower()
