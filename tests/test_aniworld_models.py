@@ -9,7 +9,6 @@ from aniworld.models import (
     SerienstreamSeries,
 )
 
-# ANSI escape code for red text
 RED = "\033[31m"
 RESET = "\033[0m"
 
@@ -30,7 +29,7 @@ def object_to_json(obj):
             data[clean_name] = value
         except TypeError:
             data[clean_name] = str(value)
-    return data  # NOTE: changed -- now returns dict, not a JSON string
+    return data
 
 
 def print_colored_json(obj_data):
