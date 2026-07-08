@@ -2,7 +2,6 @@ import re
 
 from ...config import GLOBAL_SESSION, SERIENSTREAM_SERIES_PATTERN, logger
 from ..common import clean_title
-from .season import SerienstreamSeason
 
 
 class SerienstreamSeries:
@@ -41,7 +40,7 @@ class SerienstreamSeries:
     """
 
     def __init__(self, url: str):
-        if not self.is_valid_serienstream_series_url(url):
+        if not self.__is_valid_serienstream_series_url(url):
             raise ValueError(f"Invalid Serienstream series URL: {url}")
 
         self.url = url
@@ -69,7 +68,7 @@ class SerienstreamSeries:
     # -----------------------------
 
     @staticmethod
-    def is_valid_serienstream_series_url(url):
+    def __is_valid_serienstream_series_url(url):
         """Checks if the URL is a valid Serienstream series URL."""
         return bool(SERIENSTREAM_SERIES_PATTERN.match(url))
 
@@ -504,6 +503,7 @@ class SerienstreamSeries:
                     href="https://serienstream.to/serie/american-horror-story-die-dunkle-seite-in-dir/staffel-3"
                     [...]
         """
+        from .season import SerienstreamSeason
 
         pattern = re.compile(
             r'href="(https://serienstream.to/serie/[^/]+/staffel-\d+)"'
