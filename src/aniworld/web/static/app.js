@@ -166,9 +166,6 @@ function rebuildLanguageSelect() {
     const opt = document.createElement('option');
     opt.value = label;
     opt.textContent = label;
-    if (label === defaultSyncLanguage) {
-      opt.selected = true;
-    }
     languageSelect.appendChild(opt);
   }
 }

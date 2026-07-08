@@ -392,6 +392,9 @@ class AniworldEpisode:
     def selected_language(self, value):
         self.__selected_language_param = value
         self.__selected_language = None
+        self.__redirect_url = None
+        self.__provider_url = None
+        self.__is_downloaded = None
         self.__base_folder = None
         self.__folder_path = None
         self.__episode_path = None
