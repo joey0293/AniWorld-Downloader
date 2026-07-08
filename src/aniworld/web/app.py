@@ -3,15 +3,15 @@ import re
 import threading
 import time
 
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFProtect
 
 from ..config import LANG_KEY_MAP, LANG_LABELS, SUPPORTED_PROVIDERS
 from ..extractors import provider_functions
 from ..logger import get_logger
 from ..providers import resolve_provider
-from ..search import fetch_new_animes, fetch_popular_animes, query as aniworld_query
-from ..search import random_anime
+from ..search import fetch_new_animes, fetch_popular_animes, random_anime
+from ..search import query as aniworld_query
 from .db import (
     add_to_queue,
     clear_completed,
@@ -88,7 +88,9 @@ def _queue_worker():
                     update_queue_errors(item["id"], json.dumps(errors))
 
             update_queue_progress(item["id"], len(episodes), "")
-            status = "failed" if errors and len(errors) == len(episodes) else "completed"
+            status = (
+                "failed" if errors and len(errors) == len(episodes) else "completed"
+            )
             set_queue_status(item["id"], status)
         except Exception as e:
             logger.error(f"Queue worker error: {e}", exc_info=True)
@@ -104,9 +106,12 @@ def _ensure_queue_worker():
 
     # Crash recovery: reset any 'running' items back to 'queued'
     from .db import get_db
+
     conn = get_db()
     try:
-        conn.execute("UPDATE download_queue SET status = 'queued' WHERE status = 'running'")
+        conn.execute(
+            "UPDATE download_queue SET status = 'queued' WHERE status = 'running'"
+        )
         conn.commit()
     finally:
         conn.close()
@@ -118,6 +123,7 @@ def _ensure_queue_worker():
 def _get_version():
     try:
         from importlib.metadata import version
+
         return version("aniworld")
     except Exception:
         return ""
@@ -226,7 +232,9 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     def _set_security_headers(response):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault(
+            "Referrer-Policy", "strict-origin-when-cross-origin"
+        )
         return response
 
     @app.route("/")
@@ -386,9 +394,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if auth_enabled:
             user = get_current_user()
             if user:
-                username = user.get("username") if isinstance(user, dict) else getattr(user, "username", None)
+                username = (
+                    user.get("username")
+                    if isinstance(user, dict)
+                    else getattr(user, "username", None)
+                )
 
-        queue_id = add_to_queue(title, series_url, episodes, language, provider, username)
+        queue_id = add_to_queue(
+            title, series_url, episodes, language, provider, username
+        )
         return jsonify({"queue_id": queue_id})
 
     @app.route("/api/queue")
@@ -445,9 +459,11 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             resolved = str(p)
         else:
             resolved = str(Path.home() / "Downloads")
-        return jsonify({
-            "download_path": resolved,
-        })
+        return jsonify(
+            {
+                "download_path": resolved,
+            }
+        )
 
     @app.route("/api/settings", methods=["PUT"])
     def api_settings_update():
@@ -465,8 +481,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         # Wrap all non-auth, non-static view functions with login_required
         # (admin_required for settings endpoints)
         _exempt = {
-            "static", "auth.login", "auth.logout", "auth.setup",
-            "auth.oidc_login", "auth.oidc_callback",
+            "static",
+            "auth.login",
+            "auth.logout",
+            "auth.setup",
+            "auth.oidc_login",
+            "auth.oidc_callback",
         }
         for endpoint, view_func in list(app.view_functions.items()):
             if endpoint not in _exempt:
@@ -484,8 +504,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     return app
 
 
-def start_web_ui(host="127.0.0.1", port=5000, open_browser=True,
-                 auth_enabled=False, sso_enabled=False, force_sso=False):
+def start_web_ui(
+    host="127.0.0.1",
+    port=5000,
+    open_browser=True,
+    auth_enabled=False,
+    sso_enabled=False,
+    force_sso=False,
+):
     """Start the Flask web UI server."""
     import os
     import threading
@@ -494,9 +520,13 @@ def start_web_ui(host="127.0.0.1", port=5000, open_browser=True,
     # Allow env var overrides (Docker-friendly)
     force_sso = force_sso or os.getenv("ANIWORLD_WEB_FORCE_SSO", "0") == "1"
     sso_enabled = sso_enabled or force_sso or os.getenv("ANIWORLD_WEB_SSO", "0") == "1"
-    auth_enabled = auth_enabled or force_sso or os.getenv("ANIWORLD_WEB_AUTH", "0") == "1"
+    auth_enabled = (
+        auth_enabled or force_sso or os.getenv("ANIWORLD_WEB_AUTH", "0") == "1"
+    )
 
-    app = create_app(auth_enabled=auth_enabled, sso_enabled=sso_enabled, force_sso=force_sso)
+    app = create_app(
+        auth_enabled=auth_enabled, sso_enabled=sso_enabled, force_sso=force_sso
+    )
     url = f"http://{'localhost' if host in ('0.0.0.0', '127.0.0.1') else host}:{port}"
     print(f"Starting AniWorld Web UI on {url}")
 
@@ -509,4 +539,5 @@ def start_web_ui(host="127.0.0.1", port=5000, open_browser=True,
         app.run(host=host, port=port, debug=True)
     else:
         from waitress import serve
+
         serve(app, host=host, port=port)

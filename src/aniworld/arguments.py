@@ -207,44 +207,51 @@ def parse_args():
     # =========================
     webui = parser.add_argument_group("WebUI Options")
     webui.add_argument(
-        "-w", "--web-ui",
+        "-w",
+        "--web-ui",
         action="store_true",
         help="Start the web UI",
     )
 
     webui.add_argument(
-        "-wP", "--web-port",
+        "-wP",
+        "--web-port",
         type=int,
         default=5000,
         help="Port for the web UI (default: 5000)",
     )
 
     webui.add_argument(
-        "-wN", "--no-browser",
+        "-wN",
+        "--no-browser",
         action="store_true",
         help="Don't open the browser automatically when starting the web UI",
     )
 
     webui.add_argument(
-        "-wE", "--web-expose",
+        "-wE",
+        "--web-expose",
         action="store_true",
         help="Bind the web UI to all interfaces (0.0.0.0) instead of localhost only",
     )
 
     webui.add_argument(
-        "-wA", "--web-auth",
+        "-wA",
+        "--web-auth",
         action="store_true",
         help="Enable local authentication for the web UI",
     )
 
     webui.add_argument(
-        "-wS", "--web-sso",
+        "-wS",
+        "--web-sso",
         action="store_true",
         help="Enable SSO (OIDC) login for the web UI",
     )
 
     webui.add_argument(
-        "-wFS", "--web-force-sso",
+        "-wFS",
+        "--web-force-sso",
         action="store_true",
         help="Force SSO-only authentication (implies --web-auth and --web-sso)",
     )
