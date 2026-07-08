@@ -192,6 +192,8 @@ function rebuildLanguageSelect() {
     currentSite === "sto"
       ? window.STO_LANGS || {}
       : window.ANIWORLD_LANGS || {};
+  const previousValue = languageSelect.value;
+  const preferredValue = previousValue || window.DEFAULT_WEB_LANGUAGE || "German Dub";
   languageSelect.innerHTML = "";
 
   if (langSeparationEnabled) {
@@ -206,6 +208,18 @@ function rebuildLanguageSelect() {
     opt.value = label;
     opt.textContent = label;
     languageSelect.appendChild(opt);
+  }
+
+  const validValues = Array.from(languageSelect.options).map((opt) => opt.value);
+  if (validValues.includes(preferredValue)) {
+    languageSelect.value = preferredValue;
+  } else if (
+    currentSite === "aniworld" &&
+    validValues.includes(window.DEFAULT_WEB_LANGUAGE)
+  ) {
+    languageSelect.value = window.DEFAULT_WEB_LANGUAGE;
+  } else if (validValues.length) {
+    languageSelect.value = validValues[0];
   }
 }
 

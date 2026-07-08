@@ -58,7 +58,12 @@
     <div class="controls">
       <select id="languageSelect">
         {% for key, label in lang_labels.items() %}
-        <option value="{{ label }}">{{ label }}</option>
+        <option
+          value="{{ label }}"
+          {% if label == default_web_language %}selected{% endif %}
+        >
+          {{ label }}
+        </option>
         {% endfor %}
       </select>
       <select id="providerSelect">
@@ -73,6 +78,7 @@
     <script>
       window.ANIWORLD_LANGS = {{ lang_labels | tojson }};
       window.STO_LANGS = {{ sto_lang_labels | tojson }};
+      window.DEFAULT_WEB_LANGUAGE = {{ default_web_language | tojson }};
     </script>
     <div class="episodes-header">
       <h3>Episodes</h3>
