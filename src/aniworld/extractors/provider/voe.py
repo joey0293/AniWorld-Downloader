@@ -66,7 +66,9 @@ def decode_voe_string(encoded):
 def extract_voe_source_from_html(html):
     """Extract VOE video source using regex + decode_voe_string"""
     try:
-        script_blocks = re.findall(r'<script\s+type=["\']application/json["\']>(.*?)</script>', html, re.DOTALL)
+        script_blocks = re.findall(
+            r'<script\s+type=["\']application/json["\']>(.*?)</script>', html, re.DOTALL
+        )
         if not script_blocks:
             return None
 
@@ -75,7 +77,7 @@ def extract_voe_source_from_html(html):
             if encoded_text.startswith('"') and encoded_text.endswith('"'):
                 encoded_text = encoded_text[1:-1]
 
-            encoded_text = encoded_text.encode().decode('unicode_escape')
+            encoded_text = encoded_text.encode().decode("unicode_escape")
 
             try:
                 decoded = decode_voe_string(encoded_text)

@@ -132,5 +132,7 @@ INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}
 # -----------------------------
 # Executables
 # -----------------------------
+
+# TODO: pull required deps automatically if needed
 SYNCPLAY_PATH = shutil.which("mpv")
 MPV_PATH = shutil.which("mpv")
