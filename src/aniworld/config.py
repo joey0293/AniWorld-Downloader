@@ -114,14 +114,14 @@ logger.debug("Config initialized successfully")
 # Provider Stuff
 # -----------------------------
 SUPPORTED_PROVIDERS = (
-    "Doodstream",
-    "Filemoon",
-    "LoadX",
-    "Luluvdo",
-    "Streamtape",
     "VOE",
     "Vidmoly",
     "Vidoza",
+    #"Doodstream",
+    #"Filemoon",
+    #"LoadX",
+    #"Luluvdo",
+    #"Streamtape",
 )
 
 PROVIDER_HEADERS_D = {
