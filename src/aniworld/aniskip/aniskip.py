@@ -58,7 +58,7 @@ def build_mpv_flags(skip_data) -> str:
 
 
 if __name__ == "__main__":
-    query = "tokyo ghoul"
+    query = "Highschool DxD"
 
     mal_ids = get_all_seasons_by_query(query)
 

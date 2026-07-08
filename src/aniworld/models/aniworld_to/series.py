@@ -27,6 +27,7 @@ class AniworldSeries:
         age_rating:     "16"
         rating:         "4/5"
         imbd:           "tt1596341"
+        mal_id:         [8074] # TODO: Highschool DxD entries broken yet others prob non nsfw work
         has_movies:     true
         seasons:        [<aniworld.models.aniworld_to.season.AniworldSeason object at 0x10afe5fd0>, [...]]
         season_count:   4
@@ -58,6 +59,8 @@ class AniworldSeries:
         self.__age_rating = None
         self.__rating = None
         self.__imbd = None
+
+        self.__mal_id = None
 
         self.__has_movies = None
 
@@ -178,6 +181,12 @@ class AniworldSeries:
         return self.__imbd
 
     @property
+    def mal_id(self):
+        if self.__mal_id is None:
+            self.__mal_id = self.__extract_mal_id()
+        return self.__mal_id
+
+    @property
     def has_movies(self):
         if self.__has_movies is None:
             self.__has_movies = self.__extract_movies()
@@ -198,6 +207,11 @@ class AniworldSeries:
     # -----------------------------
     # PRIVATE EXTRACTION FUNCTIONS
     # -----------------------------
+
+    def __extract_mal_id(self):
+        from ...aniskip import get_all_seasons_by_query
+
+        return get_all_seasons_by_query(self.title)
 
     def __extract_title(self):
         """

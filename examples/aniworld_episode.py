@@ -50,6 +50,7 @@ print("Title (DE):", episode.title_de)
 print("Title (EN):", episode.title_en)
 print("Is movie:", episode.is_movie)
 print("Is downloaded:", episode.is_downloaded["exists"])
+print("Skip times:", episode.skip_times)
 
 print()
 
