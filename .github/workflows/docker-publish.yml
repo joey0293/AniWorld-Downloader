@@ -38,6 +38,10 @@ jobs:
         with:
           cosign-release: 'v2.2.4'
 
+      # Add QEMU for multi-platform support (REQUIRED for ARM builds on x64 runners)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
       # https://github.com/docker/setup-buildx-action
@@ -69,6 +73,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64 # <--- Hinzugefügt für Multi-Arch Support
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
