@@ -135,10 +135,11 @@ class AniworldEpisode:
         selected_language:      "German Dub"
         selected_provider:      "Filemoon"
 
-        self._base_folder:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)
-        self._folder_path:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)/Season 01
-        self._file_name:        Highschool DxD S01E01.mp4
-        self._episode_path:     /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018)/Season 01/Highschool DxD S01E01.mp4
+        self._base_folder:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018) [imdbid-tt2230051]
+        self._folder_path:      /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018) [imdbid-tt2230051]/Season 01
+        self._file_name:        Highschool DxD S01E01
+        self._file_extension:   mkv
+        self._episode_path:     /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018) [imdbid-tt2230051]/Season 01/Highschool DxD S01E01.mkv
 
         is_movie                false
         is_downloaded           true
@@ -190,6 +191,7 @@ class AniworldEpisode:
         self.__base_folder = None
         self.__folder_path = None
         self.__file_name = None
+        self.__file_extension = None
         self.__episode_path = None
 
         ###
@@ -227,7 +229,7 @@ class AniworldEpisode:
             # Base folder: Series title + year
             self.__base_folder = os.path.join(
                 self.selected_path,
-                f"{self.series.title_cleaned} ({self.series.release_year})",
+                f"{self.series.title_cleaned} ({self.series.release_year}) [imdbid-{self.series.imbd}]",
             )
         return self.__base_folder
 
@@ -242,13 +244,21 @@ class AniworldEpisode:
     @property
     def _file_name(self):
         if self.__file_name is None:
-            self.__file_name = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:02d}.mp4"
+            self.__file_name = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:02d}"
         return self.__file_name
+
+    @property
+    def _file_extension(self):
+        if self.__file_extension is None:
+            self.__file_extension = "mkv"
+        return self.__file_extension
 
     @property
     def _episode_path(self):
         if self.__episode_path is None:
-            self.__episode_path = os.path.join(self._folder_path, self._file_name)
+            self.__episode_path = os.path.join(
+                self._folder_path, f"{self._file_name}.{self._file_extension}"
+            )
         return self.__episode_path
 
     @property
