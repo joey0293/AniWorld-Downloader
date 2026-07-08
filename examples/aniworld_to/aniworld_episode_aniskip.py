@@ -9,4 +9,6 @@ episode = AniworldEpisode(
 # Enable AniSkip feature
 os.environ["ANIWORLD_USE_ANISKIP"] = "1"
 
-episode.watch()
+# episode.watch()
+print(episode.stream_url)
+print(episode.stream_url)

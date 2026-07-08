@@ -1,3 +1,3 @@
-from .common import clean_title
+from .common import check_downloaded, clean_title
 
-__all__ = ["clean_title"]
+__all__ = ["check_downloaded", "clean_title"]

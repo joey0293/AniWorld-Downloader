@@ -25,6 +25,7 @@ from ...config import (
     logger,
 )
 from ...extractors import provider_functions
+from ..common import check_downloaded
 
 
 class ProviderData:
@@ -116,7 +117,7 @@ class AniworldEpisode:
         self._episode_path:     /Users/phoenixthrush/Downloads/Highschool DxD (2012-2018) [imdbid-tt2230051]/Season 01/Highschool DxD S01E01.mkv
 
         is_movie                false
-        is_downloaded           true
+        is_downloaded           {'exists': False, 'video_langs': set(), 'audio_langs': set()}
 
         skip_times:             {'found': True, 'results': [{'interval': {'start_time': 123.014, 'end_time': 213.014}, 'skip_type': 'op', 'skip_id': '1fd0d19a-4332-479e-9e3d-03e9b293db6a', 'episode_length': 1422.0416}, {'interval': {'start_time': 1187.09, 'end_time': 1277.09}, 'skip_type': 'ed', 'skip_id': '17a28c6e-5104-4142-9334-b57dbd024425', 'episode_length': 1422.0416}]}
 
@@ -146,7 +147,6 @@ class AniworldEpisode:
             raise ValueError(f"Invalid AniWorld episode URL: {url}")
 
         self.url = url
-
         self._series = series
         self._season = season
 
@@ -166,7 +166,6 @@ class AniworldEpisode:
 
         self.__redirect_url = None
         self.__provider_url = None
-        self.__stream_url = None
 
         # https://jellyfin.org/docs/general/server/media/shows/#organization
         self.__base_folder = None
@@ -212,17 +211,18 @@ class AniworldEpisode:
 
     @property
     def stream_url(self):
-        if self.__stream_url is None:
-            try:
-                self.__stream_url = provider_functions[
-                    f"get_direct_link_from_{self.selected_provider.lower()}"
-                ](self.provider_url)
-            except KeyError:
-                raise ValueError(
-                    f"The provider '{self.selected_provider}' is not yet implemented."
-                )
-        return self.__stream_url
+        try:
+            stream_url = provider_functions[
+                f"get_direct_link_from_{self.selected_provider.lower()}"
+            ](self.provider_url)
+        except KeyError:
+            raise ValueError(
+                f"The provider '{self.selected_provider}' is not yet implemented."
+            )
 
+        return stream_url
+
+    # TODO: add this into a common base class
     @property
     def _base_folder(self):
         if self.__base_folder is None:
@@ -230,7 +230,7 @@ class AniworldEpisode:
             folder_str = series_folder_template.format(
                 title=self.series.title_cleaned,
                 year=self.series.release_year,
-                imdbid=self.series.imbd,
+                imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
             )
@@ -247,7 +247,7 @@ class AniworldEpisode:
             folder_str = season_folder_template.format(
                 title=self.series.title_cleaned,
                 year=self.series.release_year,
-                imdbid=self.series.imbd,
+                imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
             )
@@ -276,7 +276,7 @@ class AniworldEpisode:
             self.__file_name = file_template.format(
                 title=self.series.title_cleaned,
                 year=self.series.release_year,
-                imdbid=self.series.imbd,
+                imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
                 episode=f"{self.episode_number:02d}",
             )
@@ -299,6 +299,8 @@ class AniworldEpisode:
                 self._folder_path / f"{self._file_name}.{self._file_extension}"
             )
         return self.__episode_path
+
+    # END
 
     @property
     def title_de(self):
@@ -420,7 +422,7 @@ class AniworldEpisode:
     @property
     def is_downloaded(self):
         if self.__is_downloaded is None:
-            self.__is_downloaded = self.__check_downloaded()
+            self.__is_downloaded = check_downloaded(self._episode_path)
         return self.__is_downloaded
 
     @property
@@ -525,34 +527,6 @@ class AniworldEpisode:
             return "Unknown"
         return LANG_KEY_MAP[key]
 
-    def __check_downloaded(self):
-        result = {
-            "exists": False,
-            "video_langs": set(),
-            "audio_langs": set(),
-        }
-
-        if not self._episode_path.exists():
-            return result
-
-        result["exists"] = True
-
-        try:
-            probe = ffmpeg.probe(str(self._episode_path))
-        except ffmpeg.Error:
-            return result
-
-        streams = probe.get("streams", [])
-
-        for s in streams:
-            lang = s.get("tags", {}).get("language", "und")
-            if s.get("codec_type") == "video":
-                result["video_langs"].add(lang)
-            elif s.get("codec_type") == "audio":
-                result["audio_langs"].add(lang)
-
-        return result
-
     def download(self):
         """
         Download required audio/video streams for this episode.
@@ -566,7 +540,7 @@ class AniworldEpisode:
         # ---------------------------------------------------------
         # 1) Check existing streams
         # ---------------------------------------------------------
-        check = self.__check_downloaded()
+        check = check_downloaded(self._episode_path)
 
         # ---------------------------------------------------------
         # 2) Prepare HTTP headers

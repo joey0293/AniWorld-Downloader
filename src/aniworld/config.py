@@ -237,6 +237,14 @@ SERIENSTREAM_SEASON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+SERIENSTREAM_EPISODE_PATTERN = re.compile(
+    r"^https?://(www\.)?serienstream\.to/serie/"
+    r"[a-zA-Z0-9\-]+/"
+    r"staffel-\d+/episode-\d+"
+    r"/?$",
+    re.IGNORECASE,
+)
+
 # -----------------------------
 # Directories
 # -----------------------------

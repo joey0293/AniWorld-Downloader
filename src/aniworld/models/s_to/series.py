@@ -513,8 +513,7 @@ class SerienstreamSeries:
         seasons_list = []
 
         for match in matches:
-            season_url = match[0]
-            seasons_list.append(SerienstreamSeason(season_url))
+            seasons_list.append(SerienstreamSeason(match))
 
         return seasons_list
 
@@ -543,13 +542,16 @@ class SerienstreamSeries:
     # PUBLIC METHODS
     # -----------------------------
     def download(self):
-        """Downloads the series."""
-        pass
+        for season in self.seasons:
+            for episode in season.episodes:
+                episode.download()
 
     def watch(self):
-        """Watches the series."""
-        pass
+        for season in self.seasons:
+            for episode in season.episodes:
+                episode.watch()
 
     def syncplay(self):
-        """Syncplay the series."""
-        pass
+        for season in self.seasons:
+            for episode in season.episodes:
+                episode.syncplay()
