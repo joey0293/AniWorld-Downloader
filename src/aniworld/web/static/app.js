@@ -166,6 +166,9 @@ function rebuildLanguageSelect() {
     const opt = document.createElement('option');
     opt.value = label;
     opt.textContent = label;
+    if (label === defaultSyncLanguage) {
+      opt.selected = true;
+    }
     languageSelect.appendChild(opt);
   }
 }
@@ -632,12 +635,16 @@ function esc(s) {
 
 let langSeparationEnabled = false;
 const downloadAllLangsBtn = document.getElementById('downloadAllLangsBtn');
+let defaultSyncLanguage = 'German Dub';
 
 async function checkLangSeparation() {
   try {
     const resp = await fetch('/api/settings');
     const data = await resp.json();
     langSeparationEnabled = data.lang_separation === '1';
+    if (data.sync_language) {
+      defaultSyncLanguage = data.sync_language;
+    }
     if (downloadAllLangsBtn) {
       downloadAllLangsBtn.style.display = langSeparationEnabled ? '' : 'none';
     }

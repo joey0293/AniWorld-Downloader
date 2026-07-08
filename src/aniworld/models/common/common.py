@@ -140,6 +140,51 @@ def _remove_empty_dirs(folder_path, base_folder):
         pass
 
 
+def _run_ffmpeg_with_progress(node, overwrite_output=True):
+    """Run an ffmpeg node and stream its progress output cleanly."""
+    # Append stats_period to reduce logging freq
+    args = ffmpeg.compile(node, overwrite_output=overwrite_output)
+    if "-stats_period" not in args:
+        # Insert before the output file (last arg)
+        args.insert(-1, "-stats_period")
+        args.insert(-1, "10")
+
+    process = subprocess.Popen(
+        args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False
+    )
+
+    # Read stderr byte by byte to handle \r without newline
+    line_buf = bytearray()
+    while True:
+        char = process.stderr.read(1)
+        if not char and process.poll() is not None:
+            break
+        if char:
+            if char in (b"\r", b"\n"):
+                if line_buf:
+                    line_str = line_buf.decode("utf-8", errors="replace").strip()
+                    if line_str.startswith("frame=") or line_str.startswith("size="):
+                        logger.info(f"[FFmpeg Progress] {line_str}")
+                    elif line_str:
+                        logger.debug(f"[FFmpeg] {line_str}")
+                line_buf.clear()
+            else:
+                line_buf.extend(char)
+
+    # Make sure we didn't miss the last line
+    if line_buf:
+        line_str = line_buf.decode("utf-8", errors="replace").strip()
+        if line_str.startswith("frame=") or line_str.startswith("size="):
+            logger.info(f"[FFmpeg Progress] {line_str}")
+        elif line_str:
+            logger.debug(f"[FFmpeg] {line_str}")
+
+    process.wait()
+    if process.returncode != 0:
+        # Re-raise standard ffmpeg error if it failed
+        raise ffmpeg.Error("ffmpeg", "", "")
+
+
 def download(self):
     """Download required audio/video streams for an episode (AniWorld + s.to) with retry logic."""
     if platform.system() == "Windows":
@@ -213,12 +258,14 @@ def download(self):
                     stream_metadata["metadata:s:v:0"] = f"language={sub_video_code}"
 
                 video_codec = get_video_codec()
-                ffmpeg.input(self.stream_url, **input_kwargs).output(
-                    str(temp_full),
-                    vcodec=video_codec,
-                    acodec=video_codec,
-                    **stream_metadata,
-                ).run(overwrite_output=True)
+                _run_ffmpeg_with_progress(
+                    ffmpeg.input(self.stream_url, **input_kwargs).output(
+                        str(temp_full),
+                        vcodec=video_codec,
+                        acodec=video_codec,
+                        **stream_metadata,
+                    )
+                )
 
                 if self._episode_path.exists():
                     inputs = [
@@ -226,8 +273,8 @@ def download(self):
                         ffmpeg.input(str(temp_full)),
                     ]
                     output_path = self._episode_path.with_suffix(".new.mkv")
-                    ffmpeg.output(*inputs, str(output_path), c="copy").run(
-                        overwrite_output=True
+                    _run_ffmpeg_with_progress(
+                        ffmpeg.output(*inputs, str(output_path), c="copy")
                     )
                     os.replace(output_path, self._episode_path)
                 else:
@@ -240,26 +287,30 @@ def download(self):
             if need_audio:
                 logger.debug("[DOWNLOADING] audio stream")
                 video_codec = get_video_codec()
-                ffmpeg.input(self.stream_url, **input_kwargs).output(
-                    str(temp_audio),
-                    acodec=video_codec,
-                    map="0:a:0?",
-                    **{"metadata:s:a:0": f"language={audio_code}"},
-                ).run(overwrite_output=True)
+                _run_ffmpeg_with_progress(
+                    ffmpeg.input(self.stream_url, **input_kwargs).output(
+                        str(temp_audio),
+                        acodec=video_codec,
+                        map="0:a:0?",
+                        **{"metadata:s:a:0": f"language={audio_code}"},
+                    )
+                )
 
             if need_video:
                 logger.debug("[DOWNLOADING] video stream")
                 video_codec = get_video_codec()
-                ffmpeg.input(self.stream_url, **input_kwargs).output(
-                    str(temp_video),
-                    vcodec=video_codec,
-                    map="0:v:0?",
-                    **(
-                        {}
-                        if wants_clean_video
-                        else {"metadata:s:v:0": f"language={sub_video_code}"}
-                    ),
-                ).run(overwrite_output=True)
+                _run_ffmpeg_with_progress(
+                    ffmpeg.input(self.stream_url, **input_kwargs).output(
+                        str(temp_video),
+                        vcodec=video_codec,
+                        map="0:v:0?",
+                        **(
+                            {}
+                            if wants_clean_video
+                            else {"metadata:s:v:0": f"language={sub_video_code}"}
+                        ),
+                    )
+                )
 
             logger.debug("[MUXING] combining streams")
             inputs = (
@@ -274,8 +325,8 @@ def download(self):
                 inputs.append(ffmpeg.input(str(temp_video)))
 
             output_path = self._episode_path.with_suffix(".new.mkv")
-            ffmpeg.output(*inputs, str(output_path), c="copy").run(
-                overwrite_output=True
+            _run_ffmpeg_with_progress(
+                ffmpeg.output(*inputs, str(output_path), c="copy")
             )
             os.replace(output_path, self._episode_path)
 
