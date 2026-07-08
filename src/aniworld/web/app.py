@@ -1,8 +1,10 @@
 import re
 import threading
+import time
 import uuid
 
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask_wtf.csrf import CSRFProtect
 
 from ..config import LANG_LABELS, SUPPORTED_PROVIDERS
 from ..logger import get_logger
@@ -81,12 +83,22 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             get_or_create_secret_key,
             init_oidc,
             login_required,
+            refresh_session_role,
         )
         from .db import has_any_admin, init_db
 
         app.secret_key = get_or_create_secret_key()
+        app.config["SESSION_COOKIE_HTTPONLY"] = True
+        app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+        if base_url.startswith("https"):
+            app.config["SESSION_COOKIE_SECURE"] = True
+        app.config["PERMANENT_SESSION_LIFETIME"] = 86400  # 24 hours
+
+        csrf = CSRFProtect()
+
         init_db()
         app.register_blueprint(auth_bp)
+        csrf.init_app(app)
 
         if sso_enabled:
             init_oidc(app, force_sso=force_sso)
@@ -94,6 +106,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             app.config["OIDC_ENABLED"] = False
             app.config["OIDC_DISPLAY_NAME"] = "SSO"
             app.config["OIDC_ADMIN_USER"] = None
+            app.config["OIDC_ADMIN_SUBJECT"] = None
             app.config["FORCE_SSO"] = False
 
         @app.before_request
@@ -105,6 +118,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
             if not app.config.get("FORCE_SSO", False) and not has_any_admin():
                 return redirect(url_for("auth.setup"))
             return None
+
+        @app.before_request
+        def _refresh_role():
+            return refresh_session_role()
 
         @app.context_processor
         def _inject_auth():
@@ -126,6 +143,13 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 "oidc_display_name": "SSO",
                 "force_sso": False,
             }
+
+    @app.after_request
+    def _set_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return response
 
     @app.route("/")
     def index():
@@ -312,6 +336,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         for endpoint, view_func in list(app.view_functions.items()):
             if endpoint not in _exempt:
                 app.view_functions[endpoint] = login_required(view_func)
+
+        # Exempt JSON API routes from CSRF (they use Content-Type: application/json
+        # which provides implicit cross-origin protection via CORS preflight)
+        for endpoint in list(app.view_functions):
+            if endpoint.startswith("api_") or endpoint.startswith("auth.admin_"):
+                csrf.exempt(app.view_functions[endpoint])
 
     return app
 

@@ -22,6 +22,7 @@ dependencies = [
     'python-dotenv',
     'fake-useragent',  # maybe replaced in future
     'flask',
+    'flask-wtf',
     'authlib',
     'requests',
     'windows-curses<3.14; sys_platform == "win32" and python_version < "3.14"',  # needed for npyscreen on windows

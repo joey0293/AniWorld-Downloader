@@ -15,8 +15,9 @@
   <div class="auth-error">{{ error }}</div>
   {% endif %}
   <form method="post" action="{{ url_for('auth.setup') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="text" name="username" placeholder="Admin username" required autofocus>
-    <input type="password" name="password" placeholder="Password (min 4 chars)" required>
+    <input type="password" name="password" placeholder="Password (min 8 chars)" required>
     <input type="password" name="confirm" placeholder="Confirm password" required>
     <button type="submit">Create Admin Account</button>
   </form>
