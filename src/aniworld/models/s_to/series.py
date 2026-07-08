@@ -300,9 +300,12 @@ class SerienstreamSeries:
         if match:
             raw_url = urljoin(self.url, match.group("url").strip())
             parsed = urlparse(raw_url)
-            return f"{"http://186.2.175.5"}{parsed.path}" + (
-                f"?{parsed.query}" if parsed.query else ""
-            )
+            path = parsed.path
+            if parsed.query:
+                query = f"?{parsed.query}" 
+            else:
+                query = ""
+            return f"http://186.2.175.5{path}" + query
 
         return None
 
