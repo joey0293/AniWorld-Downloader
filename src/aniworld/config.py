@@ -6,14 +6,21 @@ from pathlib import Path
 from fake_useragent import UserAgent
 from niquests import Session
 
+from .env import merge_env
 from .logger import get_logger
-
-logger = get_logger(__name__)
 
 VERSION = "4.0.0"
 
 # AniWorld configuration directory
 ANIWORLD_CONFIG_DIR = Path.home() / ".aniworld"
+
+# Load .env file whenever config is imported
+merge_env(
+    Path(__file__).resolve().parent / ".env.example",
+    ANIWORLD_CONFIG_DIR / ".env",
+)
+
+logger = get_logger(__name__)
 
 NAMING_TEMPLATE = os.getenv(
     "ANIWORLD_NAMING_TEMPLATE",
