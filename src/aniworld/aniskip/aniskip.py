@@ -1,90 +1,68 @@
-from typing import List, Set
+import tempfile
 
 try:
-    from ..config import GLOBAL_SESSION, logger
+    from ..config import GLOBAL_SESSION
 except ImportError:
-    from aniworld.config import GLOBAL_SESSION, logger
+    from aniworld.config import GLOBAL_SESSION
 
-JIKAN_SEARCH_URL = "https://api.jikan.moe/v4/anime"
-
-
-def search_jikan(
-    query: str, sfw: bool = False, page: int = 1, limit: int = 10
-) -> List[dict]:
-    """
-    Search for anime using Jikan API v4, filtering by TV type.
-    Returns a list of anime dictionaries (only type 'TV').
-    """
-    params = {
-        "q": query,
-        "type": "tv",
-        "sfw": str(sfw).lower(),
-        "page": page,
-        "limit": limit,
-        "order_by": "popularity",
-        "sort": "desc",
-    }
-
-    try:
-        res = GLOBAL_SESSION.get(JIKAN_SEARCH_URL, params=params)
-        res.raise_for_status()
-        data = res.json().get("data", [])
-        # Filter for TV type just in case
-        return [anime for anime in data if anime.get("type") == "TV"]
-    except Exception as e:
-        logger.error(f"Error searching Jikan API for query '{query}': {e}")
-        return []
+ANISKIP_API_URL = "https://api.aniskip.com/v1/skip-times/{}/{}?types=op&types=ed"
 
 
-def get_anime_full_by_id(mal_id: int) -> dict:
-    """
-    Fetch full anime data from Jikan API for a given MAL ID.
-    Includes all related entries in one request.
-    """
-    url = f"https://api.jikan.moe/v4/anime/{mal_id}/full"
+def get_skip_times(mal_id: int, episode_number: int):
+    url = ANISKIP_API_URL.format(mal_id, episode_number)
     res = GLOBAL_SESSION.get(url)
-    res.raise_for_status()
-    return res.json().get("data", {})
+    if res.status_code == 200:
+        return res.json()
+    return None
 
 
-def get_all_related_from_full(mal_id: int) -> List[int]:
+def ftoi(seconds: float) -> int:
+    """Convert seconds to milliseconds as integer."""
+    return int(round(seconds * 1000))
+
+
+def build_mpv_flags(skip_data: dict) -> str:
     """
-    Extract all related MAL IDs from the full anime data.
-    Only includes relevant anime types (Sequel, Prequel, Side story, Parent story).
+    Build MPV command flags based on AniSkip API response.
+    Returns a string with --chapters-file and --script-opts options.
     """
-    anime_data = get_anime_full_by_id(mal_id)
-    relations = anime_data.get("relations", [])
-    all_ids: Set[int] = {mal_id}
+    if not skip_data or skip_data.get("found") is not True:
+        raise ValueError("Skip times not found!")
 
-    for rel in relations:
-        if rel.get("relation") in {"Sequel", "Prequel", "Parent story", "Side story"}:
-            for entry in rel.get("entry", []):
-                if entry.get("type") == "anime":
-                    all_ids.add(entry["mal_id"])
+    chapters_file = tempfile.NamedTemporaryFile("w", delete=False)
+    chapters_file.write(";FFMETADATA1\n")
 
-    return list(all_ids)
+    options_list = []
 
+    for entry in skip_data.get("results", []):
+        st = entry["interval"]["start_time"]
+        ed = entry["interval"]["end_time"]
+        skip_type = entry["skip_type"]  # 'op' or 'ed'
 
-def get_all_seasons_by_query(query: str) -> List[int]:
-    """
-    Return a list of all MAL IDs for all anime seasons related to the query.
-    Uses the full endpoint to avoid recursive API calls.
-    """
-    seasons = search_jikan(query)
-    if not seasons:
-        logger.warning(f"No TV seasons found for query: {query}")
-        return []
+        # Write chapters format for FFMETADATA
+        chapters_file.write(
+            f"[CHAPTER]\nTIMEBASE=1/1000\nSTART={ftoi(st)}\nEND={ftoi(ed)}\nTITLE={skip_type.upper()}\n"
+        )
 
-    all_ids: Set[int] = set()
-    for season in seasons:
-        mal_id = season["mal_id"]
-        all_ids.update(get_all_related_from_full(mal_id))
+        # Build script options
+        options_list.append(f"skip-{skip_type}_start={st},skip-{skip_type}_end={ed}")
 
-    logger.info(f"All season MAL IDs found: {all_ids}")
-    return list(all_ids)
+    chapters_file.flush()
+    chapters_file.close()
+
+    options_str = ",".join(options_list)
+
+    return f"--chapters-file={chapters_file.name} --script-opts={options_str}"
 
 
 if __name__ == "__main__":
-    query = "love is war"
-    all_seasons = get_all_seasons_by_query(query)
-    print(all_seasons)
+    mal_id = 37999  # love is war season 1
+    episode_number = 1
+    skip_times = get_skip_times(mal_id, episode_number)
+
+    try:
+        mpv_flags = build_mpv_flags(skip_times)
+        print("MPV command flags:")
+        print(mpv_flags)
+    except ValueError as e:
+        print(e)

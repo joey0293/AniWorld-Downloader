@@ -595,7 +595,7 @@ class AniworldEpisode:
         # 5) Skip if nothing is missing
         # ---------------------------------------------------------
         if not need_audio and not need_video:
-            logger.warning(f"[SKIPPED] {self._file_name}")
+            logger.debug(f"[SKIPPED] {self._file_name}")
             return
 
         os.makedirs(self._folder_path, exist_ok=True)
@@ -611,7 +611,7 @@ class AniworldEpisode:
         temp_full = self._episode_path.with_suffix(".temp_full.mkv")
 
         if full_stream_needed:
-            logger.warning("[DOWNLOADING] full preset (audio + video together)")
+            logger.debug("[DOWNLOADING] full preset (audio + video together)")
 
             # Prepare per-stream metadata
             stream_metadata = {"metadata:s:a:0": f"language={audio_code}"}
@@ -649,7 +649,7 @@ class AniworldEpisode:
         # 7) Partial downloads
         # ---------------------------------------------------------
         if need_audio:
-            logger.warning("[DOWNLOADING] audio stream")
+            logger.debug("[DOWNLOADING] audio stream")
             video_codec = get_video_codec()
             ffmpeg.input(self.stream_url, **input_kwargs).output(
                 str(temp_audio),
@@ -659,7 +659,7 @@ class AniworldEpisode:
             ).run()
 
         if need_video:
-            logger.warning("[DOWNLOADING] video stream")
+            logger.debug("[DOWNLOADING] video stream")
             video_codec = get_video_codec()
             ffmpeg.input(self.stream_url, **input_kwargs).output(
                 str(temp_video),
@@ -675,7 +675,7 @@ class AniworldEpisode:
         # ---------------------------------------------------------
         # 8) Mux downloaded streams with existing file
         # ---------------------------------------------------------
-        logger.warning("[MUXING] combining streams")
+        logger.debug("[MUXING] combining streams")
         inputs = (
             [ffmpeg.input(str(self._episode_path))]
             if self._episode_path.exists()
