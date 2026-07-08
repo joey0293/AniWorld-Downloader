@@ -555,11 +555,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.before_request
     def _enforce_json_content_type():
-        """Reject non-JSON POST/PUT on API routes to prevent form-based CSRF bypass."""
-        if request.method in ("POST", "PUT") and request.path.startswith("/api/"):
-            ct = request.content_type or ""
-            if not ct.startswith("application/json"):
-                return jsonify({"error": "Content-Type must be application/json"}), 415
+        """Reject non-JSON POST/PUT/DELETE on API routes to prevent form-based CSRF bypass."""
+        if request.method in ("POST", "PUT", "DELETE") and request.path.startswith("/api/"):
+            if request.content_length and request.content_length > 0:
+                ct = request.content_type or ""
+                if not ct.startswith("application/json"):
+                    return jsonify({"error": "Content-Type must be application/json"}), 415
 
     @app.route("/")
     def index():
