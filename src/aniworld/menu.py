@@ -1,4 +1,5 @@
 import curses
+import curses.ascii
 import json
 import os
 import sys
@@ -20,7 +21,10 @@ if sys.version_info >= (3, 14):
         try:
             return (curses.LINES - 1, curses.COLS - 1)
         except Exception:
-            size = os.get_terminal_size(fallback=(80, 24))
+            try:
+                size = os.get_terminal_size()
+            except OSError:
+                size = os.terminal_size((80, 24))
             return (size.lines - 1, size.columns - 1)
 
     _npyscreen_area.ScreenArea._max_physical = _patched_max_physical
@@ -83,12 +87,34 @@ class Action(Enum):
 # ============================================================
 # TODO: auto rescale on terminal size change
 class MenuApp(npyscreen.NPSApp):
+    def __init__(self, url: str = ""):
+        super().__init__()
+        self.url = url
+        self._episodes_widget = None
+
+    def _calculate_layout(self, languages_count, providers_count):
+        """Calculate optimal layout dimensions for the UI."""
+        try:
+            terminal_height = os.get_terminal_size().lines
+        except OSError:
+            terminal_height = 24
+
+        # Calculate reserved height for all widgets (title + action + path/aniskip + language + provider + spacing)
+        total_reserved_height = (
+            2  # form title space
+            + 4  # action widget
+            + 2  # path/aniskip widget (only one visible at a time)
+            + max(2, languages_count)  # language widget
+            + max(2, providers_count)  # provider widget
+            + 5  # spacing and bottom padding
+        )
+
+        max_episode_height = max(3, terminal_height - total_reserved_height)
+        return max_episode_height, terminal_height
+
     def main(self):
         npyscreen.setTheme(CustomTheme)
         F = QuitForm(name=f"AniWorld-Downloader v.{VERSION}")
-
-        # Store widget references for resize handling
-        self._episodes_widget = None
 
         # ============================================================
         # Get Values for series
@@ -125,36 +151,32 @@ class MenuApp(npyscreen.NPSApp):
         y = 2  # leave space for form title
 
         # --- Action ---
-        action_height = 4
         action = F.add(
             npyscreen.TitleSelectOne,
             name="Action",
             values=[Action.DOWNLOAD.value, Action.WATCH.value, Action.SYNCPLAY.value],
             value=[0],
-            max_height=action_height,
+            max_height=3,
             rely=y,
             scroll_exit=True,
         )
-        y += action_height
 
         # --- Path ---
-        path_height = 2
         path = F.add(
             npyscreen.TitleFilenameCombo,
             name="Path",
             value=Path.home() / "Downloads",
-            rely=y,
-            max_height=path_height,
+            rely=y + 4,
+            max_height=2,
         )
 
         # --- Aniskip ---
-        aniskip_height = 2
         aniskip = F.add(
             npyscreen.TitleMultiSelect,
             name="Aniskip",
             values=["Enabled"],
-            max_height=aniskip_height,
-            rely=y,
+            max_height=2,
+            rely=y + 4,
             scroll_exit=True,
         )
 
@@ -179,93 +201,57 @@ class MenuApp(npyscreen.NPSApp):
         # Initialize visibility
         update_visibility()
 
-        # Override resize method to handle dynamic episode widget height
-        def _handle_resize(self, _input):
-            curses.update_lines_cols()
-
-            # Recalculate episode widget height
-            term_height = curses.LINES
-            remaining_height = (
-                term_height - (y + 2 + language_height + provider_height) - 2
-            )
-            min_episode_height = 4
-            episode_height = max(min_episode_height, remaining_height)
-
-            # Update episode widget height
-            if self._episodes_widget:
-                self._episodes_widget.max_height = episode_height
-
-            F.resize()
-            F.display()
-
-        # Set up resize handler
-        def handle_resize(input):
-            curses.update_lines_cols()
-
-            # Recalculate episode widget height
-            term_height = curses.LINES
-            remaining_height = (
-                term_height - (y + 2 + language_height + provider_height) - 2
-            )
-            min_episode_height = 4
-            episode_height = max(min_episode_height, remaining_height)
-
-            # Update episode widget height
-            if self._episodes_widget:
-                self._episodes_widget.max_height = episode_height
-
-            F.resize()
-            F.display()
-
-        # Add resize handler
-        try:
-            F.add_handlers({curses.KEY_RESIZE: handle_resize})
-        except Exception:
-            pass
-
         # --- Language ---
-        language_height = len(languages) + 1
         language = F.add(
             npyscreen.TitleSelectOne,
             name="Language",
             values=languages,
             value=[0],
-            max_height=language_height,
-            rely=y + 2,  # adjust position after path/aniskip
+            max_height=max(2, len(languages)),
+            rely=y + 6,
             scroll_exit=True,
         )
 
         # --- Provider ---
-        provider_height = len(providers) + 1
         provider = F.add(
             npyscreen.TitleSelectOne,
             name="Provider",
             values=providers,
             value=[0],
-            max_height=provider_height,
-            rely=y + 2 + language_height,
+            max_height=max(2, len(providers)),
+            rely=y + 6 + max(2, len(languages)) + 1,
             scroll_exit=True,
         )
 
         # --- Episodes ---
-        term_height = curses.LINES
-        remaining_height = term_height - (y + 2 + language_height + provider_height) - 2
-        min_episode_height = 4
-        episode_height = max(min_episode_height, remaining_height)
+        max_episode_height, _ = self._calculate_layout(len(languages), len(providers))
 
+        episodes_rely = y + 6 + max(2, len(languages)) + 1 + max(2, len(providers)) + 1
         episodes_widget = F.add(
             npyscreen.TitleMultiSelect,
             name="Episodes",
             values=episodes,
-            rely=y + 2 + language_height + provider_height,
-            max_height=episode_height,
+            rely=episodes_rely,
+            max_height=max_episode_height,
             scroll_exit=True,
         )
 
         # Store reference for resize handling
         self._episodes_widget = episodes_widget
 
-        # TODO: add select all button
+        # Set up resize handler
+        def handle_resize(input):
+            curses.update_lines_cols()
+            max_episode_height, _ = self._calculate_layout(
+                len(languages), len(providers)
+            )
+            if self._episodes_widget:
+                self._episodes_widget.max_height = max_episode_height
+            F.resize()
+            F.display()
+
+        # Add resize handler
+        F.add_handlers({curses.KEY_RESIZE: handle_resize})
 
         # --- Edit the form ---
         F.edit()
@@ -306,9 +292,7 @@ class MenuApp(npyscreen.NPSApp):
 # ============================================================
 def app(url):
     try:
-        app_instance = MenuApp()
-        # Set URL as instance attribute before running
-        setattr(app_instance, "url", url)
+        app_instance = MenuApp(url)
         app_instance.run()
 
         # Prepare a copy of result for logging, convert Path to string
