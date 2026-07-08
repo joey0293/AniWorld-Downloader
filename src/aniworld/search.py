@@ -1,32 +1,18 @@
 import curses
 
 from .ascii import display_ascii_art
-from .config import GLOBAL_SESSION
+from .config import GLOBAL_SESSION, logger
 
 SEARCH_URL = "https://aniworld.to/ajax/search"
 
 
 def query(keyword):
-    """Send a search request to Aniworld with the given keyword."""
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "Accept": "*/*",
-        "Sec-Fetch-Site": "same-origin",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Sec-Fetch-Mode": "cors",
-        "Origin": "https://aniworld.to",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-        "Version/26.2 Safari/605.1.15",
-        "Referer": "https://aniworld.to/search",
-        "Sec-Fetch-Dest": "empty",
-        "X-Requested-With": "XMLHttpRequest",
-    }
-    data = {"keyword": keyword}
-
-    response = GLOBAL_SESSION.post(SEARCH_URL, headers=headers, data=data)
-    return response.json()  # Returns a list of dicts
+    """Send a search request to Aniworld with given keyword."""
+    response = GLOBAL_SESSION.post(SEARCH_URL, data={"keyword": keyword})
+    try:
+        return response.json()  # Returns a list of dicts
+    except ValueError:
+        return None
 
 
 def _curses_menu(stdscr, options):
@@ -82,28 +68,37 @@ def search():
     """Prompt user for a search keyword and return a single series URL using a curses menu."""
     display_ascii_art()
 
-    keyword = input("\nSearch for a series: ").strip()
-    if not keyword:
-        print("No keyword entered, aborting search.")
-        return None
+    while True:
+        keyword = input("\nSearch for a series: ").strip()
+        if not keyword:
+            print("No keyword entered, aborting search.")
+            return None
 
-    results = query(keyword)
-    if not results:
-        print("No results found.")
-        return None
+        results = query(keyword)
+        if not results:
+            print("No series found for that keyword. Please try again.")
+            continue
 
-    # Filter results to only include links containing "/anime/stream/"
-    stream_results = [
-        item for item in results if "/anime/stream/" in item.get("link", "")
-    ]
-    if not stream_results:
-        print("No streamable series found for that keyword.")
-        return None
+        # Filter results to only include links containing "/anime/stream/"
+        stream_results = [
+            item for item in results if "/anime/stream/" in item.get("link", "")
+        ]
+        if not stream_results:
+            print("No series found for that keyword. Please try again.")
+            continue
 
-    def menu_wrapper(stdscr):
-        curses.start_color()
-        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
-        selected_item = _curses_menu(stdscr, stream_results)
-        return f"https://aniworld.to{selected_item['link']}"
+        # Auto-select if only one result
+        if len(stream_results) == 1:
+            selected_item = stream_results[0]
+            logger.debug(
+                f"Auto-selected: {selected_item.get('title', 'Unknown Title')}"
+            )
+            return f"https://aniworld.to{selected_item['link']}"
 
-    return curses.wrapper(menu_wrapper)
+        def menu_wrapper(stdscr):
+            curses.start_color()
+            curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
+            selected_item = _curses_menu(stdscr, stream_results)
+            return f"https://aniworld.to{selected_item['link']}"
+
+        return curses.wrapper(menu_wrapper)
