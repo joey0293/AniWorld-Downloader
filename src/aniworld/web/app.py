@@ -380,8 +380,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 def start_web_ui(host="127.0.0.1", port=5000, open_browser=True,
                  auth_enabled=False, sso_enabled=False, force_sso=False):
     """Start the Flask web UI server."""
+    import os
     import threading
     import webbrowser
+
+    # Allow env var overrides (Docker-friendly)
+    force_sso = force_sso or os.getenv("ANIWORLD_WEB_FORCE_SSO", "0") == "1"
+    sso_enabled = sso_enabled or force_sso or os.getenv("ANIWORLD_WEB_SSO", "0") == "1"
+    auth_enabled = auth_enabled or force_sso or os.getenv("ANIWORLD_WEB_AUTH", "0") == "1"
 
     app = create_app(auth_enabled=auth_enabled, sso_enabled=sso_enabled, force_sso=force_sso)
     url = f"http://{'localhost' if host in ('0.0.0.0', '127.0.0.1') else host}:{port}"

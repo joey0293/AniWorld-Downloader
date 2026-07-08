@@ -33,8 +33,14 @@ COPY src/ /app/src/
 # Install the project into the image
 RUN pip install --no-cache-dir .
 
+# Ensure the runtime directories are still writable after COPY overwrote ownership
+RUN chown -R aniworld:aniworld /app/Downloads /home/aniworld/.aniworld
+
 # Drop privileges for runtime
 USER aniworld
 
-# Run the module entrypoint
-CMD ["python", "-m", "aniworld"]
+# Expose the web UI port
+EXPOSE 5000
+
+# Run the web UI, exposed on all interfaces with no browser
+CMD ["aniworld", "--web-ui", "--web-expose", "--no-browser", "--web-port", "5000"]

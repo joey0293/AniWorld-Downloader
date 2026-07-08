@@ -2,19 +2,30 @@ services:
   aniworld:
     build: .
     ports:
-      # Expose the container's HTTP port on the host.
-      - "8080:8080"
+      - "5000:5000"
     volumes:
       # Persist downloads on the host so they survive container recreation.
       - ./Downloads:/app/Downloads
+      # Persist application config and auth database across restarts.
+      - aniworld-data:/home/aniworld/.aniworld
 
-    # Linux host permission workaround:
-    # If the bind-mounted Downloads directory ends up owned by your host user,
-    # you can run the container with your UID/GID to avoid write permission issues.
-    # user: "${UID:-1000}:${GID:-1000}"
+    # NOTE: Create ./Downloads before running: mkdir -p Downloads
+    # Docker creates missing bind-mount directories as root, causing permission errors.
 
-    # Temporary placeholder: serve the Downloads directory over HTTP until a real web UI exists.
-    command: ["python", "-m", "http.server", "8080", "--directory", "/app/Downloads"]
+    # --- Authentication (uncomment the environment block to enable) ---
+    # environment:
+    #   ANIWORLD_WEB_AUTH: "1"           # Enable local username/password login
+    #   ANIWORLD_WEB_SSO: "1"            # Enable OIDC SSO login button
+    #   ANIWORLD_WEB_FORCE_SSO: "1"      # SSO-only mode (no local accounts)
+    #   # OIDC / SSO provider settings (required when SSO is enabled)
+    #   ANIWORLD_OIDC_ISSUER_URL: "https://keycloak.example.com/realms/myrealm"
+    #   ANIWORLD_OIDC_CLIENT_ID: "aniworld"
+    #   ANIWORLD_OIDC_CLIENT_SECRET: "secret"
+    #   ANIWORLD_OIDC_DISPLAY_NAME: "SSO"          # Label shown on login button
+    #   ANIWORLD_OIDC_ADMIN_SUBJECT: ""             # OIDC subject claim for auto-admin
+    #   ANIWORLD_WEB_BASE_URL: "https://aniworld.example.com"  # External URL for redirects
 
-    # Keep the service running across reboots / daemon restarts unless explicitly stopped.
     restart: unless-stopped
+
+volumes:
+  aniworld-data:
