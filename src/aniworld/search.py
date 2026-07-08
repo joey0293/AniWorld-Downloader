@@ -1,4 +1,5 @@
 import curses
+import html as html_module
 import os
 import random
 import re
@@ -235,54 +236,162 @@ def fetch_popular_animes():
 
 
 def _fetch_series_homepage():
+    """Fetch the s.to popular series page, using a simple module-level cache."""
     global _series_html_content
-    if _series_html_content is None:
-        request = GLOBAL_SESSION.get("https://s.to/beliebte-serien")
-        request.raise_for_status()
-        _series_html_content = request.text
-    return _series_html_content
+    if _series_html_content is not None:
+        return _series_html_content
+
+    try:
+        response = GLOBAL_SESSION.get("https://s.to/beliebte-serien")
+        response.raise_for_status()
+        _series_html_content = response.text
+        return _series_html_content
+    except Exception as e:
+        logger.error(f"Failed to fetch s.to popular series page: {e}")
+        return None
+
+
+def _extract_series_cards(section_html):
+    """Extract series cards from an s.to HTML section.
+
+    Parses <a> tags linking to /serie/ paths and extracts title from the
+    <img> alt attribute and poster from src/data-src. Deduplicates by slug.
+    """
+    results = []
+    seen_slugs = set()
+
+    # Match <a> tags with /serie/ hrefs — deliberately loose on class to
+    # survive class-name changes; we only require the href pattern.
+    link_pattern = re.compile(
+        r'<a\s[^>]*href="(/serie/[^"]+)"[^>]*>(.*?)</a>',
+        re.DOTALL,
+    )
+
+    for m in link_pattern.finditer(section_html):
+        path, inner = m.groups()
+
+        # Normalise to the base series slug (strip /staffel-N etc.)
+        parts = path.strip("/").split("/")
+        # Expected: ["serie", "slug"] or ["serie", "slug", "staffel-8"]
+        if len(parts) < 2:
+            continue
+        series_slug = parts[1]
+
+        if series_slug in seen_slugs:
+            continue
+        seen_slugs.add(series_slug)
+
+        url = f"https://s.to/serie/{series_slug}"
+
+        # --- Title: try img alt, then link title attr, then alt on any tag ---
+        title = ""
+        for pat in [
+            r'<img[^>]+\balt="([^"]+)"',
+            r'\btitle="([^"]+)"',
+        ]:
+            t = re.search(pat, inner)
+            if t:
+                title = html_module.unescape(t.group(1).strip())
+                break
+
+        # --- Poster: try data-src first (lazy-loaded real URL), then src ---
+        poster_url = ""
+        for pat in [
+            r'<img[^>]+\bdata-src="(/[^"]+)"',
+            r'<img[^>]+\bsrc="(/[^"]+)"',
+            r'<img[^>]+\bsrc="(https?://[^"]+)"',
+        ]:
+            p = re.search(pat, inner)
+            if p:
+                raw = p.group(1).strip()
+                poster_url = raw if raw.startswith("http") else f"https://s.to{raw}"
+                break
+
+        if title or poster_url:
+            results.append({
+                "title": title,
+                "url": url,
+                "genre": "",
+                "poster_url": poster_url,
+            })
+
+    return results
+
+
+def _find_series_section(full_html, heading_hints, fallback_index):
+    """Locate an s.to section and extract its series cards.
+
+    Tries to find the section by heading text patterns first (resilient to
+    surrounding markup changes), then falls back to the Nth mb-5 div by
+    positional index.
+    """
+    section_html = None
+
+    # strat 1: find by heading text inside an <h2> (avoids meta tags)
+    for hint in heading_hints:
+        h2_pattern = re.compile(
+            r"<h2[^>]*>[^<]*" + hint, re.IGNORECASE | re.DOTALL
+        )
+        match = h2_pattern.search(full_html)
+        if match:
+            start = match.start()
+            # Grab content from the heading to the next mb-5 section or end
+            rest = full_html[start:]
+            next_section = re.search(
+                r'<div[^>]*class="[^"]*\bmb-5\b', rest[50:]
+            )
+            section_html = rest[: next_section.start() + 50] if next_section else rest
+            break
+
+    # strat 2: split by mb-5 divs and pick by index
+    if section_html is None:
+        mb5_starts = [
+            m.start()
+            for m in re.finditer(r'<div[^>]*class="[^"]*\bmb-5\b', full_html)
+        ]
+        if fallback_index < len(mb5_starts):
+            start = mb5_starts[fallback_index]
+            end = (
+                mb5_starts[fallback_index + 1]
+                if fallback_index + 1 < len(mb5_starts)
+                else len(full_html)
+            )
+            section_html = full_html[start:end]
+
+    if not section_html:
+        return []
+
+    return _extract_series_cards(section_html)
 
 
 def fetch_new_series():
-    results = []
+    """Fetch the 'Neue Staffeln diese Woche' section from s.to.
 
-    html_content = _series_html_content or _fetch_series_homepage()
-
-    # broken - 🥰 Neue Staffeln diese Woche
-    new_series_pattern = re.compile()
-
-    matches = new_series_pattern.finditer(html_content)
-    for match in matches:
-        results.append(
-            {
-                "title": None,
-                "url": None,
-                "poster_url": None,
-            }
-        )
-
-    return results
+    Returns a list of series dicts or None on error.
+    """
+    html = _fetch_series_homepage()
+    if html is None:
+        return None
+    return _find_series_section(
+        html,
+        heading_hints=[r"Neue\s+Staffeln", r"Neue\s+Serien", r"\U0001f970"],
+        fallback_index=0,
+    )
 
 
-def fetch_popular_series(html_content):
-    results = []
+def fetch_popular_series():
+    """Fetch the 'Meistgesehen gerade' section from s.to.
 
-    html_content = html_content or _fetch_series_homepage()
-
-    # broken - 🔥 Meistgesehen gerade
-    popular_series_pattern = re.compile()
-
-    matches = popular_series_pattern.finditer(html_content)
-    for match in matches:
-        results.append(
-            {
-                "title": None,
-                "url": None,
-                "poster_url": None,
-            }
-        )
-
-    return results
+    Returns a list of series dicts or None on error.
+    """
+    html = _fetch_series_homepage()
+    if html is None:
+        return None
+    return _find_series_section(
+        html,
+        heading_hints=[r"Meistgesehen", r"Beliebt", r"\U0001f525"],
+        fallback_index=1,
+    )
 
 
 def _curses_menu(stdscr, options):
@@ -455,5 +564,5 @@ def search(is_aniworld=None):
 
 
 if __name__ == "__main__":
-    print(fetch_new_series())
-    print(fetch_popular_series())
+    print("New series:", fetch_new_series())
+    print("Popular series:", fetch_popular_series())
