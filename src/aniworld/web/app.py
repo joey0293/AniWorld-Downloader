@@ -553,8 +553,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
     init_queue_db()
     init_custom_paths_db()
     init_autosync_db()
-    _ensure_queue_worker()
-    _ensure_autosync_worker()
+
+    # In debug mode, Flask's reloader runs this in both the parent and child
+    # process. Only start workers in the child (actual server) process
+    # to avoid duplicate ffmpeg downloads.
+    _debug = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
+    if not _debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        _ensure_queue_worker()
+        _ensure_autosync_worker()
 
     @app.after_request
     def _set_security_headers(response):
@@ -1515,10 +1521,14 @@ def start_web_ui(
     url = f"http://{display_host}:{port}"
     print(f"Starting AniWorld Web UI on {url}")
 
-    if open_browser:
-        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
-
     debug = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
+
+    # In debug mode, Flask's reloader spawns a child process that re-executes
+    # this function. Only open the browser in the parent (reloader) process
+    # to avoid opening it twice.
+    is_reloader_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+    if open_browser and not is_reloader_child:
+        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
 
     if debug:
         app.run(host=host, port=port, debug=True)
