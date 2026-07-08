@@ -2,7 +2,7 @@ services:
   aniworld:
     build: .
     ports:
-      - "5000:5000"
+      - "8080:8080"
     volumes:
       # Persist downloads on the host so they survive container recreation.
       - ./Downloads:/app/Downloads

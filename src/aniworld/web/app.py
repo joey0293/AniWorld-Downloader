@@ -582,7 +582,7 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
 def start_web_ui(
     host="127.0.0.1",
-    port=5000,
+    port=8080,
     open_browser=True,
     auth_enabled=False,
     sso_enabled=False,
