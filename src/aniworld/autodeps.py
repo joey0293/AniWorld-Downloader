@@ -4,8 +4,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from .config import GLOBAL_SESSION, logger
-
 
 class DependencyManager:
     """Manage binaries with package manager"""
@@ -19,9 +17,14 @@ class DependencyManager:
             or os.getenv("ANIWORLD_INSTALL_FOLDER", Path.home() / ".aniworld")
         )
         self.install_folder.mkdir(parents=True, exist_ok=True)
+
+        from .config import logger
+
         logger.debug(f"Dependency folder: {self.install_folder}")
 
     def fetch_binary(self, name):
+        from .config import logger
+
         """Fetch binary: system-wide -> aniworld folder -> install/download"""
         system = platform.system()
         binary_name = f"{name}.exe" if system == "Windows" else name
@@ -52,6 +55,9 @@ class DependencyManager:
         url = dep_info.get("url")
         if url:
             logger.debug(f"Downloading {name} for {system} from {url}...")
+
+            from .config import GLOBAL_SESSION
+
             r = GLOBAL_SESSION.get(url, stream=True)
             r.raise_for_status()
             with open(local_path, "wb") as f:
@@ -64,6 +70,8 @@ class DependencyManager:
         raise RuntimeError(f"Cannot locate or install {name} for {system}.")
 
     def _install_with_package_manager(self, name, system):
+        from .config import logger
+
         """Install binary via system package manager if available"""
         dep_info = self.deps.get(name, {}).get(system, {})
         pkg_name = dep_info.get("package")
