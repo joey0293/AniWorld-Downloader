@@ -186,7 +186,7 @@ class AniworldEpisode:
                 year=self.series.release_year,
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:02d}",
+                episode=f"{self.episode_number:03d}",
                 language=self.selected_language,
             )
             self.__base_folder = Path(self.selected_path) / folder_str
@@ -204,7 +204,7 @@ class AniworldEpisode:
                 year=self.series.release_year,
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:02d}",
+                episode=f"{self.episode_number:03d}",
                 language=self.selected_language,
             )
             self.__folder_path = self._base_folder / folder_str
@@ -216,7 +216,7 @@ class AniworldEpisode:
             try:
                 file_template = NAMING_TEMPLATE.split("/")[-1]
             except IndexError:
-                file_template = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:02d}.mkv"
+                file_template = f"{self.series.title_cleaned} S{self.season.season_number:02d}E{self.episode_number:03d}.mkv"
 
             # Remove extension
             if "." in file_template:
@@ -235,7 +235,7 @@ class AniworldEpisode:
                 year=self.series.release_year,
                 imdbid=self.series.imdb,
                 season=f"{self.season.season_number:02d}",
-                episode=f"{self.episode_number:02d}",
+                episode=f"{self.episode_number:03d}",
                 language=self.selected_language,
             )
         return self.__file_name

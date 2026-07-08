@@ -294,7 +294,9 @@ def download(self):
             else:
                 # Reset cached URL properties so retry resolves fresh URLs
                 for attr in list(vars(self)):
-                    if attr.endswith("__redirect_url") or attr.endswith("__provider_url"):
+                    if attr.endswith("__redirect_url") or attr.endswith(
+                        "__provider_url"
+                    ):
                         setattr(self, attr, None)
                 logger.debug("Retrying download...")
 
