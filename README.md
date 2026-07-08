@@ -181,31 +181,33 @@ Before submitting contributions, please check the repository for existing issues
 
 ## Dependencies
 
-AniWorld Downloader requires several Python packages for HTTP requests, UI, media processing, web features, and environment management.
+AniWorld Downloader uses a small set of Python packages for networking, terminal UI, media handling, web features, authentication, and configuration.
 
 ### Core dependencies
 
-- **niquests** – Simplified HTTP requests
-- **npyscreen** – For building interactive text-based UIs (TUI)
+- **niquests** – HTTP requests
+- **npyscreen** – Text-based terminal UI
 - **ffmpeg-python** – Python bindings for FFmpeg (requires FFmpeg installed on your system)
-- **python-dotenv** – Loads environment variables from a .env file
-- **rich** – Colored and formatted terminal output (used by `aniworld --examples`)
-- **fake-useragent** – Generates random user agents (optional, may be replaced in the future)
-- **packaging** – For version parsing and comparison
+- **python-dotenv** – Loads environment variables from a `.env` file
+- **rich** – Styled terminal output
+- **fake-useragent** – Generates user-agent strings
+- **packaging** – Version parsing and comparison
+- **cryptography** – Cryptographic utilities
+- **patchright** – Browser automation support for captcha handling
 
 ### Web / server dependencies
 
-- **requests** – Standard HTTP library for Python
-- **flask** – Lightweight web framework
-- **flask-wtf** – Form handling and CSRF protection for Flask
-- **authlib** – OAuth and authentication utilities
-- **waitress** – Production-ready WSGI server
+- **requests** – Standard HTTP library
+- **flask** – Web framework
+- **flask-wtf** – Forms and CSRF protection for Flask
+- **authlib** – OAuth and authentication helpers
+- **waitress** – Production WSGI server
 
 ### Platform-specific dependencies
 
-- **windows-curses** – Enables curses support required by npyscreen on Windows (installed automatically on Windows; version pinned for Python < 3.14)
+- **windows-curses** – Enables curses support for `npyscreen` on Windows (installed only on Windows and only for Python versions below 3.14)
 
-All dependencies are installed automatically when AniWorld Downloader is installed via `pip`.
+All dependencies are installed automatically when AniWorld Downloader is installed with `pip`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
