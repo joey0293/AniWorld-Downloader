@@ -1,4 +1,5 @@
 import re
+from html import unescape
 
 from ...config import ANIWORLD_SERIES_PATTERN, GLOBAL_SESSION, logger
 from ..common import clean_title
@@ -229,6 +230,8 @@ class AniworldSeries:
             return None
 
         title = html[span_start + len("<span>") : span_end].strip()
+        title = unescape(title)
+
         return title
 
     def __extract_description(self):

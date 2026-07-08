@@ -1,6 +1,7 @@
 import os
 import re
 from enum import Enum
+from html import unescape
 from pathlib import Path
 
 from ...config import (
@@ -409,7 +410,7 @@ class SerienstreamEpisode:
             return ""
         match = re.search(pattern, html)
         if match:
-            return match.group(1).strip()
+            return unescape(match.group(1).strip())
         return ""
 
     def __extract_title_en(self):
@@ -425,7 +426,7 @@ class SerienstreamEpisode:
             return ""
         match = re.search(pattern, html)
         if match:
-            return match.group(1).strip()
+            return unescape(match.group(1).strip())
         return ""
 
     def __extract_provider_data(self):
