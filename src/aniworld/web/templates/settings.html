@@ -16,6 +16,11 @@
       Separate languages into folders
     </label>
     <div class="settings-hint">When enabled, downloads are organized into subfolders by language (e.g. german-dub/, english-sub/)</div>
+    <label class="settings-checkbox" style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.88rem;color:#c8cad0;cursor:pointer">
+      <input type="checkbox" id="disableEnglishSub" onchange="saveDisableEnglishSub()" style="accent-color:#2563eb;cursor:pointer">
+      Disable English Sub downloads
+    </label>
+    <div class="settings-hint">When enabled, English Sub is hidden from the language selector and cannot be downloaded</div>
   </div>
 
   {% if auth_enabled %}

@@ -1,6 +1,7 @@
 // Download path settings
 const downloadPathInput = document.getElementById('downloadPath');
 const langSeparationCb = document.getElementById('langSeparation');
+const disableEnglishSubCb = document.getElementById('disableEnglishSub');
 
 async function loadSettings() {
   try {
@@ -8,6 +9,7 @@ async function loadSettings() {
     const data = await resp.json();
     downloadPathInput.value = data.download_path || '';
     if (langSeparationCb) langSeparationCb.checked = data.lang_separation === '1';
+    if (disableEnglishSubCb) disableEnglishSubCb.checked = data.disable_english_sub === '1';
   } catch (e) {
     showToast('Failed to load settings: ' + e.message);
   }
@@ -26,6 +28,24 @@ async function saveLangSeparation() {
     const data = await resp.json();
     if (data.error) { showToast(data.error); return; }
     showToast('Language separation ' + (langSeparationCb.checked ? 'enabled' : 'disabled'));
+  } catch (e) {
+    showToast('Failed to save setting: ' + e.message);
+  }
+}
+
+async function saveDisableEnglishSub() {
+  try {
+    const resp = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        download_path: downloadPathInput.value.trim(),
+        disable_english_sub: disableEnglishSubCb.checked
+      })
+    });
+    const data = await resp.json();
+    if (data.error) { showToast(data.error); return; }
+    showToast('English Sub downloads ' + (disableEnglishSubCb.checked ? 'disabled' : 'enabled'));
   } catch (e) {
     showToast('Failed to save setting: ' + e.message);
   }

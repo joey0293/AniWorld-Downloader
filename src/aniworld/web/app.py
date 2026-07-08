@@ -404,10 +404,14 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
                 if label:
                     lang_tuple_to_label[(audio.value, subtitles.value)] = label
 
+            disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
+
             provider_info = {}
             for (audio, subtitles), providers in pd._data.items():
                 label = lang_tuple_to_label.get((audio.value, subtitles.value))
                 if not label:
+                    continue
+                if disable_eng_sub and label == "English Sub":
                     continue
                 # Only include providers that have working extractors
                 working = [p for p in providers.keys() if p in WORKING_PROVIDERS]
@@ -430,6 +434,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
         if not episodes:
             return jsonify({"error": "episodes list is required"}), 400
+
+        if (
+            language == "English Sub"
+            and os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
+        ):
+            return jsonify({"error": "English Sub downloads are disabled"}), 403
 
         username = None
         if auth_enabled:
@@ -530,10 +540,12 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         else:
             resolved = str(Path.home() / "Downloads")
         lang_separation = os.environ.get("ANIWORLD_LANG_SEPARATION", "0")
+        disable_english_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0")
         return jsonify(
             {
                 "download_path": resolved,
                 "lang_separation": lang_separation,
+                "disable_english_sub": disable_english_sub,
             }
         )
 
@@ -545,6 +557,10 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
         if "lang_separation" in data:
             os.environ["ANIWORLD_LANG_SEPARATION"] = (
                 "1" if data["lang_separation"] else "0"
+            )
+        if "disable_english_sub" in data:
+            os.environ["ANIWORLD_DISABLE_ENGLISH_SUB"] = (
+                "1" if data["disable_english_sub"] else "0"
             )
         return jsonify({"ok": True})
 
