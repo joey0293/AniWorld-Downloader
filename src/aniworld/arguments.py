@@ -155,8 +155,8 @@ def parse_args():
         help="Automatically continue with the next episode",
     )
     playback.add_argument(
-        "-P",
-        "--paths",
+        "-o",
+        "--output",
         help="Output file path",
     )
 
