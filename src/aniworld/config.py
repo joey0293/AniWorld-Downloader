@@ -230,6 +230,8 @@ HANIME_TV_SERIES_PATTERN = re.compile(
 # On Linux/macOS: ~/.config/mpv/scripts
 # On Windows: %APPDATA%\mpv\scripts
 if os.name == "nt":
-    MPV_SCRIPTS_DIR = Path(os.getenv("APPDATA")) / "mpv" / "scripts"
+    MPV_CONFIG_DIR = Path(os.getenv("APPDATA")) / "mpv"
 else:
-    MPV_SCRIPTS_DIR = Path.home() / ".config" / "mpv" / "scripts"
+    MPV_CONFIG_DIR = Path.home() / ".config" / "mpv"
+
+MPV_SCRIPTS_DIR = MPV_CONFIG_DIR / "scripts"
