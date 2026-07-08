@@ -3,7 +3,6 @@ import re
 import subprocess
 from collections import defaultdict
 from pathlib import Path
-from typing import Tuple
 from urllib.parse import urlparse
 
 import ffmpeg
@@ -19,61 +18,12 @@ from ...config import (
     NAMING_TEMPLATE,
     PROVIDER_HEADERS_D,
     PROVIDER_HEADERS_W,
-    Audio,
     Subtitles,
     get_video_codec,
     logger,
 )
 from ...extractors import provider_functions
-from ..common import check_downloaded
-
-
-class ProviderData:
-    """
-    Container for provider URLs grouped by language settings.
-
-    The internal structure is:
-
-        dict[(Audio, Subtitles)][provider_name]
-
-    Meaning:
-    - The key is a tuple of (Audio, Subtitles)
-    - The value is a dictionary mapping provider names to their URLs
-    """
-
-    def __init__(self, data):
-        self._data = data
-
-    def __str__(self):
-        # return f"{self.__class__.__name__}({self._data!r})"
-        lines = []
-
-        for (audio, subtitles), providers in sorted(
-            self._data.items(), key=lambda item: (item[0][0].value, item[0][1].value)
-        ):
-            header = f"{audio.value} audio"
-            if subtitles != Subtitles.NONE:
-                header += f" + {subtitles.value} subtitles"
-
-            lines.append(header)
-
-            for provider, url in providers.items():
-                lines.append(f"  - {provider:<8} -> {url}")
-
-            lines.append("")
-
-        return "\n".join(lines).rstrip()
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self._data!r})"
-
-    # Accept a tuple directly
-    def get(self, lang_tuple: Tuple[Audio, Subtitles]):
-        return self._data.get(lang_tuple, {})
-
-    # Behave like a dictionary
-    def __getitem__(self, lang_tuple: Tuple[Audio, Subtitles]):
-        return self._data[lang_tuple]
+from ..common import ProviderData, check_downloaded
 
 
 class AniworldEpisode:
