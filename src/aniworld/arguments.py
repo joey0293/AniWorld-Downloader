@@ -166,6 +166,7 @@ def parse_args():
         help="Fetch a random anime series",
     )
     discovery.add_argument(
+        "-sto",
         "--use-sto-search",
         action="store_true",
         help="Prefer s.to for interactive searches.",

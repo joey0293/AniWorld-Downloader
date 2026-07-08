@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container">
-  <h1>AniWorld Downloader</h1>
+  <h1 id="pageHeading">AniWorld Downloader</h1>
+  <div class="site-switch">
+    <span class="site-label active" id="labelAniworld">AniWorld</span>
+    <label class="switch">
+      <input type="checkbox" id="siteToggle" onchange="toggleSite()">
+      <span class="slider"></span>
+    </label>
+    <span class="site-label" id="labelSto">S.TO</span>
+  </div>
   <div class="search-bar">
     <input type="text" id="searchInput" placeholder="Search for anime..." autofocus>
     <button id="searchBtn" onclick="doSearch()">Search</button>
@@ -45,6 +53,10 @@
         {% endfor %}
       </select>
     </div>
+    <script>
+      window.ANIWORLD_LANGS = {{ lang_labels|tojson }};
+      window.STO_LANGS = {{ sto_lang_labels|tojson }};
+    </script>
     <div class="episodes-header">
       <h3>Episodes</h3>
       <label class="select-all-label"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"> Select All</label>

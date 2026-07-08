@@ -20,7 +20,7 @@ a:hover{color:#93c5fd}
 
 /* ===== Layout ===== */
 .container{margin:0 auto;padding:32px 32px}
-h1{text-align:center;margin-bottom:32px;font-size:1.75rem;color:#fff;font-weight:700;letter-spacing:-.02em}
+h1{text-align:center;margin-bottom:16px;font-size:1.75rem;color:#fff;font-weight:700;letter-spacing:-.02em}
 .search-bar{max-width:960px;margin-left:auto;margin-right:auto}
 
 /* ===== Navbar ===== */
@@ -47,6 +47,42 @@ h1{text-align:center;margin-bottom:32px;font-size:1.75rem;color:#fff;font-weight
   transition:all .2s;
 }
 .top-bar-link:hover{color:#fff;background:rgba(255,255,255,.06)}
+
+/* ===== Site Toggle Switch ===== */
+.site-switch{
+  display:flex;align-items:center;justify-content:center;
+  gap:14px;margin-bottom:24px;
+}
+.site-label{
+  font-size:.9rem;font-weight:600;color:#555;
+  transition:color .3s;user-select:none;
+}
+.site-label.active{color:#fff}
+.switch{
+  position:relative;display:inline-block;
+  width:52px;height:28px;flex-shrink:0;
+}
+.switch input{opacity:0;width:0;height:0}
+.slider{
+  position:absolute;cursor:pointer;
+  top:0;left:0;right:0;bottom:0;
+  background:linear-gradient(135deg,#2563eb,#1d4ed8);
+  border-radius:28px;
+  transition:background .4s;
+}
+.slider::before{
+  content:'';position:absolute;
+  height:22px;width:22px;left:3px;bottom:3px;
+  background:#fff;border-radius:50%;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 2px 4px rgba(0,0,0,.2);
+}
+.switch input:checked + .slider{
+  background:linear-gradient(135deg,#9333ea,#7c3aed);
+}
+.switch input:checked + .slider::before{
+  transform:translateX(24px);
+}
 
 /* ===== Search Bar ===== */
 .search-bar{display:flex;gap:10px;margin-bottom:32px}
