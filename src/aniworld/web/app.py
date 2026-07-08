@@ -503,4 +503,10 @@ def start_web_ui(host="127.0.0.1", port=5000, open_browser=True,
     if open_browser:
         threading.Timer(0.5, webbrowser.open, args=(url,)).start()
 
-    app.run(host=host, port=port, debug=False)
+    debug = os.getenv("ANIWORLD_DEBUG_MODE", "0") == "1"
+
+    if debug:
+        app.run(host=host, port=port, debug=True)
+    else:
+        from waitress import serve
+        serve(app, host=host, port=port)
