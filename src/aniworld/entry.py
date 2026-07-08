@@ -4,12 +4,18 @@ from .logger import get_logger
 from .menu import app
 
 logger = get_logger(__name__)
+logger.debug("")
 
 
 def aniworld():
     args = parse_args()
 
-    app()
+    if args.url:
+        url = args.url
+    else:
+        url = input("Search for a series: ")
+
+    app(url=url)
 
 
 if __name__ == "__main__":
