@@ -60,6 +60,9 @@
         <option value="{{ p }}">{{ p }}</option>
         {% endfor %}
       </select>
+      <select id="customPathSelect" style="display:none">
+        <option value="">Default</option>
+      </select>
     </div>
     <script>
       window.ANIWORLD_LANGS = {{ lang_labels|tojson }};

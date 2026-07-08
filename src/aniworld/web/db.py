@@ -255,19 +255,26 @@ def init_queue_db():
             conn.execute("UPDATE download_queue SET position = id WHERE position = 0")
         except Exception:
             pass  # column already exists
+        # Add custom_path_id column (migration for existing DBs)
+        try:
+            conn.execute(
+                "ALTER TABLE download_queue ADD COLUMN custom_path_id INTEGER"
+            )
+        except Exception:
+            pass  # column already exists
         conn.commit()
     finally:
         conn.close()
 
 
-def add_to_queue(title, series_url, episodes, language, provider, username=None):
+def add_to_queue(title, series_url, episodes, language, provider, username=None, custom_path_id=None):
     import json
 
     conn = get_db()
     try:
         cur = conn.execute(
-            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO download_queue (title, series_url, episodes, total_episodes, language, provider, username, custom_path_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 title,
                 series_url,
@@ -276,6 +283,7 @@ def add_to_queue(title, series_url, episodes, language, provider, username=None)
                 language,
                 provider,
                 username,
+                custom_path_id,
             ),
         )
         row_id = cur.lastrowid
@@ -463,5 +471,68 @@ def clear_completed():
             "DELETE FROM download_queue WHERE status IN ('completed', 'failed', 'cancelled')"
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+# ===== Custom Download Paths =====
+
+_CREATE_CUSTOM_PATHS_TABLE = """\
+CREATE TABLE IF NOT EXISTS custom_paths (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    path TEXT NOT NULL
+);
+"""
+
+
+def init_custom_paths_db():
+    ANIWORLD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    conn = get_db()
+    try:
+        conn.execute(_CREATE_CUSTOM_PATHS_TABLE)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_custom_paths():
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT id, name, path FROM custom_paths ORDER BY id").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def add_custom_path(name, path):
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO custom_paths (name, path) VALUES (?, ?)",
+            (name, path),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def remove_custom_path(path_id):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM custom_paths WHERE id = ?", (path_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_custom_path_by_id(path_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, name, path FROM custom_paths WHERE id = ?", (path_id,)
+        ).fetchone()
+        return dict(row) if row else None
     finally:
         conn.close()
