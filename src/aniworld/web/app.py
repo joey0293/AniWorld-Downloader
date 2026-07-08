@@ -617,7 +617,15 @@ def create_app(auth_enabled=False, sso_enabled=False, force_sso=False):
 
     @app.route("/settings")
     def settings_page():
-        return render_template("settings.html")
+        from pathlib import Path
+        import platform
+
+        env_path = Path.home() / ".aniworld" / ".env"
+        if platform.system() != "Windows":
+            display = "~/.aniworld/.env"
+        else:
+            display = str(env_path)
+        return render_template("settings.html", env_path=display)
 
     @app.route("/api/random")
     def api_random():
