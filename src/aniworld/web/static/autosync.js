@@ -15,12 +15,14 @@ const SCHEDULE_LABELS = {
 
 let currentSyncSchedule = '0';
 let customPathsCache = [];
+let langSepEnabled = false;
 
 async function loadSyncSchedule() {
     try {
         const resp = await fetch('/api/settings');
         const data = await resp.json();
         currentSyncSchedule = data.sync_schedule || '0';
+        langSepEnabled = data.lang_separation === '1';
     } catch (e) { /* ignore */ }
 }
 
@@ -150,7 +152,24 @@ async function openEditModal(id) {
 
         document.getElementById('editJobId').value = id;
         document.getElementById('editJobTitle').textContent = job.title || 'Unknown';
-        document.getElementById('editLanguage').value = job.language || 'German Dub';
+
+        // Rebuild language dropdown based on lang separation setting
+        const langSelect = document.getElementById('editLanguage');
+        langSelect.innerHTML = '';
+        if (langSepEnabled) {
+            const opt = document.createElement('option');
+            opt.value = 'All Languages';
+            opt.textContent = 'All Languages';
+            langSelect.appendChild(opt);
+        }
+        ['German Dub', 'English Sub', 'German Sub'].forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l;
+            opt.textContent = l;
+            langSelect.appendChild(opt);
+        });
+        langSelect.value = job.language || 'German Dub';
+
         document.getElementById('editProvider').value = job.provider || 'VOE';
         document.getElementById('editEnabled').value = job.enabled ? '1' : '0';
 

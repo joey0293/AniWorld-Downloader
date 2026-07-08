@@ -147,6 +147,8 @@ def _queue_worker():
             import os
 
             lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
+            if item.get("source") == "sync:all_langs":
+                lang_sep = True
             selected_path = None
 
             from pathlib import Path
@@ -262,95 +264,132 @@ def _run_autosync_for_job(job):
         series = prov.series_cls(url=job["series_url"])
 
         lang_sep = os.environ.get("ANIWORLD_LANG_SEPARATION", "0") == "1"
-        lang_folders = ["german-dub", "english-sub", "german-sub", "english-dub"]
-
-        raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
-        if raw:
-            dl_base = Path(raw).expanduser()
-            if not dl_base.is_absolute():
-                dl_base = Path.home() / dl_base
-        else:
-            dl_base = Path.home() / "Downloads"
-
-        scan_roots = [dl_base]
-        for cp in get_custom_paths():
-            cp_path = Path(cp["path"]).expanduser()
-            if not cp_path.is_absolute():
-                cp_path = Path.home() / cp_path
-            scan_roots.append(cp_path)
-
-        # Build set of downloaded (season, episode) on disk
-        downloaded_eps = set()
-        title_clean = (
-            getattr(series, "title_cleaned", None)
-            or getattr(series, "title", "")
-        ).lower()
-        if title_clean:
-            ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
-            all_bases = []
-            for root in scan_roots:
-                if lang_sep:
-                    all_bases.extend([root / lf for lf in lang_folders])
-                else:
-                    all_bases.append(root)
-            for base in all_bases:
-                if not base.is_dir():
+        if job.get("language") == "All Languages":
+            lang_sep = True
+            
+        lang_folder_map = {
+            "German Dub": "german-dub",
+            "English Sub": "english-sub",
+            "German Sub": "german-sub",
+            "English Dub": "english-dub",
+        }
+        
+        target_languages = []
+        if job.get("language") == "All Languages":
+            disable_eng_sub = os.environ.get("ANIWORLD_DISABLE_ENGLISH_SUB", "0") == "1"
+            for lang in lang_folder_map.keys():
+                if disable_eng_sub and lang == "English Sub":
                     continue
-                for folder in base.iterdir():
-                    if (
-                        not folder.is_dir()
-                        or not folder.name.lower().startswith(title_clean)
-                    ):
-                        continue
-                    for f in folder.rglob("*"):
-                        if f.is_file():
-                            m = ep_re.search(f.name)
-                            if m:
-                                downloaded_eps.add(
-                                    (int(m.group(1)), int(m.group(2)))
-                                )
+                target_languages.append(lang)
+        else:
+            target_languages.append(job["language"])
 
-        # Collect all episode URLs that are NOT yet downloaded
-        missing_episodes = []
-        total_found = 0
-        for season in series.seasons:
-            season_obj = prov.season_cls(url=season.url, series=series)
-            for ep in season_obj.episodes:
-                total_found += 1
-                key = (ep.season.season_number, ep.episode_number)
-                if key not in downloaded_eps:
-                    missing_episodes.append(ep.url)
+        total_new_queued = 0
+        total_episodes_found = 0
+
+        for target_lang in target_languages:
+            job_lang_folder = lang_folder_map.get(target_lang, target_lang.lower().replace(" ", "-"))
+
+            raw = os.environ.get("ANIWORLD_DOWNLOAD_PATH", "")
+            if raw:
+                dl_base = Path(raw).expanduser()
+                if not dl_base.is_absolute():
+                    dl_base = Path.home() / dl_base
+            else:
+                dl_base = Path.home() / "Downloads"
+
+            scan_roots = [dl_base]
+            for cp in get_custom_paths():
+                cp_path = Path(cp["path"]).expanduser()
+                if not cp_path.is_absolute():
+                    cp_path = Path.home() / cp_path
+                scan_roots.append(cp_path)
+
+            # Build set of downloaded (season, episode) on disk
+            downloaded_eps = set()
+            title_clean = (
+                getattr(series, "title_cleaned", None)
+                or getattr(series, "title", "")
+            ).lower()
+            if title_clean:
+                ep_re = re.compile(r"S(\d{2})E(\d{2,3})", re.IGNORECASE)
+                all_bases = []
+                for root in scan_roots:
+                    if lang_sep:
+                        all_bases.append(root / job_lang_folder)
+                    else:
+                        all_bases.append(root)
+                for base in all_bases:
+                    if not base.is_dir():
+                        continue
+                    for folder in base.iterdir():
+                        if (
+                            not folder.is_dir()
+                            or not folder.name.lower().startswith(title_clean)
+                        ):
+                            continue
+                        for f in folder.rglob("*"):
+                            if f.is_file():
+                                m = ep_re.search(f.name)
+                                if m:
+                                    downloaded_eps.add(
+                                        (int(m.group(1)), int(m.group(2)))
+                                    )
+
+            # Collect all episode URLs that are NOT yet downloaded
+            missing_episodes = []
+            lang_total_found = 0
+            for season in series.seasons:
+                season_obj = prov.season_cls(url=season.url, series=series)
+                for ep in season_obj.episodes:
+                    # Depending on provider, might need to pre-filter by language here
+                    # But the downloader expects full episode URLs and it will pick the right language within them.
+                    lang_total_found += 1
+                    key = (ep.season.season_number, ep.episode_number)
+                    if key not in downloaded_eps:
+                        missing_episodes.append(ep.url)
+
+            # In "All Languages" mode we want to make sure the specific language is actually 
+            # available on this episode before downloading? For VOE/Vidoza, it downloads what is chosen.
+            # If a language isn't available, the extractor fails, which is fine (handled in queue).
+            # But the queue item will contain episodes.
+
+            # We use max of lang_total_found for updating stats (usually they are same across languages)
+            if lang_total_found > total_episodes_found:
+                total_episodes_found = lang_total_found
+
+            if missing_episodes:
+                # Skip if series is already queued or running for THIS language
+                if is_series_queued_or_running(job["series_url"], language=target_lang):
+                    logger.info(
+                        "Auto-sync skipped '%s' (%s) — already queued/running", job["title"], target_lang
+                    )
+                    continue
+
+                total_new_queued += len(missing_episodes)
+                add_to_queue(
+                    title=job["title"],
+                    series_url=job["series_url"],
+                    episodes=missing_episodes,
+                    language=target_lang,
+                    provider=job["provider"],
+                    username=job.get("added_by"),
+                    custom_path_id=job.get("custom_path_id"),
+                    source="sync:all_langs" if job.get("language") == "All Languages" else "sync",
+                )
+                logger.info(
+                    "Auto-sync queued %d episodes for '%s' (%s)",
+                    len(missing_episodes), job["title"], target_lang
+                )
 
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         update_fields = {
             "last_check": now_str,
-            "episodes_found": total_found,
+            "episodes_found": total_episodes_found,
         }
-
-        if missing_episodes:
-            # Skip if series is already queued or running
-            if is_series_queued_or_running(job["series_url"]):
-                logger.info(
-                    "Auto-sync skipped '%s' — already queued/running", job["title"]
-                )
-                update_autosync_job(job["id"], **update_fields)
-                return
-
+        
+        if total_new_queued > 0:
             update_fields["last_new_found"] = now_str
-            add_to_queue(
-                title=job["title"],
-                series_url=job["series_url"],
-                episodes=missing_episodes,
-                language=job["language"],
-                provider=job["provider"],
-                username=job.get("added_by"),
-                custom_path_id=job.get("custom_path_id"),
-                source="sync",
-            )
-            logger.info(
-                "Auto-sync queued %d episodes for '%s'",
-                len(missing_episodes), job["title"],
-            )
 
         update_autosync_job(job["id"], **update_fields)
     except Exception as e:

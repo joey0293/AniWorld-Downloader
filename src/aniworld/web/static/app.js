@@ -154,6 +154,14 @@ function toggleSite() {
 function rebuildLanguageSelect() {
   const langs = currentSite === 'sto' ? (window.STO_LANGS || {}) : (window.ANIWORLD_LANGS || {});
   languageSelect.innerHTML = '';
+
+  if (langSeparationEnabled) {
+    const opt = document.createElement('option');
+    opt.value = 'All Languages';
+    opt.textContent = 'All Languages';
+    languageSelect.appendChild(opt);
+  }
+
   for (const [key, label] of Object.entries(langs)) {
     const opt = document.createElement('option');
     opt.value = label;
@@ -302,9 +310,9 @@ async function openSeries(url) {
   availableProviders = null;
   currentSeriesUrl = url;
   currentSeriesTitle = '';
+  await checkLangSeparation();
   rebuildLanguageSelect();
   resetProviderDropdown();
-  checkLangSeparation();
   loadCustomPaths();
 
   try {

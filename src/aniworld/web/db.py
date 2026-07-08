@@ -304,15 +304,20 @@ def add_to_queue(title, series_url, episodes, language, provider, username=None,
         conn.close()
 
 
-def is_series_queued_or_running(series_url):
+def is_series_queued_or_running(series_url, language=None):
     """Check if a series already has a queued or running item in the download queue."""
     conn = get_db()
     try:
-        row = conn.execute(
+        query = (
             "SELECT COUNT(*) AS cnt FROM download_queue "
-            "WHERE series_url = ? AND status IN ('queued', 'running')",
-            (series_url,),
-        ).fetchone()
+            "WHERE series_url = ? AND status IN ('queued', 'running')"
+        )
+        params = [series_url]
+        if language:
+            query += " AND language = ?"
+            params.append(language)
+            
+        row = conn.execute(query, tuple(params)).fetchone()
         return row["cnt"] > 0
     finally:
         conn.close()
