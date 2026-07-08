@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 import ffmpeg
 
+from ...autodeps import get_player_path
 from ...config import (
     ANIWORLD_EPISODE_PATTERN,
     GLOBAL_SESSION,
@@ -18,7 +19,6 @@ from ...config import (
     PROVIDER_HEADERS_W,
     Audio,
     Subtitles,
-    get_player_path,
     get_syncplay_path,
     logger,
 )

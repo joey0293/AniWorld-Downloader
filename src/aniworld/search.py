@@ -94,6 +94,7 @@ def _curses_menu(stdscr, options):
             return options[selected]
 
 
+# TODO: really filter correctly
 def search():
     """Prompt user for a search keyword and return a single series URL using a curses menu."""
     display_ascii_art()

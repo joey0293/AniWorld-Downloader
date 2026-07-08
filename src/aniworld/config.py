@@ -1,12 +1,10 @@
 import os
-import platform
 import re
 from enum import Enum
 
 from fake_useragent import UserAgent
 from niquests import Session
 
-from .autodeps import DependencyManager
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -138,66 +136,6 @@ LANG_LABELS = {
 }
 
 INVERSE_LANG_KEY_MAP = {v: k for k, v in LANG_KEY_MAP.items()}
-
-# -----------------------------
-# Executables
-# -----------------------------
-
-# TODO: add function to fetch latest url
-deps = {
-    "mpv": {
-        "Windows": {
-            "package": "mpv.net",
-            "url": "<>",
-        },
-        "Linux": {
-            "package": "mpv",
-            "url": "<>",
-        },
-        "Darwin": {
-            "package": "mpv",  # TODO: check env var if iina wanted instead in DependencyManager
-            "url": "<>",
-        },
-    },
-    "syncplay": {
-        "Windows": {
-            "package": "Syncplay.Syncplay",
-            "url": "<>",
-        },
-        "Linux": {
-            "package": "syncplay",
-            "url": "<>",
-        },
-        "Darwin": {
-            "package": "syncplay",
-            "url": "<>",
-        },
-    },
-    "iina": {
-        "Darwin": {
-            "package": "iina",
-            "url": "<>",
-        },
-    },
-}
-
-
-def get_player_path():
-    deps_manager = DependencyManager(deps=deps)
-
-    use_iina = os.getenv("ANIWORLD_USE_IINA") == "1"
-    use_aniskip = os.getenv("ANIWORLD_USE_ANISKIP") == "1"
-
-    if platform.system() == "Darwin" and use_iina and not use_aniskip:
-        return deps_manager.fetch_binary("iina")
-
-    return deps_manager.fetch_binary("mpv")
-
-
-def get_syncplay_path():
-    deps_manager = DependencyManager(deps=deps)
-    return deps_manager.fetch_binary("syncplay")
-
 
 # -----------------------------
 # Patterns

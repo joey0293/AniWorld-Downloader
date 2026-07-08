@@ -63,6 +63,12 @@ class QuitForm(npyscreen.Form):
         super().set_up_handlers()
         self.add_handlers({curses.ascii.ETX: self.exit_editing})
         self.add_handlers({ord("q"): self.exit_editing})
+        self.add_handlers({curses.KEY_RESIZE: self._handle_resize})
+
+    def _handle_resize(self, _input):
+        curses.update_lines_cols()
+        self.resize()
+        self.display()
 
 
 # ============================================================
@@ -80,6 +86,9 @@ class MenuApp(npyscreen.NPSApp):
     def main(self):
         npyscreen.setTheme(CustomTheme)
         F = QuitForm(name=f"AniWorld-Downloader v.{VERSION}")
+
+        # Store widget references for resize handling
+        self._episodes_widget = None
 
         # ============================================================
         # Get Values for series
@@ -170,6 +179,50 @@ class MenuApp(npyscreen.NPSApp):
         # Initialize visibility
         update_visibility()
 
+        # Override resize method to handle dynamic episode widget height
+        def _handle_resize(self, _input):
+            curses.update_lines_cols()
+
+            # Recalculate episode widget height
+            term_height = curses.LINES
+            remaining_height = (
+                term_height - (y + 2 + language_height + provider_height) - 2
+            )
+            min_episode_height = 4
+            episode_height = max(min_episode_height, remaining_height)
+
+            # Update episode widget height
+            if self._episodes_widget:
+                self._episodes_widget.max_height = episode_height
+
+            F.resize()
+            F.display()
+
+        # Set up resize handler
+        def handle_resize(input):
+            curses.update_lines_cols()
+
+            # Recalculate episode widget height
+            term_height = curses.LINES
+            remaining_height = (
+                term_height - (y + 2 + language_height + provider_height) - 2
+            )
+            min_episode_height = 4
+            episode_height = max(min_episode_height, remaining_height)
+
+            # Update episode widget height
+            if self._episodes_widget:
+                self._episodes_widget.max_height = episode_height
+
+            F.resize()
+            F.display()
+
+        # Add resize handler
+        try:
+            F.add_handlers({curses.KEY_RESIZE: handle_resize})
+        except Exception:
+            pass
+
         # --- Language ---
         language_height = len(languages) + 1
         language = F.add(
@@ -208,6 +261,9 @@ class MenuApp(npyscreen.NPSApp):
             max_height=episode_height,
             scroll_exit=True,
         )
+
+        # Store reference for resize handling
+        self._episodes_widget = episodes_widget
 
         # TODO: add select all button
 
@@ -251,7 +307,8 @@ class MenuApp(npyscreen.NPSApp):
 def app(url):
     try:
         app_instance = MenuApp()
-        app_instance.url = url
+        # Set URL as instance attribute before running
+        setattr(app_instance, "url", url)
         app_instance.run()
 
         # Prepare a copy of result for logging, convert Path to string
